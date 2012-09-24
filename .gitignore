@@ -1,0 +1,6 @@
+syntax: glob
+Debug/*
+Test/*
+ipch/*
+Release/*
+Test*/*
