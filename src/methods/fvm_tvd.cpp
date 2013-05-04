@@ -169,7 +169,10 @@ void FVM_TVD::calcTimeStep()
 	printf("\n\nTime step TAU = %e.\n\n", TAU);
 }
 
-
+void FVM_TVD::calcGrad() 
+{
+	// ... сюда нужно вставить код Бариновой Марии
+}
 
 void FVM_TVD::run() 
 {
@@ -194,19 +197,31 @@ void FVM_TVD::run()
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
 		memset(re_int, 0, nc*sizeof(double));
-		//calcGrad();
+		calcGrad();
 		for (int iEdge = 0; iEdge < ne; iEdge++)
 		{
 			double fr, fu, fv, fe;
 			int c1	= grid.edges[iEdge].c1;
 			int c2	= grid.edges[iEdge].c2;
 			Vector n	= grid.edges[iEdge].n;
-			double l		= grid.edges[iEdge].l;
+			double l	= grid.edges[iEdge].l*0.5;
 			Param pL, pR;
-			reconstruct(iEdge, pL, pR);
-			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-			calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
-			
+			fr = 0.0;
+			fu = 0.0;
+			fv = 0.0;
+			fe = 0.0;
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			{
+				double fr1, fu1, fv1, fe1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+
+			}
 			ro_int[c1] -= fr*l;
 			ru_int[c1] -= fu*l;
 			rv_int[c1] -= fv*l;
@@ -234,19 +249,31 @@ void FVM_TVD::run()
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
 		memset(re_int, 0, nc*sizeof(double));
-		//calcGrad();
+		calcGrad();
 		for (int iEdge = 0; iEdge < ne; iEdge++)
 		{
 			double fr, fu, fv, fe;
 			int c1	= grid.edges[iEdge].c1;
 			int c2	= grid.edges[iEdge].c2;
 			Vector n	= grid.edges[iEdge].n;
-			double l		= grid.edges[iEdge].l;
+			double l	= grid.edges[iEdge].l*0.5;
 			Param pL, pR;
-			reconstruct(iEdge, pL, pR);
-			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-			calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
-			
+			fr = 0.0;
+			fu = 0.0;
+			fv = 0.0;
+			fe = 0.0;
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			{
+				double fr1, fu1, fv1, fe1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+
+			}
 			ro_int[c1] -= fr*l;
 			ru_int[c1] -= fu*l;
 			rv_int[c1] -= fv*l;
@@ -447,8 +474,9 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 }
 
 
-void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR)
+void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 {
+	// ... сюда нужно вставить код Бариновой Марии
 	if (grid.edges[iEdge].type == Edge::TYPE_INNER) 
 	{
 		int c1	= grid.edges[iEdge].c1;
