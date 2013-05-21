@@ -87,6 +87,11 @@ private:
 	double * ru_int;
 	double * rv_int;
 	double * re_int;
+	//! градиенты
+	Vector *gradR;
+	Vector *gradP;
+	Vector *gradU;
+	Vector *gradV;
 	
 
 };

@@ -137,6 +137,11 @@ void FVM_TVD::init(char * xmlFileName)
 	rv_int	= new double[grid.cCount];
 	re_int	= new double[grid.cCount];
 
+	gradR		= new Vector[grid.cCount];
+	gradP		= new Vector[grid.cCount];
+	gradU		= new Vector[grid.cCount];
+	gradV		= new Vector[grid.cCount];
+
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -171,7 +176,61 @@ void FVM_TVD::calcTimeStep()
 
 void FVM_TVD::calcGrad() 
 {
-	// ... сюда нужно вставить код Бариновой Марии
+	int nc = grid.cCount;
+	int ne = grid.eCount;
+	
+
+	memset(gradR, 0, grid.cCount*sizeof(Vector));
+	memset(gradP, 0, grid.cCount*sizeof(Vector));
+	memset(gradU, 0, grid.cCount*sizeof(Vector));
+	memset(gradV, 0, grid.cCount*sizeof(Vector));
+
+	for (int iEdge = 0; iEdge < ne; iEdge++)
+		{
+			
+			int c1	= grid.edges[iEdge].c1;
+		    int c2	= grid.edges[iEdge].c2;
+			Param pL, pR;
+			convertConsToPar(c1, pL);
+			convertConsToPar(c2, pR);
+			Vector n	= grid.edges[iEdge].n;
+			double l		= grid.edges[iEdge].l;
+			
+			
+			
+			gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
+			gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
+			gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
+			gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
+			gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
+			gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
+			gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+			gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+			if (c2 > -1) 
+			{
+			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
+			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
+			gradP[c2].x -= (pL.p+pR.p)/2*n.x*l;
+			gradP[c2].y -= (pL.p+pR.p)/2*n.y*l;
+			gradU[c2].x -= (pL.u+pR.u)/2*n.x*l;
+			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
+			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
+			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+			}
+
+		}
+	for (int iCell = 0; iCell < nc; iCell++)
+		{
+			register double si = grid.cells[iCell].S;
+			gradR[iCell].x /= si;
+			gradR[iCell].y /= si;
+			gradP[iCell].x /= si;
+			gradP[iCell].y /= si;
+			gradU[iCell].x /= si;
+			gradU[iCell].y /= si;
+			gradV[iCell].x /= si;
+			gradV[iCell].y /= si;
+		}
 }
 
 void FVM_TVD::run() 
@@ -476,13 +535,32 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 
 void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 {
-	// ... сюда нужно вставить код Бариновой Марии
 	if (grid.edges[iEdge].type == Edge::TYPE_INNER) 
 	{
 		int c1	= grid.edges[iEdge].c1;
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
+		//Point PE = grid.edges[iEdge].c[0];
+		Point &PE = p;
+		Point P1 = grid.cells[c1].c;
+		Point P2 = grid.cells[c2].c;
+		Vector DL1;
+		Vector DL2;
+		DL1.x=PE.x-P1.x;
+		DL1.y=PE.y-P1.y;
+		DL2.x=PE.x-P2.x;
+		DL2.y=PE.y-P2.y;
+		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
+		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
+		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+
+
 	} else {
 		int c1	= grid.edges[iEdge].c1;
 		convertConsToPar(c1, pL);
@@ -555,6 +633,11 @@ void FVM_TVD::done()
 	delete[] ru_int;
 	delete[] rv_int;
 	delete[] re_int;
+
+	delete[] gradR;
+	delete[] gradP;
+	delete[] gradU;
+	delete[] gradV;
 }
 
 
