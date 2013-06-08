@@ -186,28 +186,34 @@ void FVM_TVD::calcGrad()
 	memset(gradV, 0, grid.cCount*sizeof(Vector));
 
 	for (int iEdge = 0; iEdge < ne; iEdge++)
-		{
+	{
 			
-			int c1	= grid.edges[iEdge].c1;
-		    int c2	= grid.edges[iEdge].c2;
-			Param pL, pR;
-			convertConsToPar(c1, pL);
+		int c1	= grid.edges[iEdge].c1;
+		int c2	= grid.edges[iEdge].c2;
+			
+		Param pL, pR;
+		convertConsToPar(c1, pL);
+		if (c2 > -1) {
 			convertConsToPar(c2, pR);
-			Vector n	= grid.edges[iEdge].n;
-			double l		= grid.edges[iEdge].l;
+		} else {
+			boundaryCond(iEdge, pL, pR);
+		}
+
+		Vector n	= grid.edges[iEdge].n;
+		double l		= grid.edges[iEdge].l;
 			
 			
 			
-			gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
-			gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
-			gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
-			gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
-			gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
-			gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
-			gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
-			gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
-			if (c2 > -1) 
-			{
+		gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
+		gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
+		gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
+		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
+		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
+		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
+		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+		if (c2 > -1) 
+		{
 			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
 			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
 			gradP[c2].x -= (pL.p+pR.p)/2*n.x*l;
@@ -216,21 +222,21 @@ void FVM_TVD::calcGrad()
 			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
 			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
 			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
-			}
+		}
 
-		}
+	}
 	for (int iCell = 0; iCell < nc; iCell++)
-		{
-			register double si = grid.cells[iCell].S;
-			gradR[iCell].x /= si;
-			gradR[iCell].y /= si;
-			gradP[iCell].x /= si;
-			gradP[iCell].y /= si;
-			gradU[iCell].x /= si;
-			gradU[iCell].y /= si;
-			gradV[iCell].x /= si;
-			gradV[iCell].y /= si;
-		}
+	{
+		register double si = grid.cells[iCell].S;
+		gradR[iCell].x /= si;
+		gradR[iCell].y /= si;
+		gradP[iCell].x /= si;
+		gradP[iCell].y /= si;
+		gradU[iCell].x /= si;
+		gradU[iCell].y /= si;
+		gradV[iCell].x /= si;
+		gradV[iCell].y /= si;
+	}
 }
 
 void FVM_TVD::run() 
