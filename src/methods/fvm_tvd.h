@@ -28,7 +28,7 @@ protected:
 	/**
 	 *	Вычисление параметров справа и слева от границы ячейки
 	 */
-	void reconstruct(int iFace, Param& pL, Param& pR);
+	void reconstruct(int iFace, Param& pL, Param& pR, Point p);
 
 	/**
 	 *	Вычисление параметров с внешней стороны от границы ячейки согласно граничным условиям
@@ -50,6 +50,11 @@ protected:
 	 *	Вычисление численного потока
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
+
+	/**
+	 *	Вычисление градиентов в ячейках
+	 */
+	void calcGrad();
 
 private:
 	double TMAX;
@@ -82,6 +87,11 @@ private:
 	double * ru_int;
 	double * rv_int;
 	double * re_int;
+	//! градиенты
+	Vector *gradR;
+	Vector *gradP;
+	Vector *gradU;
+	Vector *gradV;
 	
 
 };
