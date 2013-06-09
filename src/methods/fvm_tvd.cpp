@@ -184,7 +184,7 @@ void FVM_TVD::calcGrad()
 	memset(gradP, 0, grid.cCount*sizeof(Vector));
 	memset(gradU, 0, grid.cCount*sizeof(Vector));
 	memset(gradV, 0, grid.cCount*sizeof(Vector));
-
+	//return;
 	for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
@@ -225,6 +225,25 @@ void FVM_TVD::calcGrad()
 		}
 
 	}
+	//for (int iEdge = 0; iEdge < ne; iEdge++)
+	//{
+	//		
+	//	int c1	= grid.edges[iEdge].c1;
+	//	int c2	= grid.edges[iEdge].c2;
+	//		
+	//	if (c2 < 0) 
+	//	{
+	//		gradR[c1].x = 0.0;
+	//		gradR[c1].y = 0.0;
+	//		gradP[c1].x = 0.0;
+	//		gradP[c1].y = 0.0;
+	//		gradU[c1].x = 0.0;
+	//		gradU[c1].y = 0.0;
+	//		gradV[c1].x = 0.0;
+	//		gradV[c1].y = 0.0;
+	//	}
+
+	//}
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid.cells[iCell].S;
@@ -241,8 +260,6 @@ void FVM_TVD::calcGrad()
 
 void FVM_TVD::run() 
 {
-
-
 	int nc = grid.cCount;
 	int ne = grid.eCount;
 
@@ -252,10 +269,10 @@ void FVM_TVD::run()
 	{
 		t += TAU; 
 		step++;
-		memcpy(ro, ro_old, nc*sizeof(double));
-		memcpy(ru, ru_old, nc*sizeof(double));
-		memcpy(rv, rv_old, nc*sizeof(double));
-		memcpy(re, re_old, nc*sizeof(double));
+		memcpy(ro_old, ro, nc*sizeof(double));
+		memcpy(ru_old, ru, nc*sizeof(double));
+		memcpy(rv_old, rv, nc*sizeof(double));
+		memcpy(re_old, re, nc*sizeof(double));
 
 		// первый подшаг метода Р.-К.
 		memset(ro_int, 0, nc*sizeof(double));
