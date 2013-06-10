@@ -156,6 +156,7 @@ struct Material
 	double		K;		//!< коэффициент теплопроводности
 
 	void URS(Param &par, int flag);
+	inline double getGamma() { return Cp/(Cp-gR/M); }
 };
 
 struct Boundary

@@ -5,6 +5,9 @@
 
 void FVM_TVD::init(char * xmlFileName)
 {
+	STEADY = true;
+	
+	
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
 	if (!loadOkay)
@@ -19,13 +22,21 @@ void FVM_TVD::init(char * xmlFileName)
 	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 
-
+	int steadyVal = 1;
 	node0 = task->FirstChild("control");
+	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
 	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
+	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+
+	if (steadyVal == 0) {
+		STEADY = false;
+	} else {
+		STEADY = true;
+	}
 
 	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
@@ -121,6 +132,7 @@ void FVM_TVD::init(char * xmlFileName)
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
+	cTau	= new double[grid.cCount];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
@@ -142,7 +154,6 @@ void FVM_TVD::init(char * xmlFileName)
 	gradU		= new Vector[grid.cCount];
 	gradV		= new Vector[grid.cCount];
 
-
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Region & reg = getRegion(i);
@@ -161,17 +172,18 @@ void FVM_TVD::init(char * xmlFileName)
 
 void FVM_TVD::calcTimeStep()
 {
-	double tau = 1.0e+20;
+	//double tau = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
-		Param p;
-		convertConsToPar(iCell, p);
-		double tmp = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
-		if (tmp < tau) tau = tmp;
+		if (STEADY) {
+			Param p;
+			convertConsToPar(iCell, p);
+			cTau[iCell] = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
+		} else {
+			cTau[iCell] = TAU;
+		}
+		
 	}
-	tau  *= CFL;
-	TAU = _min_(TAU, tau);
-	printf("\n\nTime step TAU = %e.\n\n", TAU);
 }
 
 void FVM_TVD::calcGrad() 
@@ -265,9 +277,13 @@ void FVM_TVD::run()
 
 	double			t		= 0.0;
 	unsigned int	step	= 0;
-	while (t < TMAX) 
+	while (t < TMAX && step < STEP_MAX) 
 	{
-		t += TAU; 
+		if (!STEADY) {
+			t += TAU; 
+		} else {
+			calcTimeStep();
+		}
 		step++;
 		memcpy(ro_old, ro, nc*sizeof(double));
 		memcpy(ru_old, ru, nc*sizeof(double));
@@ -319,7 +335,7 @@ void FVM_TVD::run()
 		}
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
-			register double cfl = TAU/grid.cells[iCell].S;
+			register double cfl = cTau[iCell]/grid.cells[iCell].S;
 			ro[iCell] += cfl*ro_int[iCell];
 			ru[iCell] += cfl*ru_int[iCell];
 			rv[iCell] += cfl*rv_int[iCell];
@@ -371,7 +387,7 @@ void FVM_TVD::run()
 		}
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
-			register double cfl = TAU/grid.cells[iCell].S;
+			register double cfl = cTau[iCell]/grid.cells[iCell].S;
 			ro[iCell] += cfl*ro_int[iCell];
 			ru[iCell] += cfl*ru_int[iCell];
 			rv[iCell] += cfl*rv_int[iCell];
@@ -405,41 +421,6 @@ void FVM_TVD::run()
 void FVM_TVD::save(int step)
 {
 	char fName[50];
-	//sprintf(fName, "res_%010d.dat", step);
-	//FILE * fp = fopen(fName, "w");
-	////fprintf(fp, "# x y ro p u v e M\n");
-	//for (int i = 0; i < grid.cCount; i++)
-	//{
-	//	Param p;
-	//	convertConsToPar(i, p);
-	//	fprintf(fp, "%25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f\n",	grid.cells[i].c.x,
-	//																						grid.cells[i].c.y,
-	//																						p.r,								//	плотность
-	//																						p.p,								//	давление
-	//																						p.u,								//	скорость
-	//																						p.v,								//
-	//																						p.e,								//	внутренняя энергия
-	//																						sqrt(_sqr_(p.u)+_sqr_(p.v))/p.cz);	//	число Маха
-	//}
-	//fclose(fp);
-	//// выводим градиенты примитивных переменных
-	//printf("File '%s' saved...\n", fName);
-	//sprintf(fName, "grad_%010d.dat", step);
-	//fp = fopen(fName, "w");
-	////fprintf(fp, "# x y ro p u v e M\n");
-	//for (int i = 0; i < grid.cCount; i++)
-	//{
-	//	fprintf(fp, "%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\n",	primGrad[ID_R][i].x,
-	//																									primGrad[ID_R][i].y,
-	//																									primGrad[ID_P][i].x,
-	//																									primGrad[ID_P][i].y,
-	//																									primGrad[ID_U][i].x,
-	//																									primGrad[ID_U][i].y,
-	//																									primGrad[ID_V][i].x,
-	//																									primGrad[ID_V][i].y	);
-	//}
-	//fclose(fp);
-	//printf("File '%s' saved...\n", fName);
 
 	sprintf(fName, "res_%010d.vtk", step);
 	FILE * fp = fopen(fName, "w");
@@ -510,6 +491,27 @@ void FVM_TVD::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
+	fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Material &mat = getMaterial(i);
+		double gam = mat.getGamma();
+		double agam = gam - 1.0;
+		Param p;
+		convertConsToPar(i, p);
+		double M2 = (p.u*p.u+p.v*p.v)/(gam*p.p/p.r);
+		fprintf(fp, "%f ", p.p*::pow(1.0+0.5*M2*agam, gam/(gam-1.0)) );
+		if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", cTau[i]);
+		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+
 
 	fclose(fp);
 	printf("File '%s' saved...\n", fName);
@@ -519,40 +521,46 @@ void FVM_TVD::save(int step)
 
 void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	{	// GODUNOV FLUX
-		double RI, EI, PI, UI, VI, WI, UN, UT;
-		//double unl = pL.u*n.x+pL.v*n.y;
-		//double unr = pR.u*n.x+pR.v*n.y;
-		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-			
-		double unl = pL.u*n.x+pL.v*n.y;
-		double unr = pR.u*n.x+pR.v*n.y;
-		double utl = pL.u*n.y-pL.v*n.x;
-		double utr = pR.u*n.y-pR.v*n.x;
-		rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
-		
-		UI = UN*n.x+UT*n.y;
-		VI = UN*n.y-UT*n.x;
-
-		fr = RI*UN;
-		fu = fr*UI+PI*n.x;
-		fv = fr*VI+PI*n.y;
-		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
-	}
-	//{	// LAX-FRIEDRIX FLUX
+	//{	// GODUNOV FLUX
+	//	double RI, EI, PI, UI, VI, WI, UN, UT;
+	//	//double unl = pL.u*n.x+pL.v*n.y;
+	//	//double unr = pR.u*n.x+pR.v*n.y;
+	//	//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+	//		
 	//	double unl = pL.u*n.x+pL.v*n.y;
 	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	pL.getToCons(rol, rul, rvl, rel);
-	//	pR.getToCons(ror, rur, rvr, rer);
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	//	double utl = pL.u*n.y-pL.v*n.x;
+	//	double utr = pR.u*n.y-pR.v*n.x;
+	//	rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
+	//	
+	//	UI = UN*n.x+UT*n.y;
+	//	VI = UN*n.y-UT*n.x;
+
+	//	fr = RI*UN;
+	//	fu = fr*UI+PI*n.x;
+	//	fv = fr*VI+PI*n.y;
+	//	fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	//}
+	{	// LAX-FRIEDRIX FLUX
+		double unl = pL.u*n.x+pL.v*n.y;
+		double unr = pR.u*n.x+pR.v*n.y;
+		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+		rol = pL.r;
+		rul = pL.r*pL.u;
+		rvl = pL.r*pL.v;
+		rel = pL.r*pL.E;
+		ror = pR.r;
+		rur = pR.r*pR.u;
+		rvr = pR.r*pR.v;
+		rer = pR.r*pR.E;
+		double frl = rol*unl;
+		double frr = ror*unr;
+		fr = 0.5*(frr+frl								- alpha*(ror-rol));
+		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	}
 }
 
 

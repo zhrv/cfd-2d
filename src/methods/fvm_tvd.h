@@ -60,8 +60,12 @@ private:
 	double TMAX;
 	double TAU;
 	double CFL;
+	int STEP_MAX;
 	int FILE_SAVE_STEP;
 	int PRINT_STEP;
+
+	bool			STEADY;		// false - нестационарное течение, true - стационанрное течение.
+	double		*	cTau;		// локальный шаг по времени в €чейке
 
 	int				matCount;
 	int				regCount;
