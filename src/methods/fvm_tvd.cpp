@@ -5,6 +5,10 @@
 
 void FVM_TVD::init(char * xmlFileName)
 {
+	// TODO: Вынести
+	l = 0;
+	m = 1.85E-5;
+	
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
 	if (!loadOkay)
@@ -137,6 +141,13 @@ void FVM_TVD::init(char * xmlFileName)
 	rv_int	= new double[grid.cCount];
 	re_int	= new double[grid.cCount];
 
+	gradU = new Vector[grid.cCount];
+	gradV = new Vector[grid.cCount];
+
+	Txx = new double[grid.cCount];
+	Tyy = new double[grid.cCount];
+	Txy = new double[grid.cCount];
+
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -188,10 +199,14 @@ void FVM_TVD::run()
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
 		memset(re_int, 0, nc*sizeof(double));
-		//calcGrad();
+
+		calcGrad(gradU, gradV);
+		calcTensor(l, m, gradU, gradV, Txx, Tyy, Txy);
+
 		for (int iEdge = 0; iEdge < ne; iEdge++)
 		{
 			double fr, fu, fv, fe;
+			double fu_diff, fv_diff, fe_diff;
 			int c1	= grid.edges[iEdge].c1;
 			int c2	= grid.edges[iEdge].c2;
 			Vector n	= grid.edges[iEdge].n;
@@ -200,17 +215,18 @@ void FVM_TVD::run()
 			reconstruct(iEdge, pL, pR);
 			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
 			calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
+			calcDiffFlux(fu_diff, fv_diff, fe_diff, n, c1, c2);
 			
 			ro_int[c1] += fr*l;
-			ru_int[c1] += fu*l;
-			rv_int[c1] += fv*l;
-			re_int[c1] += fe*l;
+			ru_int[c1] += (fu + fu_diff) * l;
+			rv_int[c1] += (fv + fv_diff) * l;
+			re_int[c1] += (fe + fe_diff) * l;
 			if (c2 > -1) 
 			{
 				ro_int[c2] -= fr*l;
-				ru_int[c2] -= fu*l;
-				rv_int[c2] -= fv*l;
-				re_int[c2] -= fe*l;
+				ru_int[c2] -= (fu + fu_diff) * l;
+				rv_int[c2] -= (fv + fv_diff) * l;
+				re_int[c2] -= (fe + fe_diff) * l;
 			}
 
 		}
@@ -397,6 +413,99 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 	//}
 }
 
+///_нач
+void FVM_TVD::calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Vector n, int c1, int c2)
+{
+	if (c2 > -1)
+    {
+        double eRu = (ru[c1] + ru[c2]) / 2.0;
+	    double eRv = (rv[c1] + rv[c2]) / 2.0;
+	
+	    double eTxx = (Txx[c1] + Txx[c2]) / 2.0;
+	    double eTxy = (Txy[c1] + Txy[c2]) / 2.0;
+	    double eTyy = (Tyy[c1] + Tyy[c2]) / 2.0;
+
+	    double FvU = eTxx;
+	    double FvV = eTxy;
+	    double FvE = eRu * eTxx + eRv * eTxy;
+
+	    double GvU = eTxy;
+	    double GvV = eTyy;
+	    double GvE = eRu * eTxy + eRv * eTyy;
+
+	    fu_diff = FvU * n.x + GvU * n.y;
+	    fv_diff = FvV * n.x + GvV * n.y;
+	    fe_diff = FvE * n.x + GvE * n.y;
+    }
+    else
+    {
+        fu_diff = 0;
+	    fv_diff = 0;
+	    fe_diff = 0;
+    }    
+}
+
+void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
+{
+	int nc = grid.cCount;
+	int ne = grid.eCount;
+
+	memset(gradU, 0, grid.cCount*sizeof(Vector));
+	memset(gradV, 0, grid.cCount*sizeof(Vector));
+
+	for (int iEdge = 0; iEdge < ne; iEdge++)
+	{
+
+		int c1 = grid.edges[iEdge].c1;
+		int c2 = grid.edges[iEdge].c2;
+
+        Param pL, pR;
+		reconstruct(iEdge, pL, pR);
+
+		/*Param pL, pR;
+		convertConsToPar(c1, pL);
+		convertConsToPar(c2, pR);*/
+		Vector n = grid.edges[iEdge].n;
+		double l = grid.edges[iEdge].l;
+
+		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
+		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
+		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+
+		if (c2 > -1)
+		{
+			gradU[c2].x -= (pL.u+pR.u)/2*n.x*l;
+			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
+			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
+			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+		}
+
+	}
+
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		register double si = grid.cells[iCell].S;
+		gradU[iCell].x /= si;
+		gradU[iCell].y /= si;
+		gradV[iCell].x /= si;
+		gradV[iCell].y /= si;
+	}
+}
+
+void FVM_TVD::calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy)
+{
+	int nc = grid.cCount;
+
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		Txx[iCell] = (l - 2/3*m) * (gradU[iCell].x + gradV[iCell].y) + 2 * m * gradU[iCell].x;
+		Tyy[iCell] = (l - 2/3*m) * (gradU[iCell].x + gradV[iCell].y) + 2 * m * gradV[iCell].y;
+		Txy[iCell] = m * (gradU[iCell].y + gradV[iCell].x);
+	}
+}
+
+
 
 void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR)
 {
@@ -478,6 +587,13 @@ void FVM_TVD::done()
 	delete[] ru_int;
 	delete[] rv_int;
 	delete[] re_int;
+
+    delete [] gradU;
+    delete [] gradV;
+
+    delete [] Txx;
+    delete [] Tyy;
+    delete [] Txy;
 }
 
 

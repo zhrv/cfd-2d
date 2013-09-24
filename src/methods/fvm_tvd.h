@@ -51,6 +51,13 @@ protected:
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
+
+	//_нач
+	void calcGrad(Vector *gradU, Vector *gradV);
+	void calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy);
+	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Vector n, int c1, int c2);
+	//_кон
+
 private:
 	double TMAX;
 	double TAU;
@@ -83,7 +90,11 @@ private:
 	double * rv_int;
 	double * re_int;
 	
+	Vector *gradU, *gradV;
+	double *Txx, *Tyy, *Txy;
 
+	// TODO: Вынести
+	double l, m;
 };
 
 #endif
