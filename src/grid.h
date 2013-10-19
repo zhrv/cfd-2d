@@ -18,6 +18,8 @@ public:
 	int*  nodesInd;
 	int*  edgesInd;
 	int	  neigh[3];
+	Point   side[3][6]; //условный номер перпендикуляра внутри треугольнике, номера точек опущенного перпендикуляра
+	int sideType; //0 - реконструкция лежит внутри, 1 - выходит за пределы рассматриваемой области
 	int	  type;
 	double  S;
 	Point c; // центр ячейки
@@ -65,6 +67,8 @@ public:
 	void replaceEdges(int if1, int if2);
 	virtual void reorderEdges();
 	int findEdge(int n1, int n2);
+	int location_node (int possible_tri,double x0,double y0); //определят в каком треугольнике лежит точка
+	int inArea (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4); //определяет, пересекается ли отрезок с координатами (x1,y1);(x2,y2) с отрезком с координатами (x3,y3);(x4,y4)   //0 - не пересекаются, 1 - пересекаются
 
 	Point* nodes;
 	Cell*  cells;
