@@ -56,6 +56,11 @@ protected:
 	 */
 	void calcGrad();
 
+	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+
+	void remediateLimCells();
+
 private:
 	double TMAX;
 	double TAU;
@@ -97,6 +102,12 @@ private:
 	Vector *gradU;
 	Vector *gradV;
 	
+	//! лимиты
+	double limitRmin;
+	double limitRmax;
+	double limitPmin;
+	double limitPmax;
+	double limitUmax;
 
 };
 

@@ -38,6 +38,14 @@ void FVM_TVD::init(char * xmlFileName)
 		STEADY = true;
 	}
 
+	// чтение параметров о ѕ–≈ƒ≈Ћ№Ќџ’ «Ќј„≈Ќ»я’
+	node0 = task->FirstChild("limits");
+	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
+	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
+	node0->FirstChild("p")->ToElement()->Attribute( "min", &limitPmin);
+	node0->FirstChild("p")->ToElement()->Attribute( "max", &limitPmax);
+	node0->FirstChild("u")->ToElement()->Attribute( "max", &limitUmax);
+
 	// чтение параметров о ћј“≈–»јЋј’
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
@@ -196,7 +204,7 @@ void FVM_TVD::calcGrad()
 	memset(gradP, 0, grid.cCount*sizeof(Vector));
 	memset(gradU, 0, grid.cCount*sizeof(Vector));
 	memset(gradV, 0, grid.cCount*sizeof(Vector));
-	//return;
+	return;
 	for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
@@ -335,6 +343,7 @@ void FVM_TVD::run()
 		}
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
+			if (cellIsLim(iCell)) continue;
 			register double cfl = cTau[iCell]/grid.cells[iCell].S;
 			ro[iCell] += cfl*ro_int[iCell];
 			ru[iCell] += cfl*ru_int[iCell];
@@ -387,6 +396,7 @@ void FVM_TVD::run()
 		}
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
+			if (cellIsLim(iCell)) continue;
 			register double cfl = cTau[iCell]/grid.cells[iCell].S;
 			ro[iCell] += cfl*ro_int[iCell];
 			ru[iCell] += cfl*ru_int[iCell];
@@ -397,13 +407,24 @@ void FVM_TVD::run()
 		// полусумма: формула (4.10) из icase-1997-65.pdf
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
+			if (cellIsLim(iCell)) continue;
+
 			ro[iCell] = 0.5*(ro_old[iCell]+ro[iCell]);
 			ru[iCell] = 0.5*(ru_old[iCell]+ru[iCell]);
 			rv[iCell] = 0.5*(rv_old[iCell]+rv[iCell]);
 			re[iCell] = 0.5*(re_old[iCell]+re[iCell]);
+
+			Param par;
+			convertConsToPar(iCell, par);
+			if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
+			if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
+			if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
+			if (par.p > limitPmax)			{ par.p = limitPmax; setCellFlagLim(iCell); }
+			if (fabs(par.u) > limitUmax)	{ par.u = limitUmax; setCellFlagLim(iCell); }
+			if (fabs(par.v) > limitUmax)	{ par.v = limitUmax; setCellFlagLim(iCell); }
 		}
 
-
+		remediateLimCells();
 
 
 		if (step % FILE_SAVE_STEP == 0)
@@ -416,6 +437,43 @@ void FVM_TVD::run()
 		}
 	}
 
+}
+
+void FVM_TVD::remediateLimCells()
+{
+	for (int iCell = 0; iCell < grid.cCount; iCell++) 
+	{
+		if (cellIsLim(iCell)) 
+		{
+			// пересчитываем по сосед€м
+			double sRO = 0.0;
+			double sRU = 0.0;
+			double sRV = 0.0;
+			double sRE = 0.0;
+			double S   = 0.0;
+			for (int i = 0; i < grid.cells[iCell].eCount; i++)
+			{
+				int iEdge = grid.cells[iCell].edgesInd[i];
+				int j = grid.edges[iEdge].c2;
+				int s = grid.cells[j].S;
+				S += s;
+				if (j >= 0) {
+					sRO += ro[j]*s;
+					sRU += ru[j]*s;
+					sRV += rv[j]*s;
+					sRE += re[j]*s;
+				} 
+			}
+			ro[iCell] = sRO/S;
+			ru[iCell] = sRU/S;
+			rv[iCell] = sRV/S;
+			re[iCell] = sRE/S;
+
+			// после 0x20 итераций пробуем вернуть €чейку в счет
+			grid.cells[iCell].flag += 0x010000;
+			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+		}
+	}
 }
 
 void FVM_TVD::save(int step)
@@ -521,46 +579,45 @@ void FVM_TVD::save(int step)
 
 void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	//{	// GODUNOV FLUX
-	//	double RI, EI, PI, UI, VI, WI, UN, UT;
-	//	//double unl = pL.u*n.x+pL.v*n.y;
-	//	//double unr = pR.u*n.x+pR.v*n.y;
-	//	//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-	//		
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double utl = pL.u*n.y-pL.v*n.x;
-	//	double utr = pR.u*n.y-pR.v*n.x;
-	//	rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
-	//	
-	//	UI = UN*n.x+UT*n.y;
-	//	VI = UN*n.y-UT*n.x;
-
-	//	fr = RI*UN;
-	//	fu = fr*UI+PI*n.x;
-	//	fv = fr*VI+PI*n.y;
-	//	fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
-	//}
-	{	// LAX-FRIEDRIX FLUX
+	{	// GODUNOV FLUX
+		double RI, EI, PI, UI, VI, WI, UN, UT;
+		//double unl = pL.u*n.x+pL.v*n.y;
+		//double unr = pR.u*n.x+pR.v*n.y;
+		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+			
 		double unl = pL.u*n.x+pL.v*n.y;
 		double unr = pR.u*n.x+pR.v*n.y;
-		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-		rol = pL.r;
-		rul = pL.r*pL.u;
-		rvl = pL.r*pL.v;
-		rel = pL.r*pL.E;
-		ror = pR.r;
-		rur = pR.r*pR.u;
-		rvr = pR.r*pR.v;
-		rer = pR.r*pR.E;
-		double frl = rol*unl;
-		double frr = ror*unr;
-		fr = 0.5*(frr+frl								- alpha*(ror-rol));
-		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+		double utl = pL.u*n.y-pL.v*n.x;
+		double utr = pR.u*n.y-pR.v*n.x;
+		rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
+		
+		UI = UN*n.x+UT*n.y;
+		VI = UN*n.y-UT*n.x;
+		fr = RI*UN;
+		fu = fr*UI+PI*n.x;
+		fv = fr*VI+PI*n.y;
+		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	}
+	//{	// LAX-FRIEDRIX FLUX
+	//	double unl = pL.u*n.x+pL.v*n.y;
+	//	double unr = pR.u*n.x+pR.v*n.y;
+	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+	//	rol = pL.r;
+	//	rul = pL.r*pL.u;
+	//	rvl = pL.r*pL.v;
+	//	rel = pL.r*pL.E;
+	//	ror = pR.r;
+	//	rur = pR.r*pR.u;
+	//	rvr = pR.r*pR.v;
+	//	rer = pR.r*pR.E;
+	//	double frl = rol*unl;
+	//	double frr = ror*unr;
+	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
+	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	//}
 }
 
 

@@ -212,6 +212,11 @@ void Grid::initFromFiles(char* fName)
 
 	for (int i = 0; i < cCount; i++) 
 	{
+		cells[i].flag = 0;
+	}
+	
+	for (int i = 0; i < cCount; i++) 
+	{
 		delete[] neigh[i];
 	}
 	delete[] neigh;
