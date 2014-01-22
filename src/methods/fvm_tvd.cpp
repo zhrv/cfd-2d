@@ -280,19 +280,23 @@ void FVM_TVD::run()
 		memset(rv_int, 0, nc*sizeof(double));
 		memset(re_int, 0, nc*sizeof(double));
 		calcGrad();
+		/*for (int iCell = 0; iCell < nc; iCell++)
+		{
+			printf("iCell %d %.15lf\n",iCell,ro[iCell]);
+		}*/
 		for (int iEdge = 0; iEdge < ne; iEdge++)
 		{
 			double fr, fu, fv, fe;
 			int c1	= grid.edges[iEdge].c1;
 			int c2	= grid.edges[iEdge].c2;
 			Vector n	= grid.edges[iEdge].n;
-			double l	= grid.edges[iEdge].l*0.5;
+			double l	= grid.edges[iEdge].l;
 			Param pL, pR;
 			fr = 0.0;
 			fu = 0.0;
 			fv = 0.0;
 			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			/*for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
@@ -303,7 +307,15 @@ void FVM_TVD::run()
 				fv += fv1;
 				fe += fe1;
 
-			}
+			}*/
+			double fr1, fu1, fv1, fe1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[0]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
 			ro_int[c1] -= fr*l;
 			ru_int[c1] -= fu*l;
 			rv_int[c1] -= fv*l;
@@ -344,7 +356,16 @@ void FVM_TVD::run()
 			fu = 0.0;
 			fv = 0.0;
 			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			
+			double fr1, fu1, fv1, fe1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[0]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+			/*for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
@@ -355,7 +376,7 @@ void FVM_TVD::run()
 				fv += fv1;
 				fe += fe1;
 
-			}
+			}*/
 			ro_int[c1] -= fr*l;
 			ru_int[c1] -= fu*l;
 			rv_int[c1] -= fv*l;
@@ -385,7 +406,9 @@ void FVM_TVD::run()
 			ru[iCell] = 0.5*(ru_old[iCell]+ru[iCell]);
 			rv[iCell] = 0.5*(rv_old[iCell]+rv[iCell]);
 			re[iCell] = 0.5*(re_old[iCell]+re[iCell]);
+			//printf("iCell %d %.15lf\n",iCell,ro_old[iCell]);
 		}
+
 
 
 
@@ -555,6 +578,60 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 	//}
 }
 
+void FVM_TVD::ZhWENO(double Um, double Up, double *UU) 
+{
+double BETA[3];
+double ALPHA[3];
+double EPS = 0.0001;
+//printf("%.10lf %.10lf %.10lf %.10lf %.10lf %.10lf\n",UU[0],UU[1],UU[2],UU[3],UU[4],UU[5]);
+BETA[0] = (13.0/12.0)*((UU[2]-2.0*UU[3]+UU[4])*(UU[2]-2.0*UU[3]+UU[4]))+
+   0.25*((3.0*UU[2]-4.0*UU[3]+UU[4])*(3.0*UU[2]-4.0*UU[3]+UU[4]));
+
+BETA[1] = (13.0/12.0)*((UU[1]-2.0*UU[2]+UU[3])*(UU[1]-2.0*UU[2]+UU[3]))+
+   0.25*((UU[1]-UU[3])*(UU[1]-UU[3]));
+
+BETA[2] = (13.0/12.0)*((UU[0]-2.0*UU[1]+UU[2])*(UU[0]-2.0*UU[1]+UU[2]))+
+   0.25*((UU[0]-4.0*UU[1]+3.0*UU[2])*(UU[0]-4.0*UU[1]+3.0*UU[2]));
+
+ALPHA[0] = 0.30/((EPS+BETA[0])*(EPS+BETA[0]));
+ALPHA[1] = 0.60/((EPS+BETA[1])*(EPS+BETA[1]));
+ALPHA[2] = 0.10/((EPS+BETA[2])*(EPS+BETA[2]));
+
+Um = (ALPHA[0]*(2.0*UU[2]+5.0*UU[3]-UU[4])+
+  ALPHA[1]*(-UU[1]+5.0*UU[2]+2.0*UU[3])+
+  ALPHA[2]*(2.0*UU[0]-7.0*UU[1]+11.0*UU[2]) )/
+ ((ALPHA[0]+ALPHA[1]+ALPHA[2])*6.0);
+/*printf("beta[0] = %lf\n",BETA[0]);
+printf("beta[1] = %lf\n",BETA[1]);
+printf("beta[2] = %lf\n",BETA[2]);
+printf("ALPHA[0] = %lf\n",ALPHA[0]);
+printf("ALPHA[1] = %lf\n",ALPHA[1]);
+printf("ALPHA[2] = %lf\n",ALPHA[2]);*/
+
+BETA[0] = (13.0/12.0)*((UU[3]-2.0*UU[4]+UU[5])*((UU[3]-2.0*UU[4]+UU[5])))+
+     0.25*((3.0*UU[3]-4.0*UU[4]+UU[5])*(3.0*UU[3]-4.0*UU[4]+UU[5]));
+BETA[1] = (13.0/12.0)*((UU[2]-2.0*UU[3]+UU[4])*(UU[2]-2.0*UU[3]+UU[4]))+
+     0.25*((UU[2]-UU[4])*(UU[2]-UU[4]));
+BETA[2] = (13.0/12.0)*((UU[1]-2.0*UU[2]+UU[3])*(UU[1]-2.0*UU[2]+UU[3]))+
+     0.25*((UU[1]-4.0*UU[2]+3.0*UU[3])*(UU[1]-4.0*UU[2]+3.0*UU[3]));
+ALPHA[0] = 0.1/((EPS+BETA[0])*(EPS+BETA[0]));
+ALPHA[1] = 0.6/((EPS+BETA[1])*(EPS+BETA[1]));
+ALPHA[2] = 0.3/((EPS+BETA[2])*(EPS+BETA[2]));
+
+Up = (ALPHA[0]*(11.0*UU[3]-7.0*UU[4]+2.0*UU[5])+
+ ALPHA[1]*(2.0*UU[2]+5.0*UU[3]-UU[4])+
+ ALPHA[2]*(-UU[1]+5.0*UU[2]+2.0*UU[3]) )/
+ ((ALPHA[0]+ALPHA[1]+ALPHA[2])*6.0);
+/*printf("beta[0] = %lf\n",BETA[0]);
+printf("beta[1] = %lf\n",BETA[1]);
+printf("beta[2] = %lf\n",BETA[2]);
+printf("ALPHA[0] = %lf\n",ALPHA[0]);
+printf("ALPHA[1] = %lf\n",ALPHA[1]);
+printf("ALPHA[2] = %lf\n",ALPHA[2]);
+printf("um = %.15lf\n",Um);
+printf("up = %.15lf\n",Up);*/
+
+}
 
 void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 {
@@ -574,14 +651,54 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		DL1.y=PE.y-P1.y;
 		DL2.x=PE.x-P2.x;
 		DL2.y=PE.y-P2.y;
-		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
-		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
-		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
-		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
-		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+		//!!сделать более грамотное присваивание массива в массив
+		if (grid.edges[iEdge].wenoType != 1)
+		{
+			double sq[6];
+			sq[0] = ro_old[grid.edges[iEdge].seq_tri[0]];
+			sq[1] = ro_old[grid.edges[iEdge].seq_tri[1]];
+			sq[2] = ro_old[grid.edges[iEdge].seq_tri[2]];
+			sq[3] = ro_old[grid.edges[iEdge].seq_tri[3]];
+			sq[4] = ro_old[grid.edges[iEdge].seq_tri[4]];
+			sq[5] = ro_old[grid.edges[iEdge].seq_tri[5]];
+			//printf("%d %d %d %d %d %d\n",grid.edges[iEdge].seq_tri[0],grid.edges[iEdge].seq_tri[1],grid.edges[iEdge].seq_tri[2],grid.edges[iEdge].seq_tri[3],grid.edges[iEdge].seq_tri[4],grid.edges[iEdge].seq_tri[5]);
+			//printf("%.10lf\n",10);
+			ZhWENO(pL.r, pR.r, sq);
+			
+			sq[0] = ru_old[grid.edges[iEdge].seq_tri[0]];
+			sq[1] = ru_old[grid.edges[iEdge].seq_tri[1]];
+			sq[2] = ru_old[grid.edges[iEdge].seq_tri[2]];
+			sq[3] = ru_old[grid.edges[iEdge].seq_tri[3]];
+			sq[4] = ru_old[grid.edges[iEdge].seq_tri[4]];
+			sq[5] = ru_old[grid.edges[iEdge].seq_tri[5]];
+			ZhWENO(pL.u, pR.u, sq);
+
+			sq[0] = rv_old[grid.edges[iEdge].seq_tri[0]];
+			sq[1] = rv_old[grid.edges[iEdge].seq_tri[1]];
+			sq[2] = rv_old[grid.edges[iEdge].seq_tri[2]];
+			sq[3] = rv_old[grid.edges[iEdge].seq_tri[3]];
+			sq[4] = rv_old[grid.edges[iEdge].seq_tri[4]];
+			sq[5] = rv_old[grid.edges[iEdge].seq_tri[5]];
+			ZhWENO(pL.v, pR.v, sq);
+			//ZhWENO(rl, rr, sq);
+		}
+		else
+		{
+			pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+			pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+		}
+	/*double * ru_old;
+	double * rv_old;
+	double * re_old;*/
+	    
+		//pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y; 
+		//pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+		//pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+		//pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
 		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
-		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
-		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+		//pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+		//pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
 
 
 	} else {

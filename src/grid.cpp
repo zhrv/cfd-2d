@@ -285,6 +285,68 @@ int Grid::inArea (double x1, double y1, double x2, double y2, double x3, double 
 		}
 	}
 }
+void Grid::WENOforEdge (int node1, int node2, int cellL, int cellR, double* uwx, double* uwy)
+{
+    double x[2];
+    double y[2];
+	x[0] = nodes[node1].x;
+    x[1] = nodes[node2].x;
+    y[0] = nodes[node1].y;
+    y[1] = nodes[node2].y;
+	/*if (node1 == 1)
+	{
+		printf("x[0] = %lf y[0] = %lf\n",x[0],y[0]);
+		printf("x[1] = %lf y[1] = %lf\n",x[1],y[1]);
+	}*/
+    double xtmp1, xtmp2, ytmp1, ytmp2;
+    
+    //cells[i].sideType = 0;
+    xtmp1 =                (((y[1]+y[0])/2.0-cells[cellL].c.y)*(x[0]-x[1])*(y[0]-y[1])+cells[cellL].c.x*(y[0]-y[1])*(y[0]-y[1])+(x[1]+x[0])/2.0*(x[0]-x[1])*(x[0]-x[1]))/
+                                     ((y[0]-y[1])*(y[0]-y[1])+(x[0]-x[1])*(x[0]-x[1]));
+    if (x[1] != x[0]) {
+                ytmp1 = (y[0]-y[1])/(x[0]-x[1])*xtmp1+cells[cellL].c.y-(y[0]-y[1])/(x[0]-x[1])*cells[cellL].c.x;}
+            else
+            {
+                ytmp1 = cells[cellL].c.y;
+            }
+
+    xtmp2 =                (((y[1]+y[0])/2.0-cells[cellR].c.y)*(x[0]-x[1])*(y[0]-y[1])+cells[cellR].c.x*(y[0]-y[1])*(y[0]-y[1])+(x[1]+x[0])/2.0*(x[0]-x[1])*(x[0]-x[1]))/
+                                     ((y[0]-y[1])*(y[0]-y[1])+(x[0]-x[1])*(x[0]-x[1]));
+    if (x[1] != x[0]) {
+                ytmp2 = (y[0]-y[1])/(x[0]-x[1])*xtmp2+cells[cellR].c.y-(y[0]-y[1])/(x[0]-x[1])*cells[cellR].c.x;}
+            else
+            {
+                ytmp2 = cells[cellR].c.y;
+            }
+    uwx[2] = (xtmp1-xtmp2)/2.0+(x[0]+x[1])/2.0;
+    uwy[2] = (ytmp1-ytmp2)/2.0+(y[0]+y[1])/2.0;
+    //printf("xtmp1=%lf xtmp2=%lf x0=%lf x=%lf\n",xtmp1,xtmp2,(x[0]+x[1])/2.0,uwx[2]);
+    uwx[1] = 3.0*uwx[2]-(x[1]+x[0]);
+    uwy[1] = 3.0*uwy[2]-(y[1]+y[0]);
+    uwx[0] = 3.0*uwx[1]-4*uwx[2]+x[1]+x[0];
+    uwy[0] = 3.0*uwy[1]-4*uwy[2]+y[1]+y[0];
+    uwx[3] = x[1]+x[0]-uwx[2];
+    uwy[3] = y[1]+y[0]-uwy[2];
+    uwx[4] = 3.0*uwx[3]-x[1]-x[0];
+    uwy[4] = 3.0*uwy[3]-y[1]-y[0];
+    uwx[5] = 3.0*uwx[4]-4.0*uwx[3]+x[1]+x[0];
+    uwy[5] = 3.0*uwy[4]-4.0*uwy[3]+y[1]+y[0];
+    //printf("x[0]=%lf x[1]=%lf x[2]=%lf x[3]=%lf x[4]=%lf x[5]=%lf\n",uwx[0],uwx[1],uwx[2],uwx[3],uwx[4],uwx[5]);
+    //printf("y[0]=%lf y[1]=%lf y[2]=%lf y[3]=%lf y[4]=%lf y[5]=%lf\n",uwy[0],uwy[1],uwy[2],uwy[3],uwy[4],uwy[5]);
+
+                
+      /*cells[i].side[j][1].x = 3.0*cells[i].side[j][2].x-(x[2]+x[1]);  
+        cells[i].side[j][1].y = 3.0*cells[i].side[j][2].y-(y[2]+y[1]);
+        cells[i].side[j][0].x = 3.0*cells[i].side[j][1].x-4*cells[i].side[j][2].x+x[2]+x[1];
+        cells[i].side[j][0].y = 3.0*cells[i].side[j][1].y-4*cells[i].side[j][2].y+y[2]+y[1];
+        cells[i].side[j][3].x = x[2]+x[1]-cells[i].side[j][2].x;
+        cells[i].side[j][3].y = y[2]+y[1]-cells[i].side[j][2].y;
+        cells[i].side[j][4].x = 3.0*cells[i].side[j][3].x-x[2]-x[1];
+        cells[i].side[j][4].y = 3.0*cells[i].side[j][3].y-y[2]-y[1];
+        cells[i].side[j][5].x = 3.0*cells[i].side[j][4].x-4.0*cells[i].side[j][3].x+x[2]+x[1];
+        cells[i].side[j][5].y = 3.0*cells[i].side[j][4].y-4.0*cells[i].side[j][3].y+y[2]+y[1];*/
+
+}
 
 void Grid::initFromFiles(char* fName) 
 {
@@ -293,9 +355,9 @@ void Grid::initFromFiles(char* fName)
 	int tmp; 
  
 	//вспомогательные переменные
-	double vtmpx, vtmpy;
+	/*double vtmpx, vtmpy;
 	double x[3];
-	double y[3];
+	double y[3];*/
 	// читаем данные об УЗЛАХ
 	sprintf(str, "%s.node", fName);
 	fp = fopen(str, "r");
@@ -312,6 +374,8 @@ void Grid::initFromFiles(char* fName)
 	fp = fopen(str, "r");
 	fscanf(fp, "%d %d %d", &cCount, &tmp, &tmp);
 	cells = new Cell[cCount];
+	double RadiusMiddle = 0.0;
+	double abc = 0.0;
 	for (int i = 0; i < cCount; i++) 
 	{
 		cells[i].nCount = 3;
@@ -330,56 +394,28 @@ void Grid::initFromFiles(char* fName)
 							 fabs(nodes[cells[i].nodesInd[0]].y-nodes[cells[i].nodesInd[2]].y) );
 		cells[i].eCount = 3;
 		cells[i].edgesInd = new int[cells[i].eCount];
-
+		double x[3], y[3];
 		x[0] = nodes[cells[i].nodesInd[0]].x;
 		x[1] = nodes[cells[i].nodesInd[1]].x;
 		x[2] = nodes[cells[i].nodesInd[2]].x;
 		y[0] = nodes[cells[i].nodesInd[0]].y;
 		y[1] = nodes[cells[i].nodesInd[1]].y;
 		y[2] = nodes[cells[i].nodesInd[2]].y;
-		cells[i].sideType = 0;
-		for (int j = 0; j < 3; j++)
-		{
-			cells[i].side[j][2].x = (((y[2]+y[1])/2.0-cells[i].c.y)*(x[1]-x[2])*(y[1]-y[2])+cells[i].c.x*(y[1]-y[2])*(y[1]-y[2])+(x[2]+x[1])/2.0*(x[1]-x[2])*(x[1]-x[2]))/
-				                     ((y[1]-y[2])*(y[1]-y[2])+(x[1]-x[2])*(x[1]-x[2])); 
-			if (x[2] != x[1]) {
-				cells[i].side[j][2].y = (y[1]-y[2])/(x[1]-x[2])*cells[i].side[j][2].x+cells[i].c.y-(y[1]-y[2])/(x[1]-x[2])*cells[i].c.x;}
-			else
-			{
-				cells[i].side[j][2].y = cells[i].c.y;
-			}
-		
-		cells[i].side[j][1].x = 3.0*cells[i].side[j][2].x-(x[2]+x[1]);  
-		cells[i].side[j][1].y = 3.0*cells[i].side[j][2].y-(y[2]+y[1]);
-		cells[i].side[j][0].x = 3.0*cells[i].side[j][1].x-4*cells[i].side[j][2].x+x[2]+x[1]; 
-		cells[i].side[j][0].y = 3.0*cells[i].side[j][1].y-4*cells[i].side[j][2].y+y[2]+y[1];
-		cells[i].side[j][3].x = x[2]+x[1]-cells[i].side[j][2].x; 
-		cells[i].side[j][3].y = y[2]+y[1]-cells[i].side[j][2].y;
-		cells[i].side[j][4].x = 3.0*cells[i].side[j][3].x-x[2]-x[1]; 
-		cells[i].side[j][4].y = 3.0*cells[i].side[j][3].y-y[2]-y[1];
-		cells[i].side[j][5].x = 3.0*cells[i].side[j][4].x-4.0*cells[i].side[j][3].x+x[2]+x[1]; 
-		cells[i].side[j][5].y = 3.0*cells[i].side[j][4].y-4.0*cells[i].side[j][3].y+y[2]+y[1];
-				
-		if (j == 0)
-			{
-				vtmpx = x[2];
-				x[2] = x[1];
-				x[1] = x[0];
-				vtmpy = y[2];
-				y[2] = y[1];
-				y[1] = y[0];
-			}
-
-		if (j == 1)
-			{
-				x[2] = x[0];
-				x[1] = vtmpx;
-				y[2] = y[0];
-				y[1] = vtmpy;
-			}
-		}
+		double a, b, c, p;
+		a = sqrt((x[1]-x[0])*(x[1]-x[0])+(y[1]-y[0])*(y[1]-y[0]));
+		b = sqrt((x[2]-x[1])*(x[2]-x[1])+(y[2]-y[1])*(y[2]-y[1]));
+		c = sqrt((x[0]-x[2])*(x[0]-x[2])+(y[0]-y[2])*(y[0]-y[2]));
+		abc += a*b*c;
+		p = 0.5*(a+b+c);
+		cells[i].R = a*b*c/(4*sqrt(p*(p-a)*(p-b)*(p-c)));
+		//printf("R[%d] = %lf\n",i,cells[i].R);
+		RadiusMiddle += cells[i].R;
 	}
 	fclose(fp);
+	RadiusMiddle /= cCount;
+	abc /= cCount;
+	printf("RadiusMiddle = %lf\n",RadiusMiddle);
+	printf("abc = %lf\n",abc);
 
 	int num_tri = 0;
 	/*for (int i = 0; i < cCount; i++) 
@@ -435,6 +471,8 @@ void Grid::initFromFiles(char* fName)
 		cfi[i] = 0;
 	}
 	// ::memset(cfi, 0, cCount*sizeof(int));
+	double trix[6];
+	double triy[6];
 	for (int i = 0; i < cCount; i++) 
 	{
 		for (int j = 0; j < 3; j++) 
@@ -483,12 +521,123 @@ void Grid::initFromFiles(char* fName)
 					edges[iEdge].cnl2 = 0;
 					edges[iEdge].type = -1;
 				}
+				if (edges[iEdge].type != -1) {
+					WENOforEdge (edges[iEdge].n1, edges[iEdge].n2, edges[iEdge].c1, edges[iEdge].c2, trix, triy);
+				}
+				edges[iEdge].otr[0].x = trix[0];
+				edges[iEdge].otr[1].x = trix[1];
+				edges[iEdge].otr[2].x = trix[2];
+				edges[iEdge].otr[3].x = trix[3];
+				edges[iEdge].otr[4].x = trix[4];
+				edges[iEdge].otr[5].x = trix[5];
+				
+				edges[iEdge].otr[0].y = triy[0];
+				edges[iEdge].otr[1].y = triy[1];
+				edges[iEdge].otr[2].y = triy[2];
+				edges[iEdge].otr[3].y = triy[3];
+				edges[iEdge].otr[4].y = triy[4];
+				edges[iEdge].otr[5].y = triy[5];
 				iEdge++;
 			}
 		}
 	}
 
+	int * tri_tmp = new int[cCount];
+	for (int i = 0; i < cCount; i++)
+	{
+		tri_tmp[i] = 0;
+	}
+	for (int i = 0; i < iEdge; i++) 
+	{
+		for (int k = 0; k < iEdge; k++) 
+		{
+				if (edges[k].type == -1) 
+				{
+					edges[k].wenoType = 1;
+					if (edges[i].wenoType != 1)
+						{
+							edges[i].wenoType = inArea(nodes[edges[k].n1].x, nodes[edges[k].n1].y,nodes[edges[k].n2].x,nodes[edges[k].n2].y,edges[i].otr[0].x,edges[i].otr[0].y,edges[i].otr[5].x,edges[i].otr[5].y);
+					        if (edges[i].wenoType == 1)
+							{
+								tri_tmp[edges[i].c1]--;
+			                    tri_tmp[edges[i].c2]--;
+							}
+					    }
+				}
+		}
+		/*if (i==23)
+		{
+			printf("wenoType = %d\n",edges[i].wenoType);
+		}*/
+		if ((edges[i].c1 > 0) && (edges[i].c2 > 0))
+		{
+			
+			tri_tmp[edges[i].c1]++;
+			tri_tmp[edges[i].c2]++;
+		}
+	}
+
+	/*for (int i = 0; i < cCount; i++)
+	{
+		if (tri_tmp[i] == 1) printf("tri_tmp[%d] = %d\n",i,tri_tmp[i]);
+	}*/
+
+	//for (int i = 0; i < cCount; i++)
+		for (int k = 0; k < iEdge; k++) 
+			{
+				if (edges[k].type == -1) 
+				{
+					edges[k].wenoType = 1;
+				}
+				/*if (edges[k].wenoType != 1)
+				{		
+					edges[k].wenoType = inArea(nodes[edges[k].n1].x, nodes[edges[k].n1].y,nodes[edges[k].n2].x,nodes[edges[k].n2].y,edges[i].otr[0].x,edges[i].otr[0].y,edges[i].otr[5].x,edges[i].otr[5].y);
+				}*/
+				/*if (k==23)
+						{
+							printf("wenoType = %d\n",edges[k].wenoType);
+						}*/
+				if ((edges[k].wenoType != 1) && ((tri_tmp[edges[k].c1] != 3) && (tri_tmp[edges[k].c2] != 3)))
+				{edges[k].wenoType = 1;}
+				/*if (k==23)
+						{
+							printf("wenoType = %d\n",edges[k].wenoType);
+						}*/
+			}
+	FILE *f11=fopen("raspad.gp", "w");
 	for (int i = 0; i < cCount; i++) 
+	{  
+		fprintf(f11,"%f\t%f\n",nodes[cells[i].nodesInd[0]].x,nodes[cells[i].nodesInd[0]].y);
+		fprintf(f11,"%f\t%f\n",nodes[cells[i].nodesInd[1]].x,nodes[cells[i].nodesInd[1]].y);
+		fprintf(f11,"%f\t%f\n",nodes[cells[i].nodesInd[2]].x,nodes[cells[i].nodesInd[2]].y);
+		fprintf(f11,"%f\t%f\n",nodes[cells[i].nodesInd[0]].x,nodes[cells[i].nodesInd[0]].y);
+		fprintf(f11,"\n");
+	}
+	for (int i = 0; i < iEdge; i++) 
+	{ 	
+		if (edges[i].wenoType != 1)
+		{
+			for (int j = 0; j < 6; j++)
+			{
+			  edges[i].seq_tri[j] = location_node (1,edges[i].otr[j].x,edges[i].otr[j].y);
+			  //printf("%d ",edges[i].seq_tri[j]);
+			}
+			//printf("tri = %d\n",edges[i].n1);
+			//printf("tri = %d\n",edges[i].n2);
+			//printf("\n");
+		
+		fprintf(f11,"%f\t%f\n",edges[i].otr[0].x,edges[i].otr[0].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[1].x,edges[i].otr[1].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[2].x,edges[i].otr[2].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[3].x,edges[i].otr[3].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[4].x,edges[i].otr[4].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[5].x,edges[i].otr[5].y);
+		fprintf(f11,"%f\t%f\n",edges[i].otr[0].x,edges[i].otr[0].y);
+		fprintf(f11,"\n");
+		}
+	}
+
+	/*for (int i = 0; i < cCount; i++) 
 		for (int k = 0; k < iEdge; k++) 
 			for (int j = 0; j < 3; j++) 
 			{
@@ -496,8 +645,8 @@ void Grid::initFromFiles(char* fName)
 						{
 							cells[i].sideType = inArea(nodes[edges[k].n1].x, nodes[edges[k].n1].y,nodes[edges[k].n2].x,nodes[edges[k].n2].y,cells[i].side[j][0].x,cells[i].side[j][0].y,cells[i].side[j][5].x,cells[i].side[j][5].y);
 					    }
-			}
-	FILE *f11=fopen("raspad.gp", "w");
+			}*/
+	/*FILE *f11=fopen("raspad.gp", "w");
 	for (int i = 0; i < cCount; i++) 
 	{  
 		fprintf(f11,"%f\t%f\n",nodes[cells[i].nodesInd[0]].x,nodes[cells[i].nodesInd[0]].y);
@@ -526,7 +675,7 @@ void Grid::initFromFiles(char* fName)
 				fprintf(f11,"%f\t%f\n",0.0000,0.059641);
 				fprintf(f11,"%f\t%f\n",0.0000,-0.059641);
 				fprintf(f11,"\n");
-	fclose(f11);
+	fclose(f11);*/
 	
 	// чтение данных о граничных гранях
 	sprintf(str, "%s.poly", fName);
