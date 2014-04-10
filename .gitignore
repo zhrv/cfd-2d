@@ -4,3 +4,13 @@ Test/*
 ipch/*
 Release/*
 Test*/*
+*.csv
+*.vcxproj.user
+*.edge
+*.ele
+*.neigh
+*.node
+*.poly
+*.vtk
+*.log
+*.xml

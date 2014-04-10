@@ -76,7 +76,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>metis.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>contrib\METIS\lib;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>contrib\METIS\lib\win32</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -87,6 +87,7 @@
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
     <ClCompile Include="src\methods\fvm_tvd.cpp" />
+    <ClCompile Include="src\methods\fvm_tvd_implicit.cpp" />
     <ClCompile Include="src\methods\method.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
     <ClCompile Include="src\tinyxml\tinystr.cpp" />
@@ -101,6 +102,7 @@
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
+    <ClInclude Include="src\methods\fvm_tvd_implicit.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />
     <ClInclude Include="src\tinyxml\tinystr.h" />

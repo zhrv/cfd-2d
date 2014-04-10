@@ -69,9 +69,9 @@ public:
 	Point* nodes;
 	Cell*  cells;
 	Edge*  edges;
-	int    nCount;
-	int    cCount;
-	int    eCount;
+	int    nCount;	//количество nodes.
+	int    cCount;  //количество ячеек(cells).
+	int    eCount;  //количество ребер(edges).
 };
 
 inline double _max_(double a, double b)

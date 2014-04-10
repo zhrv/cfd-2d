@@ -1,6 +1,7 @@
 #include <solver.h>
 #include <method.h>
 #include <fvm_tvd.h>
+#include <fvm_tvd_implicit.h>
 #include <decomp.h>
 #include "tinyxml.h"
 #include <string.h>
@@ -34,6 +35,10 @@ Method* Solver::initMethod(char* fileName)
 	else if (strcmp("FVM_TVD", methodName) == 0) 
 	{
 		m = new FVM_TVD();
+	}
+	else if (strcmp("FVM_TVD_IMPLICIT", methodName) == 0)
+	{
+		m = new FVM_TVD_IMPLICIT();
 	}
 	else
 	{

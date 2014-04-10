@@ -402,3 +402,37 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
  
 } 
 
+void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double& WI,
+         double RB, double PB, double UB, double VB, double WB,
+         double RE, double PE, double UE, double VE, double WE, double GAM) {
+
+	double AGAM  =  (GAM-1.0);
+
+	// Ñץולא ROE
+	
+	double fG = GAM;
+
+	double fSB = sqrt( RB );
+	double fSE = sqrt( RE );
+	double fS_ = 1.0 / ( fSB + fSE );
+
+	RI = fSB * fSE;
+		
+	UI = ( fSB * UB + fSE * UE ) * fS_;
+	VI = ( fSB * VB + fSE * VE ) * fS_;
+	WI = ( fSB * WB + fSE * WE ) * fS_;
+
+	double EB = PB/(RB*AGAM);
+	double EE = PE/(RE*AGAM);
+	EI = ( fSB * EB + fSE * EE ) * fS_;
+	//TI = ( fSB * TB + fSE * TE ) * fS_;
+		
+		
+	double HB = EB + (UB*UB+VB*VB+WB*WB)*0.5 + PB / RB;
+	double HE = EE + (UE*UE+VE*VE+WE*WE)*0.5 + PE / RE;
+		
+	double HI = ( fSB * HB + fSE * HE ) * fS_;
+
+	PI = ( HI - (UI*UI+VI*VI+WI*WI)*0.5 ) * RI * ( fG - 1.0 ) / fG;
+
+} 

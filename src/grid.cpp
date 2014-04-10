@@ -44,6 +44,7 @@ int Grid::findEdge(int n1, int n2)
 	return -1;
 }
 
+//Grid::initFromFiles: загрузка сетки из файла fName.
 void Grid::initFromFiles(char* fName) 
 {
 	char str[50];
