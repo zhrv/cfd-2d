@@ -149,6 +149,42 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	memcpy(rv_old, rv, grid.cCount*sizeof(double));
 	memcpy(re_old, re, grid.cCount*sizeof(double));
 
+	//заполнение массива cellsEdges значениями.
+	cellsEdges = new int* [grid.cCount];
+	for (int iCells = 0; iCells < grid.cCount; ++iCells)
+	{
+		cellsEdges[iCells] = new int [3];
+		for (int j = 0; j < 3; ++j)
+			cellsEdges[iCells][j] = -1;
+	}
+	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
+	{
+		assert(grid.edges[iEdge].c1 < grid.cCount);
+		if (grid.edges[iEdge].c1 >= 0)
+		{	
+			for (int j = 0; j < 3; ++j)	
+			{
+				if (cellsEdges[grid.edges[iEdge].c1][j] == -1 && cellsEdges[grid.edges[iEdge].c1][j] != iEdge)
+				{
+					cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
+					break;
+				}
+			}
+		}
+		assert(grid.edges[iEdge].c2 < grid.cCount);
+		if (grid.edges[iEdge].c2 >= 0)
+		{	
+			for (int j = 0; j < 3; ++j)	
+			{
+				if (cellsEdges[grid.edges[iEdge].c2][j] == -1 && cellsEdges[grid.edges[iEdge].c2][j] != iEdge)
+				{
+					cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
+					break;
+				}
+			}
+		}
+	}
+
 	calcTimeStep();
 	save(0);
 }
@@ -281,22 +317,12 @@ void FVM_TVD_IMPLICIT::calcRoeAverage(double& fr, double& fu, double& fv, double
 		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 }
 
-
-void FVM_TVD_IMPLICIT::getEdgesIndexs(int iCell1, int edges[3])
-{
-	//TODO: написать. 
-	edges[0] = 0;
-	edges[1] = 1;
-	edges[2] = 2;
-}
-
 void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 {
 	assert(iCell >= 0);
-	int edges[3];
-	getEdgesIndexs(iCell, edges);
-	for (int iEdge = 0; iEdge < 3; ++iEdge)
+	for (int j = 0; j < 3; ++j)
 	{
+		int iEdge = cellsEdges[iCell][j];
 		if (grid.edges[iEdge].type == Edge::TYPE_INNER)
 		{
 			int c1	= grid.edges[iEdge].c1;
@@ -320,7 +346,7 @@ void FVM_TVD_IMPLICIT::run()
 	int						ne = grid.eCount; // количество ребер.
 	double					t = 0.0;
 	unsigned int			step = 0;
-	
+
 	ConservativeSystem		mtx(nc, 4);
 	double					**eigenMtx4, **rEigenVector4, **lEigenVector4, **A1mtx4, **A2mtx4, **mtx4;
 	double					*tempRight4;
@@ -346,25 +372,24 @@ void FVM_TVD_IMPLICIT::run()
 			
 			// вычисление коэффециента. результат вычисления будет записан в mtx4.
 			reconstruct(iCell, cell, neighbor);
-			getEdgesIndexs(iCell, edges);
 			for (int neighborIndex = 0; neighborIndex < 3; ++neighborIndex)
 			{
-				calcRoeAverage(fr, fu, fv, fe, cell, neighbor[neighborIndex], grid.edges[edges[neighborIndex]].n, __GAM);
-				double l  = grid.edges[edges[neighborIndex]].l;			
+				calcRoeAverage(fr, fu, fv, fe, cell, neighbor[neighborIndex], grid.edges[cellsEdges[iCell][neighborIndex]].n, __GAM);
+				double l  = grid.edges[cellsEdges[iCell][neighborIndex]].l;			
 				double p  = (__GAM - 1) * (fe - (fu*fu+fv*fv)*0.5/fr); 
 				double c2 = p/fr;
 				double c = sqrt(c2);
 				double u = fu/fr;
 				double v = fv/fr;
 				double H = fe/fr + c2;
-				eigenValues(eigenMtx4, c, u, grid.edges[edges[neighborIndex]].n.x, v, 0.0);
-				rightEigenVector(rEigenVector4, c, u, grid.edges[edges[neighborIndex]].n.x, v, 0.0, H);
-				leftEigenVector(lEigenVector4, c, __GAM, u, grid.edges[edges[neighborIndex]].n.x, v, 0.0);
+				eigenValues(eigenMtx4, c, u, grid.edges[cellsEdges[iCell][neighborIndex]].n.x, v, 0.0);
+				rightEigenVector(rEigenVector4, c, u, grid.edges[cellsEdges[iCell][neighborIndex]].n.x, v, 0.0, H);
+				leftEigenVector(lEigenVector4, c, __GAM, u, grid.edges[cellsEdges[iCell][neighborIndex]].n.x, v, 0.0);
 				calcAP(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
 
-				eigenValues(eigenMtx4, c, u, 0.0, v, grid.edges[edges[neighborIndex]].n.y);
-				rightEigenVector(rEigenVector4, c, u, 0.0, v, grid.edges[edges[neighborIndex]].n.y, H);
-				leftEigenVector(lEigenVector4, c, __GAM, u, 0.0, v, grid.edges[edges[neighborIndex]].n.y);
+				eigenValues(eigenMtx4, c, u, 0.0, v, grid.edges[cellsEdges[iCell][neighborIndex]].n.y);
+				rightEigenVector(rEigenVector4, c, u, 0.0, v, grid.edges[cellsEdges[iCell][neighborIndex]].n.y, H);
+				leftEigenVector(lEigenVector4, c, __GAM, u, 0.0, v, grid.edges[cellsEdges[iCell][neighborIndex]].n.y);
 				calcAP(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
 
 				for (int i = 0; i < 4; ++i)
@@ -661,6 +686,10 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru_int;
 	delete[] rv_int;
 	delete[] re_int;
+
+	for (int iCells = 0; iCells < grid.cCount; ++iCells)
+		delete cellsEdges[iCells];
+	delete [] cellsEdges;
 }
 
 

@@ -4,6 +4,7 @@
 #include <method.h>
 #include <algorithm>
 
+//TODO:  ѕереписать! Ќе хватает пам€ти. ћатрица очень разр€жена. »спользовать CSR способ хранени€.
 struct ConservativeSystem: public MATRIX
 {
 	ConservativeSystem(int an, int dimension): MATRIX(dimension*an) { conservativeDim = an; dim = dimension; conservativeCount = dim*an*dim*an; }
@@ -155,13 +156,12 @@ private:
 	 * «аполн€ет в mtx4 A-.
 	*/
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-		void calcRoeAverage(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
-	/*
-	 * возвращает номер грани между двум€ заданными €чейчками.
-	*/
-	void getEdgesIndexs(int iCell1, int edges[3]);
+	void calcRoeAverage(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 	void reconstruct(int iCell, Param& cell, Param neighbor[3]);
 private:
+	//массив размерность 3 x grid.cCount. по которому можно определить, кака€ 3-угольна€ €чейка, какие нормера ребер имеет.
+	int **cellsEdges;
+
 	double TMAX;
 	double TAU;
 	double CFL;
