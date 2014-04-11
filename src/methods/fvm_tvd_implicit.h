@@ -141,13 +141,14 @@ protected:
 private:
 	double **allocMtx4();
 	void freeMtx4(double **mtx4);
+	void multMtx4(double **dst4, double **srcA4, double **srcB4);
+	void clearMtx4(double **mtx4);
 	/**
 	 * Заполняет в mtx4 собственные значения матрицы Якоби функции потока.
 	 */
 	void eigenValues(double **dst4, double c, double u, double nx, double v, double ny);
 	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);
 	void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);
-	void mult(double **dst4, double **srcA4, double **srcB4);
 	/**
 	 * Заполняет в mtx4 A+.
 	*/
@@ -156,7 +157,7 @@ private:
 	 * Заполняет в mtx4 A-.
 	*/
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-	void calcRoeAverage(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM);
 	void reconstruct(int iCell, Param& cell, Param neighbor[3]);
 private:
 	//массив размерность 3 x grid.cCount. по которому можно определить, какая 3-угольная ячейка, какие нормера ребер имеет.
