@@ -162,24 +162,48 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		assert(grid.edges[iEdge].c1 < grid.cCount);
 		if (grid.edges[iEdge].c1 >= 0)
 		{	
-			for (int j = 0; j < 3; ++j)	
+			bool edgeExist = false;
+			for (int j = 0; j < 3; ++j)
 			{
-				if (cellsEdges[grid.edges[iEdge].c1][j] == -1 && cellsEdges[grid.edges[iEdge].c1][j] != iEdge)
+				if (cellsEdges[grid.edges[iEdge].c1][j] == iEdge) 
 				{
-					cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
-					break;
+						edgeExist = true;
+						break;
+				}
+			}
+			if (!edgeExist)
+			{
+				for (int j = 0; j < 3; ++j)	
+				{
+					if (cellsEdges[grid.edges[iEdge].c1][j] == -1)
+					{
+						cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
+						break;
+					}
 				}
 			}
 		}
 		assert(grid.edges[iEdge].c2 < grid.cCount);
 		if (grid.edges[iEdge].c2 >= 0)
 		{	
-			for (int j = 0; j < 3; ++j)	
+			bool edgeExist = false;
+			for (int j = 0; j < 3; ++j)
 			{
-				if (cellsEdges[grid.edges[iEdge].c2][j] == -1 && cellsEdges[grid.edges[iEdge].c2][j] != iEdge)
+				if (cellsEdges[grid.edges[iEdge].c2][j] == iEdge) 
 				{
-					cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
-					break;
+						edgeExist = true;
+						break;
+				}
+			}
+			if (!edgeExist)
+			{
+				for (int j = 0; j < 3; ++j)	
+				{
+					if (cellsEdges[grid.edges[iEdge].c2][j] == -1)
+					{
+						cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
+						break;
+					}
 				}
 			}
 		}
