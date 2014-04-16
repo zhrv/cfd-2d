@@ -80,9 +80,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\CSR.cpp" />
     <ClCompile Include="src\global.cpp" />
     <ClCompile Include="src\grid.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\MatrixSolver.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
@@ -96,8 +98,10 @@
     <ClCompile Include="src\tinyxml\tinyxmlparser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\CSR.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\grid.h" />
+    <ClInclude Include="src\MatrixSolver.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
