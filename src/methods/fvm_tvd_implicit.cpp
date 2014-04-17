@@ -126,7 +126,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	ru		= new double[grid.cCount];
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
-
+/*
 	ro_old	= new double[grid.cCount];
 	ru_old	= new double[grid.cCount];
 	rv_old	= new double[grid.cCount];
@@ -136,19 +136,19 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	ru_int	= new double[grid.cCount];
 	rv_int	= new double[grid.cCount];
 	re_int	= new double[grid.cCount];
-
+*/
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Region & reg = getRegion(i);
 		convertParToCons(i, reg.par);
 	}
-
+/*
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
 	memcpy(rv_old, rv, grid.cCount*sizeof(double));
 	memcpy(re_old, re, grid.cCount*sizeof(double));
-
+*/
 	//заполнение массива cellsEdges значениями.
 	cellsEdges = new int* [grid.cCount];
 	for (int iCells = 0; iCells < grid.cCount; ++iCells)
@@ -341,7 +341,7 @@ void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double
 
 void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 {
-	assert(iCell >= 0);
+	assert(iCell >= 0 && iCell < grid.cCount);
 	for (int j = 0; j < 3; ++j)
 	{
 		int iEdge = cellsEdges[iCell][j];
@@ -352,12 +352,12 @@ void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 			if (c1 != iCell)	std::swap(c1, c2);
 			assert(c1 == iCell);
 			convertConsToPar(c1, cell);
-			convertConsToPar(c2, neighbor[iEdge]);
+			convertConsToPar(c2, neighbor[j]);
 		} else {
 			int c1	= grid.edges[iEdge].c1;
 			assert(c1 == iCell);
 			convertConsToPar(c1, cell);
-			boundaryCond(iEdge, cell, neighbor[iEdge]);
+			boundaryCond(iEdge, cell, neighbor[j]);
 		}
 	}
 }
@@ -369,7 +369,7 @@ void FVM_TVD_IMPLICIT::run()
 	double					t = 0.0;
 	unsigned int			step = 0;
 
-	ConservativeSystem		mtx(nc, 4);
+	MatrixSolver			*solverMtx = new SolverZeidel();
 	double					**eigenMtx4, **rEigenVector4, **lEigenVector4, **A1mtx4, **A2mtx4, **mtx4_1,**mtx4_2;
 	double					*right4;
 
@@ -381,11 +381,13 @@ void FVM_TVD_IMPLICIT::run()
 	A2mtx4 = allocMtx4();
 	mtx4_1 = allocMtx4();
 	mtx4_2 = allocMtx4();
-
+/*
 	memcpy(ro, ro_old, nc*sizeof(double));
 	memcpy(ru, ru_old, nc*sizeof(double));
 	memcpy(rv, rv_old, nc*sizeof(double));
 	memcpy(re, re_old, nc*sizeof(double));
+*/
+	solverMtx->init(nc, 4);
 
 	while (t < TMAX)
 	{
@@ -399,11 +401,13 @@ void FVM_TVD_IMPLICIT::run()
 			double		__GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
 			
 			reconstruct(iCell, cell, neighbor);
+
 			clearMtx4(mtx4_1);
 			for (int neighborIndex = 0; neighborIndex < 3; ++neighborIndex)
 			{
-				double l = grid.edges[cellsEdges[iCell][neighborIndex]].l;
-				Vector n = grid.edges[cellsEdges[iCell][neighborIndex]].n;
+				int numberOfEdge = cellsEdges[iCell][neighborIndex];
+				double l = grid.edges[numberOfEdge].l;
+				Vector n = grid.edges[numberOfEdge].n;
 				
 				calcRoeAverage(average, cell, neighbor[neighborIndex], __GAM);
 				double H = average.E + average.p/average.r;
@@ -443,10 +447,10 @@ void FVM_TVD_IMPLICIT::run()
 						mtx4_2[i][j] = (A1mtx4[i][j] + A2mtx4[i][j])*l;
 					}
 				}
-				int c1 = grid.edges[cellsEdges[iCell][neighborIndex]].c1;
-				int c2 = grid.edges[cellsEdges[iCell][neighborIndex]].c2;
+				int c1 = grid.edges[numberOfEdge].c1;
+				int c2 = grid.edges[numberOfEdge].c2;
 				int neight = (c1 == iCell)? c2 : c1; //номер соседней ячейки.
-				mtx.setMatrElement(iCell, 
+				solverMtx->setMatrElement(iCell, 
 					neight,
 					mtx4_2);	//du~(i,j,n+1)
 				
@@ -457,7 +461,7 @@ void FVM_TVD_IMPLICIT::run()
 				right4[1] -= l*fu;
 				right4[2] -= l*fv;
 				right4[3] -= l*fe;
-				mtx.setRightElement(iCell, right4); //F(i,j,n)
+				solverMtx->setRightElement(iCell, right4); //F(i,j,n)
 			}
 
 			for (int i = 0; i < 4; ++i)
@@ -467,15 +471,21 @@ void FVM_TVD_IMPLICIT::run()
 					if (i == j) mtx4_1[i][j] += grid.cells[iCell].S/TAU;
 				}
 			}
-			mtx.setMatrElement(iCell, iCell, mtx4_1);	//du(i, n+1)
+			solverMtx->setMatrElement(iCell, iCell, mtx4_1);	//du(i, n+1)
 		}
 
-		mtx.solveZeidel();
-		for (int iCell = 0; iCell < nc; iCell++)
+		int maxIter = 1000;
+		const double eps = 1.0e-5;
+		
+		solverMtx->solve(eps, maxIter);
+		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
-			//TODO: +=.
+			ro[cellIndex] += solverMtx->x[ind+0];
+			ru[cellIndex] += solverMtx->x[ind+1];
+			rv[cellIndex] += solverMtx->x[ind+2];
+			re[cellIndex] += solverMtx->x[ind+3];			
 		}
-		mtx.clear();
+		solverMtx->zero();
 
 		if (step % FILE_SAVE_STEP == 0)
 		{
@@ -495,6 +505,7 @@ void FVM_TVD_IMPLICIT::run()
 	freeMtx4(mtx4_1);
 	freeMtx4(mtx4_2);
 	delete [] right4;
+	delete solverMtx;
 }
 
 void FVM_TVD_IMPLICIT::save(int step)
@@ -650,23 +661,6 @@ void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, 
 	//}
 }
 
-
-void FVM_TVD_IMPLICIT::reconstruct(int iEdge, Param& pL, Param& pR)
-{
-	if (grid.edges[iEdge].type == Edge::TYPE_INNER) 
-	{
-		int c1	= grid.edges[iEdge].c1;
-		int c2	= grid.edges[iEdge].c2;
-		convertConsToPar(c1, pL);
-		convertConsToPar(c2, pR);
-	} else {
-		int c1	= grid.edges[iEdge].c1;
-		convertConsToPar(c1, pL);
-		boundaryCond(iEdge, pL, pR);
-	}
-}
-
-
 void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
 	int iBound = -1;
@@ -721,7 +715,7 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
-
+/*
 	delete[] ro_old;
 	delete[] ru_old;
 	delete[] rv_old;
@@ -731,9 +725,9 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru_int;
 	delete[] rv_int;
 	delete[] re_int;
-
-	for (int iCells = 0; iCells < grid.cCount; ++iCells)
-		delete cellsEdges[iCells];
+*/
+	for (int iCell = 0; iCell < grid.cCount; ++iCell)
+		delete cellsEdges[iCell];
 	delete [] cellsEdges;
 }
 
