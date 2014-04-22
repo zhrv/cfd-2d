@@ -1,4 +1,4 @@
-#include "fvm_tvd_implicit.h"
+п»ї#include "fvm_tvd_implicit.h"
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
@@ -27,7 +27,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
 
-	// чтение параметров о МАТЕРИАЛАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -47,7 +47,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		matNode = matNode->NextSibling("material");
 	}
 
-	// чтение параметров о РЕГИОНАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -72,7 +72,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		regNode = regNode->NextSibling("region");
 	}
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р“Р РђРќРР§РќР«РҐ РЈРЎР›РћР’РРЇРҐ
 	node0 = task->FirstChild("boundaries");
 	node0->ToElement()->Attribute("count", &bCount);
 	boundaries = new Boundary[bCount];
@@ -109,108 +109,103 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 			log("ERROR: unsupported boundary condition type '%s'", str);
 			EXIT(1);
 		}
-
-		
-		
 		
 		bNode = bNode->NextSibling("boundCond");
 	}
-
 
 	node0 = task->FirstChild("mesh");
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
-
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
-/*
-	ro_old	= new double[grid.cCount];
-	ru_old	= new double[grid.cCount];
-	rv_old	= new double[grid.cCount];
-	re_old	= new double[grid.cCount];
-
-	ro_int	= new double[grid.cCount];
-	ru_int	= new double[grid.cCount];
-	rv_int	= new double[grid.cCount];
-	re_int	= new double[grid.cCount];
-*/
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Region & reg = getRegion(i);
 		convertParToCons(i, reg.par);
 	}
-/*
-	memcpy(ro_old, ro, grid.cCount*sizeof(double));
-	memcpy(ru_old, ru, grid.cCount*sizeof(double));
-	memcpy(rv_old, rv, grid.cCount*sizeof(double));
-	memcpy(re_old, re, grid.cCount*sizeof(double));
-*/
-	//заполнение массива cellsEdges значениями.
-	cellsEdges = new int* [grid.cCount];
-	for (int iCells = 0; iCells < grid.cCount; ++iCells)
-	{
-		cellsEdges[iCells] = new int [3];
-		for (int j = 0; j < 3; ++j)
-			cellsEdges[iCells][j] = -1;
-	}
-	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
-	{
-		assert(grid.edges[iEdge].c1 < grid.cCount);
-		if (grid.edges[iEdge].c1 >= 0)
-		{	
-			bool edgeExist = false;
-			for (int j = 0; j < 3; ++j)
-			{
-				if (cellsEdges[grid.edges[iEdge].c1][j] == iEdge) 
-				{
-						edgeExist = true;
-						break;
-				}
-			}
-			if (!edgeExist)
-			{
-				for (int j = 0; j < 3; ++j)	
-				{
-					if (cellsEdges[grid.edges[iEdge].c1][j] == -1)
-					{
-						cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
-						break;
-					}
-				}
-			}
-		}
-		assert(grid.edges[iEdge].c2 < grid.cCount);
-		if (grid.edges[iEdge].c2 >= 0)
-		{	
-			bool edgeExist = false;
-			for (int j = 0; j < 3; ++j)
-			{
-				if (cellsEdges[grid.edges[iEdge].c2][j] == iEdge) 
-				{
-						edgeExist = true;
-						break;
-				}
-			}
-			if (!edgeExist)
-			{
-				for (int j = 0; j < 3; ++j)	
-				{
-					if (cellsEdges[grid.edges[iEdge].c2][j] == -1)
-					{
-						cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
-						break;
-					}
-				}
-			}
-		}
-	}
+
+	//Р·Р°РїРѕР»РЅРµРЅРёРµ РјР°СЃСЃРёРІР° cellsEdges Р·РЅР°С‡РµРЅРёСЏРјРё.
+	fillNAllocCellsEdges();
 
 	calcTimeStep();
 	save(0);
+}
+
+void FVM_TVD_IMPLICIT::fillNAllocCellsEdges()
+{
+	static bool isCall;
+	if (!isCall)
+	{
+		cellsEdges = new int* [grid.cCount];
+		for (int iCells = 0; iCells < grid.cCount; ++iCells)
+		{
+			cellsEdges[iCells] = new int [3];
+			for (int j = 0; j < 3; ++j)
+				cellsEdges[iCells][j] = -1;
+		}
+		for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
+		{
+			assert(grid.edges[iEdge].c1 < grid.cCount);
+			if (grid.edges[iEdge].c1 >= 0)
+			{	
+				bool edgeExist = false;
+				for (int j = 0; j < 3; ++j)
+				{
+					if (cellsEdges[grid.edges[iEdge].c1][j] == iEdge) 
+					{
+							edgeExist = true;
+							break;
+					}
+				}
+				if (!edgeExist)
+				{
+					for (int j = 0; j < 3; ++j)	
+					{
+						if (cellsEdges[grid.edges[iEdge].c1][j] == -1)
+						{
+							cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
+							break;
+						}
+					}
+				}
+			}
+			assert(grid.edges[iEdge].c2 < grid.cCount);
+			if (grid.edges[iEdge].c2 >= 0)
+			{	
+				bool edgeExist = false;
+				for (int j = 0; j < 3; ++j)
+				{
+					if (cellsEdges[grid.edges[iEdge].c2][j] == iEdge) 
+					{
+							edgeExist = true;
+							break;
+					}
+				}
+				if (!edgeExist)
+				{
+					for (int j = 0; j < 3; ++j)	
+					{
+						if (cellsEdges[grid.edges[iEdge].c2][j] == -1)
+						{
+							cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
+							break;
+						}
+					}
+				}
+			}
+		}
+		isCall = true;
+	}
+}
+void FVM_TVD_IMPLICIT::freeCellsEdges()
+{
+	for (int iCell = 0; iCell < grid.cCount; ++iCell)
+		delete cellsEdges[iCell];
+	delete [] cellsEdges;
 }
 
 double **FVM_TVD_IMPLICIT::allocMtx4()
@@ -224,6 +219,37 @@ void   FVM_TVD_IMPLICIT::freeMtx4(double **mtx4)
 	for (int i = 0; i < 4; ++i)
 		delete [] mtx4[i];
 	delete [] mtx4;
+}
+void FVM_TVD_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
+{
+	double sum;
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			sum = 0;
+			for (int k = 0; k < 4; ++k)
+				sum += srcA4[i][k] * srcB4[k][j];
+			dst4[i][j] = sum;
+		}
+	}
+}
+void FVM_TVD_IMPLICIT::clearMtx4(double **mtx4)
+{
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < 4; ++j)
+			mtx4[i][j] = 0;
+}
+void FVM_TVD_IMPLICIT::printMtx4(double **mtx4, char *msg)
+{
+	if (msg != 0)	printf("%s\n", msg);
+	else			printf("\n");
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+			printf("%16.8e ", mtx4[i][j]);
+		printf("\n");
+	}
 }
 
 void FVM_TVD_IMPLICIT::calcTimeStep()
@@ -252,7 +278,6 @@ void FVM_TVD_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx,
 	dst4[2][2] = qn + c;
 	dst4[3][3] = qn;
 }
-
 void FVM_TVD_IMPLICIT::rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H)
 {
 	double qn = u*nx + v*ny;
@@ -265,7 +290,6 @@ void FVM_TVD_IMPLICIT::rightEigenVector(double **dst4, double c, double u, doubl
 	dst4[2][0] = v-c*ny;	dst4[2][1] = v;		dst4[2][2] = v+c*ny;	dst4[2][3] = ly;
 	dst4[3][0] = H-qn*c;	dst4[3][1] = q2/2;	dst4[3][2] = H+qn*c;	dst4[3][3] = ql;
 }
-
 void FVM_TVD_IMPLICIT::leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny)
 {
 	double qn = u*nx + v*ny;
@@ -281,26 +305,6 @@ void FVM_TVD_IMPLICIT::leftEigenVector(double **dst4, double c, double GAM, doub
 	dst4[3][0] = -ql;						dst4[3][1] = lx;					dst4[3][2] = ly;					dst4[3][3] = 0;	
 }
 
-void FVM_TVD_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
-{
-	double sum;
-	for (int i = 0; i < 4; ++i)
-		for (int j = 0; j < 4; ++j)
-		{
-			sum = 0;
-			for (int k = 0; k < 4; ++k)
-				sum += srcA4[i][k] * srcB4[k][j];
-			dst4[i][j] = sum;
-		}
-}
-
-void FVM_TVD_IMPLICIT::clearMtx4(double **mtx4)
-{
-	for (int i = 0; i < 4; ++i)
-		for (int j = 0; j < 4; ++j)
-			mtx4[i][j] = 0;
-}
-
 void FVM_TVD_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
 {
 	double		**tempMtx4 = allocMtx4();
@@ -314,7 +318,6 @@ void FVM_TVD_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **eg
 	multMtx4(dst4, tempMtx4, leftEgnVecl4);
 	freeMtx4(tempMtx4);
 }
-
 void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
 {
 	double		**tempMtx4 = allocMtx4();
@@ -338,7 +341,6 @@ void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double
 	average.cz = sqrt(GAM*average.p/average.r);
 	average.E = average.e + 0.5*(average.u * average.u + average.v * average.v);
 }
-
 void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 {
 	assert(iCell >= 0 && iCell < grid.cCount);
@@ -364,8 +366,8 @@ void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 
 void FVM_TVD_IMPLICIT::run() 
 {
-	int						nc = grid.cCount; // количество ячеек.
-	int						ne = grid.eCount; // количество ребер.
+	int						nc = grid.cCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЏС‡РµРµРє.
+	int						ne = grid.eCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРµР±РµСЂ.
 	double					t = 0.0;
 	unsigned int			step = 0;
 
@@ -381,12 +383,7 @@ void FVM_TVD_IMPLICIT::run()
 	A2mtx4 = allocMtx4();
 	mtx4_1 = allocMtx4();
 	mtx4_2 = allocMtx4();
-/*
-	memcpy(ro, ro_old, nc*sizeof(double));
-	memcpy(ru, ru_old, nc*sizeof(double));
-	memcpy(rv, rv_old, nc*sizeof(double));
-	memcpy(re, re_old, nc*sizeof(double));
-*/
+
 	solverMtx->init(nc, 4);
 
 	while (t < TMAX)
@@ -394,21 +391,32 @@ void FVM_TVD_IMPLICIT::run()
 		t += TAU;
 		++step;
 
-		//заполнение матрицы.
+		//Р·Р°РїРѕР»РЅРµРЅРёРµ РјР°С‚СЂРёС†С‹.
 		for (int iCell = 0; iCell < nc; ++iCell)
 		{
 			Param		average, cell, neighbor[3];
-			double		__GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+			double		__GAM = 1.4;			// TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
 			
 			reconstruct(iCell, cell, neighbor);
-
+			
 			clearMtx4(mtx4_1);
+			for (int i = 0; i < 4; ++i)		right4[i] = 0;
+			
 			for (int neighborIndex = 0; neighborIndex < 3; ++neighborIndex)
 			{
-				int numberOfEdge = cellsEdges[iCell][neighborIndex];
-				double l = grid.edges[numberOfEdge].l;
-				Vector n = grid.edges[numberOfEdge].n;
-				
+				int		numberOfEdge = cellsEdges[iCell][neighborIndex];
+				int		c1 = grid.edges[numberOfEdge].c1;
+				int		c2 = grid.edges[numberOfEdge].c2;
+				double	l  = grid.edges[numberOfEdge].l;
+
+				//СЃРґРµР»Р°РµРј РЅРѕСЂРјР°Р»СЊ РІРЅРµС€РЅРµР№.
+				Vector	n  = grid.edges[numberOfEdge].n;
+				if (iCell != c1) 
+				{
+					n.x = -n.x;
+					n.y = -n.y;
+				}
+
 				calcRoeAverage(average, cell, neighbor[neighborIndex], __GAM);
 				double H = average.E + average.p/average.r;
 
@@ -447,21 +455,16 @@ void FVM_TVD_IMPLICIT::run()
 						mtx4_2[i][j] = (A1mtx4[i][j] + A2mtx4[i][j])*l;
 					}
 				}
-				int c1 = grid.edges[numberOfEdge].c1;
-				int c2 = grid.edges[numberOfEdge].c2;
-				int neight = (c1 == iCell)? c2 : c1; //номер соседней ячейки.
-				solverMtx->setMatrElement(iCell, 
-					neight,
-					mtx4_2);	//du~(i,j,n+1)
+
+				int neight = (c1 == iCell)? c2 : c1;				//РЅРѕРјРµСЂ СЃРѕСЃРµРґРЅРµР№ СЏС‡РµР№РєРё.
+				solverMtx->setMatrElement(iCell, neight, mtx4_2);	//du~(i,j,n+1)
 				
 				double		fr, fu, fv, fe;
 				calcFlux(fr, fu, fv, fe, cell, neighbor[neighborIndex], n, __GAM);
-
 				right4[0] -= l*fr;
 				right4[1] -= l*fu;
 				right4[2] -= l*fv;
 				right4[3] -= l*fe;
-				solverMtx->setRightElement(iCell, right4); //F(i,j,n)
 			}
 
 			for (int i = 0; i < 4; ++i)
@@ -472,6 +475,8 @@ void FVM_TVD_IMPLICIT::run()
 				}
 			}
 			solverMtx->setMatrElement(iCell, iCell, mtx4_1);	//du(i, n+1)
+
+			solverMtx->setRightElement(iCell, right4);			//F(i,j,n)
 		}
 
 		int maxIter = 1000;
@@ -520,15 +525,15 @@ void FVM_TVD_IMPLICIT::save(int step)
 	//	convertConsToPar(i, p);
 	//	fprintf(fp, "%25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f\n",	grid.cells[i].c.x,
 	//																						grid.cells[i].c.y,
-	//																						p.r,								//	плотность
-	//																						p.p,								//	давление
-	//																						p.u,								//	скорость
+	//																						p.r,								//	РїР»РѕС‚РЅРѕСЃС‚СЊ
+	//																						p.p,								//	РґР°РІР»РµРЅРёРµ
+	//																						p.u,								//	СЃРєРѕСЂРѕСЃС‚СЊ
 	//																						p.v,								//
-	//																						p.e,								//	внутренняя энергия
-	//																						sqrt(_sqr_(p.u)+_sqr_(p.v))/p.cz);	//	число Маха
+	//																						p.e,								//	РІРЅСѓС‚СЂРµРЅРЅСЏСЏ СЌРЅРµСЂРіРёСЏ
+	//																						sqrt(_sqr_(p.u)+_sqr_(p.v))/p.cz);	//	С‡РёСЃР»Рѕ РњР°С…Р°
 	//}
 	//fclose(fp);
-	//// выводим градиенты примитивных переменных
+	//// РІС‹РІРѕРґРёРј РіСЂР°РґРёРµРЅС‚С‹ РїСЂРёРјРёС‚РёРІРЅС‹С… РїРµСЂРµРјРµРЅРЅС‹С…
 	//printf("File '%s' saved...\n", fName);
 	//sprintf(fName, "grad_%010d.dat", step);
 	//fp = fopen(fName, "w");
@@ -683,10 +688,10 @@ void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	switch (b.type)
 	{
 	case Boundary::BOUND_INLET:
-		pR.T  = b.par[0];		//!< температура
-		pR.p  = b.par[1];		//!< давление
-		pR.u  = b.par[2];		//!< первая компонента вектора скорости
-		pR.v  = b.par[3];		//!< вторая компонента вектора скорости
+		pR.T  = b.par[0];		//!< С‚РµРјРїРµСЂР°С‚СѓСЂР°
+		pR.p  = b.par[1];		//!< РґР°РІР»РµРЅРёРµ
+		pR.u  = b.par[2];		//!< РїРµСЂРІР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
+		pR.v  = b.par[3];		//!< РІС‚РѕСЂР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
 		
 		m.URS(pR, 2);
 		m.URS(pR, 1);
@@ -708,31 +713,15 @@ void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	}
 }
 
-
 void FVM_TVD_IMPLICIT::done()
 {
 	delete[] ro;
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
-/*
-	delete[] ro_old;
-	delete[] ru_old;
-	delete[] rv_old;
-	delete[] re_old;
 
-	delete[] ro_int;
-	delete[] ru_int;
-	delete[] rv_int;
-	delete[] re_int;
-*/
-	for (int iCell = 0; iCell < grid.cCount; ++iCell)
-		delete cellsEdges[iCell];
-	delete [] cellsEdges;
+	freeCellsEdges();
 }
-
-
-
 
 Region & FVM_TVD_IMPLICIT::getRegionByCellType(int type)
 {

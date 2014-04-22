@@ -49,61 +49,50 @@ protected:
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
 private:
-	double **allocMtx4();
-	void freeMtx4(double **mtx4);
-	void multMtx4(double **dst4, double **srcA4, double **srcB4);
-	void clearMtx4(double **mtx4);
-	/**
-	 * «аполн€ет в mtx4 собственные значени€ матрицы якоби функции потока.
-	 */
-	void eigenValues(double **dst4, double c, double u, double nx, double v, double ny);
-	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);
-	void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);
-	/**
-	 * «аполн€ет в mtx4 A+.
-	*/
-	void calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-	/**
-	 * «аполн€ет в mtx4 A-.
-	*/
-	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM);
-	void reconstruct(int iCell, Param& cell, Param neighbor[3]);
-private:
-	//массив размерность 3 x grid.cCount. по которому можно определить, кака€ 3-угольна€ €чейка, какие нормера ребер имеет.
-	int **cellsEdges;
+	double **allocMtx4();													//+.
+	void freeMtx4(double **mtx4);											//+.
+	void multMtx4(double **dst4, double **srcA4, double **srcB4);			//+.
+	void clearMtx4(double **mtx4);											//+.
+	void printMtx4(double **mtx4, char *msg = 0);							//+.
+	
+	// «аполн€ет в mtx4 собственные значени€ матрицы якоби функции потока.
+	void eigenValues(double **dst4, double c, double u, double nx, double v, double ny);					//+.
+	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);		//+.
+	void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);	//+.
+	
+	// «аполн€ет в mtx4 A+.
+	void calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
+	// «аполн€ет в mtx4 A-.
+	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
-	double TMAX;
-	double TAU;
-	double CFL;
-	int FILE_SAVE_STEP;
-	int PRINT_STEP;
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM);	//+.
+	void reconstruct(int iCell, Param& cell, Param neighbor[3]);			//+.
+	
+	// «аполн€ем cellsEdges.
+	void fillNAllocCellsEdges();											//+.
+	void freeCellsEdges();													//+.
+private:
+	//! массив размерность grid.cCount x 3. по которому можно определить, кака€ 3-угольна€ €чейка, какие нормера ребер имеет.
+	int			  **cellsEdges;
+
+	double			TMAX;
+	double			TAU;
+	double			CFL;
+	int				FILE_SAVE_STEP;
+	int				PRINT_STEP;
 
 	int				matCount;
 	int				regCount;
 	int				bCount;
-	Material	*	materials;
-	Region		*	regions;
-	Boundary	*	boundaries;
+	Material	   *materials;
+	Region		   *regions;
+	Boundary	   *boundaries;
 
-	//! консервативные переменные на текущем временном слое
-	double * ro;			 
-	double * ru;			
-	double * rv;			
-	double * re;			
-/*
-	//! консервативные переменные на предыдущем временном слое
-	double * ro_old;
-	double * ru_old;
-	double * rv_old;
-	double * re_old;
-
-	//! правые части системы уравнений разностной схемы
-	double * ro_int;
-	double * ru_int;
-	double * rv_int;
-	double * re_int;
-*/
+	//! консервативные переменные на текущем временном слое.
+	double		   *ro;			 
+	double		   *ru;			
+	double		   *rv;			
+	double		   *re;			
 };
 
 #endif
