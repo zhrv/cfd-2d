@@ -73,8 +73,8 @@ void CSRMatrix::add(int i, int j, double aa) {
 	set(i, j, get(i,j)+aa);
 }
 
-void CSRMatrix::printToFile(const std::string& fileName) {
-	FILE * fp = fopen(fileName.c_str(), "w");
+void CSRMatrix::printToFile(const char *fileName) {
+	FILE * fp = fopen(fileName, "w");
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < n; j++) {
 			fprintf(fp, "%16.8e ", get(i,j));

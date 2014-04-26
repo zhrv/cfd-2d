@@ -19,7 +19,7 @@ public:
 
 	virtual void solve(double eps, int& maxIter) = 0;
 
-	void printToFile(const std::string& fileName);
+	void printToFile(const char* fileName);
 
 	CSRMatrix	*a;
 	int			 blockDim;

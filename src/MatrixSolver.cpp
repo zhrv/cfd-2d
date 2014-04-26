@@ -24,18 +24,18 @@ MatrixSolver::~MatrixSolver()
 
 void MatrixSolver::setMatrElement(int i, int j, double** matrDim)
 {
-	for (int ii = 0; ii < blockDim; ii++)
+	for (int ii = 0; ii < blockDim; ++ii)
 	{
-		for (int jj = 0; jj < blockDim; jj++)
+		for (int jj = 0; jj < blockDim; ++jj)
 		{
-			a->set(ii+i*blockDim, ii+j*blockDim, matrDim[ii][jj]);
+			a->set(ii+i*blockDim, jj+j*blockDim, matrDim[ii][jj]);
 		}
 	}
 }
 
 void MatrixSolver::setRightElement(int i, double* vectDim)
 {
-	for (int ii = 0; ii < blockDim; ii++)
+	for (int ii = 0; ii < blockDim; ++ii)
 	{
 		b[ii+i*blockDim] = vectDim[ii];
 	}
@@ -44,11 +44,11 @@ void MatrixSolver::setRightElement(int i, double* vectDim)
 
 void MatrixSolver::addMatrElement(int i, int j, double** matrDim)
 {
-	for (int ii = 0; ii < blockDim; ii++)
+	for (int ii = 0; ii < blockDim; ++ii)
 	{
-		for (int jj = 0; jj < blockDim; jj++)
+		for (int jj = 0; jj < blockDim; ++jj)
 		{
-			a->add(ii+i*blockDim, ii+j*blockDim, matrDim[ii][jj]);
+			a->add(ii+i*blockDim, jj+j*blockDim, matrDim[ii][jj]);
 		}
 	}
 }
@@ -59,6 +59,11 @@ void MatrixSolver::addRightElement(int i, double* vectDim)
 	{
 		b[ii+i*blockDim] += vectDim[ii];
 	}
+}
+
+void MatrixSolver::printToFile(const char* fileName)
+{
+	a->printToFile(fileName);
 }
 
 void SolverZeidel::solve(double eps, int& maxIter)

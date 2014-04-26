@@ -37,8 +37,47 @@ void printErrDiffMtx4(double **mtx4_1, double **mtx4_2, double eps, char *msg)
 				printf("\n");
         }
 }
-*/
 
+void checkMtxSolver()
+{
+	MatrixSolver *s = new SolverZeidel();
+	double **m = new double* [2];
+	m[0] = new double [2]; m[1] = new double [2];
+	double *r = new double [2];
+	s->init(2, 2);
+	
+	m[0][0] = 2; m[0][1] = 5;
+	m[1][0] = 3; m[1][1] = 4;
+	s->setMatrElement(0, 0, m); 
+	
+	m[0][0] = 0; m[0][1] = 0;
+	m[1][0] = 2; m[1][1] = 6;
+	s->setMatrElement(0, 1, m);
+	
+	m[0][0] = 0; m[0][1] = 6;
+	m[1][0] = 0; m[1][1] = 0;
+	s->setMatrElement(1, 0, m);
+	
+	m[0][0] = 3; m[0][1] = 0;
+	m[1][0] = 8; m[1][1] = 5;
+	s->setMatrElement(1, 1, m);
+	
+	r[0] = 6; r[1] = 4;
+	s->setRightElement(0, r);
+	r[0] = 90; r[1] = 3;
+	s->setRightElement(1, r);
+
+	s->printToFile("test_mtx_sol.txt");
+	int maxIter = 1000;
+	const double eps = 1.0e-5;
+	s->solve(eps, maxIter);
+	for (int cellIndex = 0, ind = 0; cellIndex < 2; cellIndex++, ind += 2)
+	{
+		printf("%16.8e,\t%16.8e\n",s->x[ind+0], s->x[ind+1]);
+	}
+	delete s;
+}
+*/
 void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 {
 	TiXmlDocument doc( xmlFileName );
@@ -423,6 +462,8 @@ void FVM_TVD_IMPLICIT::run()
 /*
 /////////////////////	TEST.	///////////////////////
 	{	
+		checkMtxSolver();
+///////////////////////////////////////////////////////
 		double u = 0.2;
         double v = 3.2;
         double p = 21;

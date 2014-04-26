@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <cstdio>
-#include <string>
+#include <cstring>
 #include <cmath>
 
 struct CSRMatrix
@@ -15,7 +15,7 @@ struct CSRMatrix
 	void	set(int i, int j, double aa);
 	double	get(int i, int j);
 	void	add(int i, int j, double aa);
-	void	printToFile(const std::string& fileName);
+	void	printToFile(const char *fileName);
 
 	double *a;
 	int	   *ia;
