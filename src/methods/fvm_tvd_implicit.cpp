@@ -2,82 +2,7 @@
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
-/*
-void calcdFdU(double **dst4, double GAM, double u, double v, double H)
-{
-	double q2 = u*u + v*v;
-	dst4[0][0] = 0;                  dst4[0][1] = 1;               dst4[0][2] = 0;               dst4[0][3] = 0;
-	dst4[1][0] = (GAM-1)*q2/2 - u*u; dst4[1][1] = (3-GAM)*u;       dst4[1][2] = (1-GAM)*v;       dst4[1][3] = GAM-1;
-	dst4[2][0] = -u*v;               dst4[2][1] = v;               dst4[2][2] = u;               dst4[2][3] = 0;
-	dst4[3][0] = ((GAM-1)*q2/2-H)*u; dst4[3][1] = H+(1-GAM)*u*u;   dst4[3][2] = (1-GAM)*u*v;     dst4[3][3] = GAM*u;
-}
-void calcdGdU(double **dst4, double GAM, double u, double v, double H)
-{
-	double q2 = u*u + v*v;
-	dst4[0][0] = 0;                  dst4[0][1] = 0;               dst4[0][2] = 1;               dst4[0][3] = 0;
-	dst4[1][0] = -u*v;				 dst4[1][1] = v;			   dst4[1][2] = u;				 dst4[1][3] = 0;
-	dst4[2][0] = (GAM-1)*q2/2-v*v;   dst4[2][1] = (1-GAM)*u;       dst4[2][2] = (3-GAM)*v;       dst4[2][3] = GAM-1;
-	dst4[3][0] = ((GAM-1)*q2/2-H)*v; dst4[3][1] = (1-GAM)*u*v;     dst4[3][2] = H+(1-GAM)*v*v;   dst4[3][3] = GAM*v;
-}
 
-void printErrDiffMtx4(double **mtx4_1, double **mtx4_2, double eps, char *msg)
-{
-	    if (msg != 0)   printf("%s\n", msg);
-        else                    printf("\n");
-        for (int i = 0; i < 4; ++i)
-        {
-                for (int j = 0; j < 4; ++j) 
-				{
-					double diff = mtx4_1[i][j] - mtx4_2[i][j];
-					if (abs(diff) >= eps) 
-						printf("%16.8e ", diff);
-					else			  
-						printf("%16.8e ", 0.0);
-				}
-				printf("\n");
-        }
-}
-
-void checkMtxSolver()
-{
-	MatrixSolver *s = new SolverZeidel();
-	double **m = new double* [2];
-	m[0] = new double [2]; m[1] = new double [2];
-	double *r = new double [2];
-	s->init(2, 2);
-	
-	m[0][0] = 2; m[0][1] = 5;
-	m[1][0] = 3; m[1][1] = 4;
-	s->setMatrElement(0, 0, m); 
-	
-	m[0][0] = 0; m[0][1] = 0;
-	m[1][0] = 2; m[1][1] = 6;
-	s->setMatrElement(0, 1, m);
-	
-	m[0][0] = 0; m[0][1] = 6;
-	m[1][0] = 0; m[1][1] = 0;
-	s->setMatrElement(1, 0, m);
-	
-	m[0][0] = 3; m[0][1] = 0;
-	m[1][0] = 8; m[1][1] = 5;
-	s->setMatrElement(1, 1, m);
-	
-	r[0] = 6; r[1] = 4;
-	s->setRightElement(0, r);
-	r[0] = 90; r[1] = 3;
-	s->setRightElement(1, r);
-
-	s->printToFile("test_mtx_sol.txt");
-	int maxIter = 1000;
-	const double eps = 1.0e-5;
-	s->solve(eps, maxIter);
-	for (int cellIndex = 0, ind = 0; cellIndex < 2; cellIndex++, ind += 2)
-	{
-		printf("%16.8e,\t%16.8e\n",s->x[ind+0], s->x[ind+1]);
-	}
-	delete s;
-}
-*/
 void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 {
 	TiXmlDocument doc( xmlFileName );
@@ -329,7 +254,7 @@ void FVM_TVD_IMPLICIT::printMtx4(double **mtx4, char *msg)
 
 void FVM_TVD_IMPLICIT::calcTimeStep()
 {
-	double tau = 1.0e+20;
+/*	double tau = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
 		Param p;
@@ -338,7 +263,10 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 		if (tmp < tau) tau = tmp;
 	}
 	tau  *= CFL;
-	TAU = _min_(TAU, tau);
+	TAU = _min_(TAU, tau); */
+	
+	//TODO: !
+	TAU = 1.0e-04;
 	printf("\n\nTime step TAU = %e.\n\n", TAU);
 }
 
@@ -458,62 +386,7 @@ void FVM_TVD_IMPLICIT::run()
 	mtx4_2 = allocMtx4();
 
 	solverMtx->init(nc, 4);
-
-/*
-/////////////////////	TEST.	///////////////////////
-	{	
-		checkMtxSolver();
-///////////////////////////////////////////////////////
-		double u = 0.2;
-        double v = 3.2;
-        double p = 21;
-        double ro = 17;
-        double e = 35;
-        double GAM = 1.4;
-        double cz = sqrt(GAM*p/ro);
-        double E = p/((GAM-1)*ro) + (u*u + v*v)/2;
-        double H = E + p/ro;
-		
-		double nx = 0.75;
-		double ny = 0.15;
-
-		eigenValues(eigenMtx4, cz,u,1.0,v,0);
-		printMtx4(eigenMtx4, "eigenMtx4");
-		rightEigenVector(rEigenVector4, cz, u, 1.0, v, 0, H);
-		leftEigenVector(lEigenVector4, cz, GAM, u, 1.0, v, 0);
-		calcAP(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-		printMtx4(A1mtx4, "AP");
-		calcAM(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-		printMtx4(A2mtx4, "AM");
-
-		clearMtx4(mtx4_1);
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				mtx4_1[i][j] = A1mtx4[i][j] + A2mtx4[i][j];
-
-		calcdFdU(mtx4_2, GAM, u, v, H);
-		printErrDiffMtx4(mtx4_1, mtx4_2, 0.000000001, "diff (RAL - dFdU)");
-		printf("\n------------------------------------------------------\n");
-
-		eigenValues(eigenMtx4, cz,u,0,v,1.0);
-		printMtx4(eigenMtx4, "eigenMtx4");
-		rightEigenVector(rEigenVector4, cz, u, 0, v, 1.0, H);
-		leftEigenVector(lEigenVector4, cz, GAM, u, 0, v, 1.0);
-		calcAP(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-		printMtx4(A1mtx4, "AP");
-		calcAM(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-		printMtx4(A2mtx4, "AM");
-
-		clearMtx4(mtx4_1);
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				mtx4_1[i][j] = A1mtx4[i][j] + A2mtx4[i][j];
-
-		calcdGdU(mtx4_2, GAM, u, v, H);
-		printErrDiffMtx4(mtx4_1, mtx4_2, 0.000000001, "diff (RAL - dGdU)");
-	}
-///////////////////////////////////////////////////////
-*/
+	
 	while (t < TMAX)
 	{
 		t += TAU;
@@ -552,15 +425,12 @@ void FVM_TVD_IMPLICIT::run()
 				rightEigenVector(rEigenVector4, average.cz, average.u, 1.0, average.v, 0.0, H);
 				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 1.0, average.v, 0.0);
 				calcAP(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-				//printMtx4(A1mtx4, "A1mtx4");
 				
 				eigenValues(eigenMtx4, average.cz, average.u, 0.0, average.v, 1.0);
 				rightEigenVector(rEigenVector4, average.cz, average.u, 0.0, average.v, 1.0, H);
 				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 0.0, average.v, 1.0);
 				calcAP(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-				//printMtx4(A2mtx4, "A2mtx4");
 
-				//printMtx4(mtx4_1, "mtx4_1");
 				for (int i = 0; i < 4; ++i)
 				{
 					for (int j = 0; j < 4; ++j)
@@ -568,7 +438,6 @@ void FVM_TVD_IMPLICIT::run()
 						mtx4_1[i][j] += (A1mtx4[i][j]*n.x + A2mtx4[i][j]*n.y)*l;
 					}
 				}
-				//printMtx4(mtx4_1, "mtx4_1");
 
 				eigenValues(eigenMtx4, average.cz, average.u, 1.0, average.v, 0.0);
 				rightEigenVector(rEigenVector4, average.cz, average.u, 1.0, average.v, 0.0, H);
@@ -580,7 +449,6 @@ void FVM_TVD_IMPLICIT::run()
 				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 0.0, average.v, 1.0);
 				calcAM(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
 
-				//printMtx4(mtx4_2, "mtx4_2");
 				for (int i = 0; i < 4; ++i)
 				{
 					for (int j = 0; j < 4; ++j)
@@ -588,7 +456,6 @@ void FVM_TVD_IMPLICIT::run()
 						mtx4_2[i][j] = (A1mtx4[i][j]*n.x + A2mtx4[i][j]*n.y)*l;
 					}
 				}
-				//printMtx4(mtx4_2, "mtx4_2");
 
 				int neight = (c1 == iCell)? c2 : c1;				//номер соседней ячейки.
 				solverMtx->setMatrElement(iCell, neight, mtx4_2);	//du~(i,j,n+1)
@@ -614,7 +481,7 @@ void FVM_TVD_IMPLICIT::run()
 		}
 
 		int maxIter = 1000;
-		const double eps = 1.0e-5;
+		const double eps = 1.0e-4;
 		
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
@@ -626,11 +493,11 @@ void FVM_TVD_IMPLICIT::run()
 		}
 		solverMtx->zero();
 
-		if (step % FILE_SAVE_STEP == 0)
+		if (step % FILE_SAVE_STEP*FILE_SAVE_STEP == 0)
 		{
 			save(step);
 		}
-		if (step % PRINT_STEP == 0)
+		if (step % PRINT_STEP*PRINT_STEP == 0)
 		{
 			log("step: %d\t\ttime step: %.16f\n", step, t);
 		}
