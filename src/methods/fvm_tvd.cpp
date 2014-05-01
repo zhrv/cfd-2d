@@ -133,10 +133,6 @@ void FVM_TVD::init(char * xmlFileName)
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
 
-	muT		= new double[grid.cCount];
-	rk		= new double[grid.cCount];
-	reps	= new double[grid.cCount];
-
 	ro_old	= new double[grid.cCount];
 	ru_old	= new double[grid.cCount];
 	rv_old	= new double[grid.cCount];
@@ -150,9 +146,6 @@ void FVM_TVD::init(char * xmlFileName)
 	gradU = new Vector[grid.cCount];
 	gradV = new Vector[grid.cCount];
 
-	gradK = new Vector[grid.cCount];
-	gradEps = new Vector[grid.cCount];
-
 	Txx = new double[grid.cCount];
 	Tyy = new double[grid.cCount];
 	Txy = new double[grid.cCount];
@@ -164,9 +157,7 @@ void FVM_TVD::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	memset(muT, 0, grid.cCount*sizeof(double));
-	memset(rk, 0, grid.cCount*sizeof(double));
-	memset(reps, 0, grid.cCount*sizeof(double));
+	viscosityModel.init(&grid, ro, ru, rv);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
@@ -259,6 +250,9 @@ void FVM_TVD::run()
 		memcpy(ru_old, ru, nc*sizeof(double));
 		memcpy(rv_old, rv, nc*sizeof(double));
 		memcpy(re_old, re, nc*sizeof(double));
+
+
+		viscosityModel.calcMuT(TAU);
 		
 		
 		if (step % FILE_SAVE_STEP == 0)
@@ -512,9 +506,9 @@ void FVM_TVD::calcTensor(double lambda, double mu, Vector *gradU, Vector *gradV,
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		Txx[iCell] = (lambda - 2.0 / 3.0 * (mu * muT[iCell])) * (gradU[iCell].x + gradV[iCell].y) + 2.0 * (mu * muT[iCell]) * gradU[iCell].x;
-		Tyy[iCell] = (lambda - 2.0 / 3.0 * (mu * muT[iCell])) * (gradU[iCell].x + gradV[iCell].y) + 2.0 * (mu * muT[iCell]) * gradV[iCell].y;
-		Txy[iCell] = (mu * muT[iCell]) * (gradU[iCell].y + gradV[iCell].x);
+		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel.getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel.getMuT(iCell) ) * gradU[iCell].x;
+		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel.getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel.getMuT(iCell) ) * gradV[iCell].y;
+		Txy[iCell] = ( mu + viscosityModel.getMuT(iCell) ) * ( gradU[iCell].y + gradV[iCell].x );
 	}
 }
 
@@ -591,10 +585,6 @@ void FVM_TVD::done()
 	delete[] rv;
 	delete[] re;
 
-	delete[] muT;
-	delete[] rk;
-	delete[] reps;
-
 	delete[] ro_old;
 	delete[] ru_old;
 	delete[] rv_old;
@@ -611,6 +601,8 @@ void FVM_TVD::done()
     delete [] Txx;
     delete [] Tyy;
     delete [] Txy;
+
+	viscosityModel.done();
 }
 
 
