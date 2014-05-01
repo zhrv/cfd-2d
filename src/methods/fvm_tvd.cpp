@@ -6,8 +6,10 @@
 void FVM_TVD::init(char * xmlFileName)
 {
 	// TODO: Вынести
-	l = 0;
-	m = 1.85E-5;
+	lambda = 0;
+
+	// TODO: В дипломе нужно пересчитывать динамически
+	mu = 1.85E-5;
 	
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
@@ -131,6 +133,10 @@ void FVM_TVD::init(char * xmlFileName)
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
 
+	muT		= new double[grid.cCount];
+	rk		= new double[grid.cCount];
+	reps	= new double[grid.cCount];
+
 	ro_old	= new double[grid.cCount];
 	ru_old	= new double[grid.cCount];
 	rv_old	= new double[grid.cCount];
@@ -144,6 +150,9 @@ void FVM_TVD::init(char * xmlFileName)
 	gradU = new Vector[grid.cCount];
 	gradV = new Vector[grid.cCount];
 
+	gradK = new Vector[grid.cCount];
+	gradEps = new Vector[grid.cCount];
+
 	Txx = new double[grid.cCount];
 	Tyy = new double[grid.cCount];
 	Txy = new double[grid.cCount];
@@ -154,6 +163,10 @@ void FVM_TVD::init(char * xmlFileName)
 		Region & reg = getRegion(i);
 		convertParToCons(i, reg.par);
 	}
+
+	memset(muT, 0, grid.cCount*sizeof(double));
+	memset(rk, 0, grid.cCount*sizeof(double));
+	memset(reps, 0, grid.cCount*sizeof(double));
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
@@ -201,7 +214,7 @@ void FVM_TVD::run()
 		memset(re_int, 0, nc*sizeof(double));
 
 		calcGrad(gradU, gradV);
-		calcTensor(l, m, gradU, gradV, Txx, Tyy, Txy);
+		calcTensor(lambda, mu, gradU, gradV, Txx, Tyy, Txy);
 
 		for (int iEdge = 0; iEdge < ne; iEdge++)
 		{
@@ -493,15 +506,15 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 	}
 }
 
-void FVM_TVD::calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy)
+void FVM_TVD::calcTensor(double lambda, double mu, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy)
 {
 	int nc = grid.cCount;
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		Txx[iCell] = (l - 2/3*m) * (gradU[iCell].x + gradV[iCell].y) + 2 * m * gradU[iCell].x;
-		Tyy[iCell] = (l - 2/3*m) * (gradU[iCell].x + gradV[iCell].y) + 2 * m * gradV[iCell].y;
-		Txy[iCell] = m * (gradU[iCell].y + gradV[iCell].x);
+		Txx[iCell] = (lambda - 2.0 / 3.0 * (mu * muT[iCell])) * (gradU[iCell].x + gradV[iCell].y) + 2.0 * (mu * muT[iCell]) * gradU[iCell].x;
+		Tyy[iCell] = (lambda - 2.0 / 3.0 * (mu * muT[iCell])) * (gradU[iCell].x + gradV[iCell].y) + 2.0 * (mu * muT[iCell]) * gradV[iCell].y;
+		Txy[iCell] = (mu * muT[iCell]) * (gradU[iCell].y + gradV[iCell].x);
 	}
 }
 
@@ -577,6 +590,10 @@ void FVM_TVD::done()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
+
+	delete[] muT;
+	delete[] rk;
+	delete[] reps;
 
 	delete[] ro_old;
 	delete[] ru_old;

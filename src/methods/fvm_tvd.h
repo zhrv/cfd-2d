@@ -2,6 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
+#include "k_eps_model.h"
 
 class FVM_TVD: public Method
 {
@@ -72,11 +73,13 @@ private:
 	Region		*	regions;
 	Boundary	*	boundaries;
 
+	KEpsModel viscosityModel;
+
 	//! консервативные переменные на текущем временном слое
-	double * ro;			 
-	double * ru;			
-	double * rv;			
-	double * re;			
+	double * ro;
+	double * ru;
+	double * rv;
+	double * re;
 
 	//! консервативные переменные на предыдущем временном слое
 	double * ro_old;
@@ -94,7 +97,7 @@ private:
 	double *Txx, *Tyy, *Txy;
 
 	// TODO: Вынести
-	double l, m;
+	double lambda, mu;
 };
 
 #endif
