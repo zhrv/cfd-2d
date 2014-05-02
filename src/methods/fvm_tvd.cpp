@@ -157,7 +157,9 @@ void FVM_TVD::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	viscosityModel.init(&grid, ro, ru, rv);
+	// TODO: make model choice, that depends on task data
+	viscosityModel = new KEpsModel();
+	viscosityModel->init(&grid, ro, ru, rv, Txx, Tyy, Txy);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
@@ -252,7 +254,7 @@ void FVM_TVD::run()
 		memcpy(re_old, re, nc*sizeof(double));
 
 
-		viscosityModel.calcMuT(TAU);
+		viscosityModel->calcMuT(TAU);
 		
 		
 		if (step % FILE_SAVE_STEP == 0)
@@ -506,9 +508,9 @@ void FVM_TVD::calcTensor(double lambda, double mu, Vector *gradU, Vector *gradV,
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel.getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel.getMuT(iCell) ) * gradU[iCell].x;
-		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel.getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel.getMuT(iCell) ) * gradV[iCell].y;
-		Txy[iCell] = ( mu + viscosityModel.getMuT(iCell) ) * ( gradU[iCell].y + gradV[iCell].x );
+		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel->getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel->getMuT(iCell) ) * gradU[iCell].x;
+		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel->getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel->getMuT(iCell) ) * gradV[iCell].y;
+		Txy[iCell] = ( mu + viscosityModel->getMuT(iCell) ) * ( gradU[iCell].y + gradV[iCell].x );
 	}
 }
 
@@ -602,7 +604,7 @@ void FVM_TVD::done()
     delete [] Tyy;
     delete [] Txy;
 
-	viscosityModel.done();
+	viscosityModel->done();
 }
 
 

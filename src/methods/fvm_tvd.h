@@ -73,7 +73,7 @@ private:
 	Region		*	regions;
 	Boundary	*	boundaries;
 
-	KEpsModel viscosityModel;
+	ViscosityModel * viscosityModel;
 
 	//! консервативные переменные на текущем временном слое
 	double * ro;
