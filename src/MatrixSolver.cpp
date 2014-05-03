@@ -100,7 +100,7 @@ void SolverZeidel::solve(double eps, int& maxIter)
 					tmp += a->a[k]*x[a->ja[k]];
 				}
 			}
-			if (aii == 0) 
+			if (fabs(aii) == eps*eps) 
 			{
 				printf("ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
 

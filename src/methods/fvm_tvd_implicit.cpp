@@ -427,8 +427,11 @@ void FVM_TVD_IMPLICIT::run()
 			//сделаем нормаль внешней.
 			Vector	n = grid.edges[numberOfEdge].n;
 			convertConsToPar(c1, cellL);
-			if (c2 >=0 ) {
+			if (grid.edges[iEdge].type == Edge::TYPE_INNER) {
 				convertConsToPar(c2, cellR);
+			}
+			else {
+				boundaryCond(iEdge, cellL, cellR);
 			}
 			calcRoeAverage(average, cellL, cellR, __GAM);
 			double H = average.E + average.p / average.r;
