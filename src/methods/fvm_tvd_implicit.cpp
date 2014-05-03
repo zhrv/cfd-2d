@@ -333,14 +333,27 @@ void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **eg
 	freeMtx4(tempMtx4);
 }
 
-void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM)
+void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
-	double WI;
-	roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
-		pL.r, pL.p, pL.u, pL.v, 0.0,
-		pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
+	double WI, UN, UT;
+	double unl = pL.u*n.x+pL.v*n.y;
+	double unr = pR.u*n.x+pR.v*n.y;
+	double utl = pL.u*n.y-pL.v*n.x;
+	double utr = pR.u*n.y-pR.v*n.x;
+	rim_orig(average.r, average.e, average.p, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+		
+	double UI = UN*n.x+UT*n.y;
+	double VI = UN*n.y-UT*n.x;
+
+	average.u = UI;
+	average.v = VI;
+
+	//roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
+	//	pL.r, pL.p, pL.u, pL.v, 0.0,
+	//	pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
+
 	average.cz = sqrt(GAM*average.p/average.r);
-	average.E = average.p/((GAM-1)*average.r) + 0.5*(average.u*average.u + average.v*average.v);
+	average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
 }
 void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
 {
@@ -433,28 +446,41 @@ void FVM_TVD_IMPLICIT::run()
 			else {
 				boundaryCond(iEdge, cellL, cellR);
 			}
-			calcRoeAverage(average, cellL, cellR, __GAM);
+			calcRoeAverage(average, cellL, cellR, __GAM, n);
 			double H = average.E + average.p / average.r;
 
 			eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
 			rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
 			leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, n.x, average.v, n.y);
-			
-			
 			calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
 			calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
 			
+			for (int i = 0; i < 4; ++i)
+			{
+				for (int j = 0; j < 4; ++j)
+				{
+					Amtx4M[i][j] *= l;
+					Amtx4P[i][j] *= l;
+				}
+			}
+
 			solverMtx->addMatrElement(c1, c1, Amtx4M);
 
 			if (c2 >= 0) {
 				solverMtx->addMatrElement(c1, c2, Amtx4P);	//du~(i,j,n+1)
 
+				eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
+				rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
+				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, -n.x, average.v, -n.y);
+				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+
 				for (int i = 0; i < 4; ++i)
 				{
 					for (int j = 0; j < 4; ++j)
 					{
-						Amtx4M[i][j] *= -1.0;
-						Amtx4P[i][j] *= -1.0;
+						Amtx4M[i][j] *= l;
+						Amtx4P[i][j] *= l;
 					}
 				}
 
@@ -499,7 +525,7 @@ void FVM_TVD_IMPLICIT::run()
 			
 		}
 
-		int maxIter = 1000;
+		int maxIter = 5000;
 		const double eps = 1.0e-4;
 		solverMtx->printToFile("matrix.txt");
 		solverMtx->solve(eps, maxIter);

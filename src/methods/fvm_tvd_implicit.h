@@ -65,7 +65,7 @@ private:
 	// Заполняет в mtx4 A-.
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
-	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM);	//+.
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);	//+.
 	void reconstruct(int iCell, Param& cell, Param neighbor[3]);			//+.
 	
 	// Заполняем cellsEdges.
