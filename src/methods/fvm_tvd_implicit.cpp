@@ -254,7 +254,7 @@ void FVM_TVD_IMPLICIT::printMtx4(double **mtx4, char *msg)
 
 void FVM_TVD_IMPLICIT::calcTimeStep()
 {
-/*	double tau = 1.0e+20;
+	double tau = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
 		Param p;
@@ -263,10 +263,10 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 		if (tmp < tau) tau = tmp;
 	}
 	tau  *= CFL;
-	TAU = _min_(TAU, tau); */
+	TAU = _min_(TAU, tau); 
 	
 	//TODO: !
-	TAU = 1.0e-04;
+	//TAU = 1.0e-04;
 	printf("\n\nTime step TAU = %e.\n\n", TAU);
 }
 
@@ -373,116 +373,132 @@ void FVM_TVD_IMPLICIT::run()
 	unsigned int			step = 0;
 
 	MatrixSolver			*solverMtx = new SolverZeidel();
-	double					**eigenMtx4, **rEigenVector4, **lEigenVector4, **A1mtx4, **A2mtx4, **mtx4_1,**mtx4_2;
-	double					*right4;
+	double					**eigenMtx4, **rEigenVector4, **lEigenVector4;
+	double					**Amtx4P, **Amtx4M;
+	double					**right4, **mtx4;
 
-	right4 = new double [4];
-	eigenMtx4 = allocMtx4(); 
-	rEigenVector4 = allocMtx4(); 
-	lEigenVector4 = allocMtx4(); 
-	A1mtx4 = allocMtx4(); 
-	A2mtx4 = allocMtx4();
-	mtx4_1 = allocMtx4();
-	mtx4_2 = allocMtx4();
+	right4 = new double*[nc];
+	for (int i = 0; i < nc; i++) {
+		right4[i] = new double[4];
+	}
+	mtx4 = allocMtx4();
+	eigenMtx4 = allocMtx4();
+	rEigenVector4 = allocMtx4();
+	lEigenVector4 = allocMtx4();
+	Amtx4P = allocMtx4();
+	Amtx4M = allocMtx4();
 
 	solverMtx->init(nc, 4);
-	
+
+	// инициализируем портрет матрицы
+	log("Matrix structure initialization:\n");
+	CSRMatrix::DELTA = 65536;
+	for (int iEdge = 0; iEdge < ne; iEdge++) {
+		int		c1 = grid.edges[iEdge].c1;
+		int		c2 = grid.edges[iEdge].c2;
+		solverMtx->createMatrElement(c1, c1);
+		if (c2 >= 0){
+			solverMtx->createMatrElement(c1, c2);
+			solverMtx->createMatrElement(c2, c2);
+			solverMtx->createMatrElement(c2, c1);
+		}
+		if (iEdge % 100 == 0) {
+			log("\tfor edge: %d\n", iEdge);
+		}
+	}
+	log("\tcomplete...\n");
 	while (t < TMAX)
 	{
 		t += TAU;
 		++step;
 
 		//заполнение матрицы.
+		Param		average, cellL, cellR;
+		double		__GAM = 1.4;			// TODO: сделать правильное вычисление показателя адиабаты
+
+		solverMtx->zero();
+
+		for (int iEdge = 0; iEdge < ne; iEdge++) {
+			int		numberOfEdge = iEdge;
+			int		c1 = grid.edges[numberOfEdge].c1;
+			int		c2 = grid.edges[numberOfEdge].c2;
+			double	l = grid.edges[numberOfEdge].l;
+
+			//сделаем нормаль внешней.
+			Vector	n = grid.edges[numberOfEdge].n;
+			convertConsToPar(c1, cellL);
+			if (c2 >=0 ) {
+				convertConsToPar(c2, cellR);
+			}
+			calcRoeAverage(average, cellL, cellR, __GAM);
+			double H = average.E + average.p / average.r;
+
+			eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+			rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+			leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, n.x, average.v, n.y);
+			
+			
+			calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+			calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+			
+			solverMtx->addMatrElement(c1, c1, Amtx4M);
+
+			if (c2 >= 0) {
+				solverMtx->addMatrElement(c1, c2, Amtx4P);	//du~(i,j,n+1)
+
+				for (int i = 0; i < 4; ++i)
+				{
+					for (int j = 0; j < 4; ++j)
+					{
+						Amtx4M[i][j] *= -1.0;
+						Amtx4P[i][j] *= -1.0;
+					}
+				}
+
+				solverMtx->addMatrElement(c2, c2, Amtx4M);
+				solverMtx->addMatrElement(c2, c1, Amtx4P);
+
+			}
+			double		fr, fu, fv, fe;
+			calcFlux(fr, fu, fv, fe, cellL, cellR, n, __GAM);
+			right4[c1][0] -= l*fr;
+			right4[c1][1] -= l*fu;
+			right4[c1][2] -= l*fv;
+			right4[c1][3] -= l*fe;
+			if (c2 >= 0) {
+				right4[c2][0] += l*fr;
+				right4[c2][1] += l*fu;
+				right4[c2][2] += l*fv;
+				right4[c2][3] += l*fe;
+			}
+			//log("edge = %d of %d\n", iEdge, ne);
+		}
+
+		
 		for (int iCell = 0; iCell < nc; ++iCell)
 		{
-			Param		average, cell, neighbor[3];
-			double		__GAM = 1.4;			// TODO: сделать правильное вычисление показателя адиабаты
-			
-			reconstruct(iCell, cell, neighbor);
-			
-			clearMtx4(mtx4_1);
-			for (int i = 0; i < 4; ++i)		right4[i] = 0;
-			
-			for (int neighborIndex = 0; neighborIndex < 3; ++neighborIndex)
-			{
-				int		numberOfEdge = cellsEdges[iCell][neighborIndex];
-				int		c1 = grid.edges[numberOfEdge].c1;
-				int		c2 = grid.edges[numberOfEdge].c2;
-				double	l  = grid.edges[numberOfEdge].l;
-
-				//сделаем нормаль внешней.
-				Vector	n  = grid.edges[numberOfEdge].n;
-				if (iCell != c1) 
-				{
-					n.x = -n.x;
-					n.y = -n.y;
-				}
-
-				calcRoeAverage(average, cell, neighbor[neighborIndex], __GAM);
-				double H = average.E + average.p/average.r;
-
-				eigenValues(eigenMtx4, average.cz, average.u, 1.0, average.v, 0.0);
-				rightEigenVector(rEigenVector4, average.cz, average.u, 1.0, average.v, 0.0, H);
-				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 1.0, average.v, 0.0);
-				calcAP(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-				
-				eigenValues(eigenMtx4, average.cz, average.u, 0.0, average.v, 1.0);
-				rightEigenVector(rEigenVector4, average.cz, average.u, 0.0, average.v, 1.0, H);
-				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 0.0, average.v, 1.0);
-				calcAP(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-
-				for (int i = 0; i < 4; ++i)
-				{
-					for (int j = 0; j < 4; ++j)
-					{
-						mtx4_1[i][j] += (A1mtx4[i][j]*n.x + A2mtx4[i][j]*n.y)*l;
-					}
-				}
-
-				eigenValues(eigenMtx4, average.cz, average.u, 1.0, average.v, 0.0);
-				rightEigenVector(rEigenVector4, average.cz, average.u, 1.0, average.v, 0.0, H);
-				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 1.0, average.v, 0.0);
-				calcAM(A1mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-
-				eigenValues(eigenMtx4, average.cz, average.u, 0.0, average.v, 1.0);
-				rightEigenVector(rEigenVector4, average.cz, average.u, 0.0, average.v, 1.0, H);
-				leftEigenVector(lEigenVector4, average.cz, __GAM, average.u, 0.0, average.v, 1.0);
-				calcAM(A2mtx4, rEigenVector4, eigenMtx4, lEigenVector4);
-
-				for (int i = 0; i < 4; ++i)
-				{
-					for (int j = 0; j < 4; ++j)
-					{
-						mtx4_2[i][j] = (A1mtx4[i][j]*n.x + A2mtx4[i][j]*n.y)*l;
-					}
-				}
-
-				int neight = (c1 == iCell)? c2 : c1;				//номер соседней ячейки.
-				solverMtx->setMatrElement(iCell, neight, mtx4_2);	//du~(i,j,n+1)
-				
-				double		fr, fu, fv, fe;
-				calcFlux(fr, fu, fv, fe, cell, neighbor[neighborIndex], n, __GAM);
-				right4[0] -= l*fr;
-				right4[1] -= l*fu;
-				right4[2] -= l*fv;
-				right4[3] -= l*fe;
-			}
-
 			for (int i = 0; i < 4; ++i)
 			{
 				for (int j = 0; j < 4; ++j)
 				{
-					if (i == j) mtx4_1[i][j] += grid.cells[iCell].S/TAU;
+					if (i == j) {
+						mtx4[i][j] = grid.cells[iCell].S / TAU;
+					}
+					else {
+						mtx4[i][j] = 0.0;
+					}
 				}
 			}
-			solverMtx->setMatrElement(iCell, iCell, mtx4_1);	//du(i, n+1)
+			solverMtx->addMatrElement(iCell, iCell, mtx4);	//du(i, n+1)
 
-			solverMtx->setRightElement(iCell, right4);			//F(i,j,n)
+			solverMtx->setRightElement(iCell, right4[iCell]);			//F(i,j,n)
+
+			
 		}
 
 		int maxIter = 1000;
 		const double eps = 1.0e-4;
-		
+		solverMtx->printToFile("matrix.txt");
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
@@ -493,24 +509,26 @@ void FVM_TVD_IMPLICIT::run()
 		}
 		solverMtx->zero();
 
-		if (step % FILE_SAVE_STEP*FILE_SAVE_STEP == 0)
+		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);
 		}
-		if (step % PRINT_STEP*PRINT_STEP == 0)
+		if (step % PRINT_STEP == 0)
 		{
-			log("step: %d\t\ttime step: %.16f\n", step, t);
+			log("step: %d\t\ttime step: %.16f\t\tmax iter: %d\n", step, t, maxIter);
 		}
 	}
 
-	freeMtx4(eigenMtx4); 
-	freeMtx4(rEigenVector4); 
-	freeMtx4(lEigenVector4); 
-	freeMtx4(A1mtx4); 
-	freeMtx4(A2mtx4);
-	freeMtx4(mtx4_1);
-	freeMtx4(mtx4_2);
-	delete [] right4;
+	freeMtx4(eigenMtx4);
+	freeMtx4(rEigenVector4);
+	freeMtx4(lEigenVector4);
+	freeMtx4(Amtx4P);
+	freeMtx4(Amtx4M);
+	freeMtx4(mtx4);
+	for (int i = 0; i < nc; i++) {
+		delete[] right4[i];
+	}
+	delete[] right4;
 	delete solverMtx;
 }
 
@@ -631,40 +649,48 @@ void FVM_TVD_IMPLICIT::save(int step)
 
 void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	{	// GODUNOV FLUX
-		double RI, EI, PI, UI, VI, WI, UN, UT;
-		//double unl = pL.u*n.x+pL.v*n.y;
-		//double unr = pR.u*n.x+pR.v*n.y;
-		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-			
-		double unl = pL.u*n.x+pL.v*n.y;
-		double unr = pR.u*n.x+pR.v*n.y;
-		double utl = pL.u*n.y-pL.v*n.x;
-		double utr = pR.u*n.y-pR.v*n.x;
-		rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
-		
-		UI = UN*n.x+UT*n.y;
-		VI = UN*n.y-UT*n.x;
-
-		fr = RI*UN;
-		fu = fr*UI+PI*n.x;
-		fv = fr*VI+PI*n.y;
-		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
-	}
-	//{	// LAX-FRIEDRIX FLUX
+	//{	// GODUNOV FLUX
+	//	double RI, EI, PI, UI, VI, WI, UN, UT;
+	//	//double unl = pL.u*n.x+pL.v*n.y;
+	//	//double unr = pR.u*n.x+pR.v*n.y;
+	//	//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+	//		
 	//	double unl = pL.u*n.x+pL.v*n.y;
 	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	pL.getToCons(rol, rul, rvl, rel);
-	//	pR.getToCons(ror, rur, rvr, rer);
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	//	double utl = pL.u*n.y-pL.v*n.x;
+	//	double utr = pR.u*n.y-pR.v*n.x;
+	//	rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
+	//	
+	//	UI = UN*n.x+UT*n.y;
+	//	VI = UN*n.y-UT*n.x;
+
+	//	fr = RI*UN;
+	//	fu = fr*UI+PI*n.x;
+	//	fv = fr*VI+PI*n.y;
+	//	fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	//}
+	{	// LAX-FRIEDRIX FLUX
+		double unl = pL.u*n.x+pL.v*n.y;
+		double unr = pR.u*n.x+pR.v*n.y;
+		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+		//pL.getToCons(rol, rul, rvl, rel);
+		//pR.getToCons(ror, rur, rvr, rer);
+		rol = pL.r;
+		rul = pL.r*pL.u;
+		rvl = pL.r*pL.v;
+		rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+		ror = pR.r;
+		rur = pR.r*pR.u;
+		rvr = pR.r*pR.v;
+		rer = pR.p /(GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
+		double frl = rol*unl;
+		double frr = ror*unr;
+		fr = 0.5*(frr+frl								- alpha*(ror-rol));
+		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	}
 }
 
 void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)

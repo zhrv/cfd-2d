@@ -53,6 +53,17 @@ void MatrixSolver::addMatrElement(int i, int j, double** matrDim)
 	}
 }
 
+void MatrixSolver::createMatrElement(int i, int j) {
+	for (int ii = 0; ii < blockDim; ++ii)
+	{
+		for (int jj = 0; jj < blockDim; ++jj)
+		{
+			a->set(ii + i*blockDim, jj + j*blockDim, 0.0);
+		}
+	}
+
+}
+
 void MatrixSolver::addRightElement(int i, double* vectDim)
 {
 	for (int ii = 0; ii < blockDim; ii++)

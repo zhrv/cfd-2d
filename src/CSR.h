@@ -21,7 +21,10 @@ struct CSRMatrix
 	int	   *ia;
 	int    *ja;
 	int     na;
+	int     _na;
 	int     n;
+
+	static int DELTA;
 };
 
 #endif
