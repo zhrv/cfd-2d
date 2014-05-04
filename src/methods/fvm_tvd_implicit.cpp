@@ -286,7 +286,7 @@ void FVM_TVD_IMPLICIT::rightEigenVector(double **dst4, double c, double u, doubl
 	double lx = -ny; 
 	double ly = nx;
 	double ql = u*lx + v*ly;
-	dst4[0][0] = 1;			dst4[0][1] = 1;		dst4[0][2] = 1;			dst4[0][3] = 0;
+	dst4[0][0] = 1.0;			dst4[0][1] = 1.0;		dst4[0][2] = 1.0;			dst4[0][3] = 0.0;
 	dst4[1][0] = u-c*nx;	dst4[1][1] = u;		dst4[1][2] = u+c*nx;	dst4[1][3] = lx;
 	dst4[2][0] = v-c*ny;	dst4[2][1] = v;		dst4[2][2] = v+c*ny;	dst4[2][3] = ly;
 	dst4[3][0] = H-qn*c;	dst4[3][1] = q2/2;	dst4[3][2] = H+qn*c;	dst4[3][3] = ql;
@@ -298,7 +298,7 @@ void FVM_TVD_IMPLICIT::leftEigenVector(double **dst4, double c, double GAM, doub
 	double lx = -ny; 
 	double ly = nx;
 	double ql = u*lx + v*ly;
-	double g1 = GAM-1;
+	double g1 = GAM-1.0;
 	double c2 = c*c;
 	dst4[0][0] = 0.5*(0.5*q2*g1/c2 + qn/c);	dst4[0][1] = -0.5*(g1*u/c2 + nx/c);	dst4[0][2] = -0.5*(g1*v/c2 + ny/c);	dst4[0][3] = 0.5*g1/c2;
 	dst4[1][0] = 1-0.5*q2*g1/c2;			dst4[1][1] = g1*u/c2;				dst4[1][2] = g1*v/c2;				dst4[1][3] = -g1/c2;
@@ -317,6 +317,11 @@ void FVM_TVD_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **eg
 	
 	multMtx4(tempMtx4, rightEgnVecl4, dst4);
 	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			dst4[i][j] *= 0.5;
+		}
+	}
 	freeMtx4(tempMtx4);
 }
 void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
@@ -330,6 +335,11 @@ void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **eg
 	
 	multMtx4(tempMtx4, rightEgnVecl4, dst4);
 	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			dst4[i][j] *= 0.5;
+		}
+	}
 	freeMtx4(tempMtx4);
 }
 
@@ -430,6 +440,9 @@ void FVM_TVD_IMPLICIT::run()
 		double		__GAM = 1.4;			// TODO: сделать правильное вычисление показателя адиабаты
 
 		solverMtx->zero();
+		for (int iCell = 0; iCell < nc; iCell++){
+			memset(right4[iCell], 0, 4 * sizeof(double));
+		}
 
 		for (int iEdge = 0; iEdge < ne; iEdge++) {
 			int		numberOfEdge = iEdge;
@@ -455,6 +468,17 @@ void FVM_TVD_IMPLICIT::run()
 			calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
 			calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
 			
+			double qq[4][4];
+
+			for (int i = 0; i < 4; i++) {
+				for (int j = 0; j < 4; j++) {
+					qq[i][j] = 0.0;
+					for (int k = 0; k < 4; k++) {
+						qq[i][j] += rEigenVector4[i][k] * lEigenVector4[k][j];
+					}
+				}
+			}
+
 			for (int i = 0; i < 4; ++i)
 			{
 				for (int j = 0; j < 4; ++j)
