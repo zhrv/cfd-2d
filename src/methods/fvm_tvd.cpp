@@ -159,7 +159,7 @@ void FVM_TVD::init(char * xmlFileName)
 
 	// TODO: make model choice, that depends on task data
 	viscosityModel = new KEpsModel();
-	viscosityModel->init(&grid, ro, ru, rv, Txx, Tyy, Txy, mu);
+	viscosityModel->init(&grid, ro, ru, rv, gradU, gradV, Txx, Tyy, Txy, mu);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));

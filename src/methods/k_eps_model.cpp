@@ -17,12 +17,15 @@ KEpsModel::~KEpsModel(void)
 {
 }
 
-void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, double * Txx, double * Tyy, double * Txy, const double mu )
+void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu )
 {
 	this->grid = grid;
 	this->ro = ro;
 	this->ru = ru;
 	this->rv = rv;
+
+	this->gradU = gradU;
+	this->gradV = gradV;
 
 	this->Txx = Txx;
 	this->Tyy = Tyy;
@@ -124,7 +127,23 @@ void KEpsModel::calcMuT( const double TAU )
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
+		register double si = grid->cells[iCell].S;
+		// TODO: проверить
+		double rPk = Txx[iCell] * gradU[iCell].x + Txy[iCell] * ( gradU[iCell].y + gradV[iCell].x ) + Tyy[iCell] * gradV[iCell].y;
 
+		// TODO: знаки, знаки!
+		rk_int[iCell] += si * rPk - si * reps[iCell];
+		reps_int[iCell] += -si * rPk * C_eps1 * reps[iCell] / rk[iCell] - si * C_eps2 * reps[iCell] * reps[iCell] / rk[iCell];
+	}
+
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		// TODO: знаки, знаки!
+		register double cfl = TAU/grid->cells[iCell].S;
+		rk[iCell] += cfl * rk_int[iCell];
+		reps[iCell] += cfl * reps_int[iCell];
+
+		muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
 	}
 }
 

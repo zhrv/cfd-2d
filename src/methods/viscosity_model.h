@@ -7,7 +7,7 @@
 class ViscosityModel
 {
 public:
-	virtual void init(Grid * grid, double * ro, double *ru, double * rv, double * Txx, double * Tyy, double * Txy, const double mu) = 0;
+	virtual void init(Grid * grid, double * ro, double *ru, double * rv, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu) = 0;
 	virtual double getMuT(const int iCell) = 0;
 	virtual void calcMuT( const double TAU ) = 0;
 	virtual void done() = 0;
@@ -18,6 +18,7 @@ protected:
 	double * ro;
 	double * ru;
 	double * rv;
+	Vector *gradU, *gradV;
 	double *Txx, *Tyy, *Txy;
 
 	double mu;
