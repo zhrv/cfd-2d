@@ -159,7 +159,7 @@ void FVM_TVD::init(char * xmlFileName)
 
 	// TODO: make model choice, that depends on task data
 	viscosityModel = new KEpsModel();
-	viscosityModel->init(&grid, ro, ru, rv, Txx, Tyy, Txy);
+	viscosityModel->init(&grid, ro, ru, rv, Txx, Tyy, Txy, mu);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
@@ -221,7 +221,7 @@ void FVM_TVD::run()
 			reconstruct(iEdge, pL, pR);
 			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
 			calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
-			calcDiffFlux(fu_diff, fv_diff, fe_diff, n, c1, c2);
+			calcDiffFlux(fu_diff, fv_diff, fe_diff, pL, pR, n, c1, c2);
 			
 			ro_int[c1] += fr*l;
 			ru_int[c1] += (fu + fu_diff) * l;
@@ -423,12 +423,16 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 }
 
 ///_нач
-void FVM_TVD::calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Vector n, int c1, int c2)
+void FVM_TVD::calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Param pL, Param pR, Vector n, int c1, int c2)
 {
 	if (c2 > -1)
     {
-        double eRu = (ru[c1] + ru[c2]) / 2.0;
-	    double eRv = (rv[c1] + rv[c2]) / 2.0;
+        // TODO: Может нужно было разделить на плотность?
+		// double eRu = (ru[c1] + ru[c2]) / 2.0;
+	    // double eRv = (rv[c1] + rv[c2]) / 2.0;
+
+		double eRu = (pL.u + pR.u) / 2.0;
+		double eRv = (pL.v + pR.v) / 2.0;
 	
 	    double eTxx = (Txx[c1] + Txx[c2]) / 2.0;
 	    double eTxy = (Txy[c1] + Txy[c2]) / 2.0;

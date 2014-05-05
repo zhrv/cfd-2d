@@ -8,9 +8,13 @@
  */
 struct KEpsParam
 {
-	double k;		//!< плотность
-	double eps;		//!< давление
-	
+	double r;		//!< плотность
+	double u;		//!< первая компонента вектора скорости
+	double v;		//!< вторая компонента вектора скорости
+
+	double k;
+	double eps;
+	double muT;	
 };
 
 class KEpsModel :
@@ -20,12 +24,18 @@ public:
 	KEpsModel(void);
 	~KEpsModel(void);
 
-	void init(Grid * grid, double * ro, double *ru, double * rv, double * Txx, double * Tyy, double * Txy);
-	double getMuT(int iCell);
+	void init(Grid * grid, double * ro, double *ru, double * rv, double * Txx, double * Tyy, double * Txy, const double mu);
+	double getMuT(const int iCell);
 	void calcMuT( const double TAU );
 	void done();
 
 private:
+	static const double C_mu;
+	static const double C_eps1;
+	static const double C_eps2;
+	static const double Sigma_K;
+	static const double Sigma_Eps;
+	
 	double * rk;
 	double * reps;
 

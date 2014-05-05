@@ -56,7 +56,7 @@ protected:
 	//_нач
 	void calcGrad(Vector *gradU, Vector *gradV);
 	void calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy);
-	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Vector n, int c1, int c2);
+	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Param pL, Param pR, Vector n, int c1, int c2);
 	//_кон
 
 private:
