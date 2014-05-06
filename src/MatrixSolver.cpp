@@ -53,6 +53,17 @@ void MatrixSolver::addMatrElement(int i, int j, double** matrDim)
 	}
 }
 
+void MatrixSolver::createMatrElement(int i, int j) {
+	for (int ii = 0; ii < blockDim; ++ii)
+	{
+		for (int jj = 0; jj < blockDim; ++jj)
+		{
+			a->set(ii + i*blockDim, jj + j*blockDim, 0.0);
+		}
+	}
+
+}
+
 void MatrixSolver::addRightElement(int i, double* vectDim)
 {
 	for (int ii = 0; ii < blockDim; ii++)
@@ -89,7 +100,7 @@ void SolverZeidel::solve(double eps, int& maxIter)
 					tmp += a->a[k]*x[a->ja[k]];
 				}
 			}
-			if (aii == 0) 
+			if (fabs(aii) <= eps*eps) 
 			{
 				printf("ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
 

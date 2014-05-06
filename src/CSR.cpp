@@ -1,8 +1,11 @@
 #include "CSR.h"
 
+int CSRMatrix::DELTA = 1024;
+
 CSRMatrix::CSRMatrix(int N)
 {
 	n  = N;
+	_na = 0;
 	na = 0;
 	a  = 0;
 	ja = 0;
@@ -12,8 +15,9 @@ CSRMatrix::CSRMatrix(int N)
 
 CSRMatrix::~CSRMatrix()
 {
+	_na = 0;
 	na = 0;
-	n  = 0;
+	n = 0;
 	free(a);
 	free(ia);
 	free(ja);
@@ -24,12 +28,13 @@ CSRMatrix::~CSRMatrix()
 
 void CSRMatrix::zero() 
 {
-	na = 0;
-	if (a != 0) free(a);
-	if (ja != 0) free(ja);
-	a  = 0;
-	ja = 0;
-	memset(ia, 0L, sizeof(int)*(n+1));
+	memset(a, 0, sizeof(double)*na);
+	//na = 0;
+	//if (a != 0) free(a);
+	//if (ja != 0) free(ja);
+	//a  = 0;
+	//ja = 0;
+	//memset(ia, 0L, sizeof(int)*(n+1));
 }
 
 void CSRMatrix::set(int i, int j, double aa)
@@ -42,14 +47,17 @@ void CSRMatrix::set(int i, int j, double aa)
 			return;
 		}
 	}
+	if (na == _na) {
+		double	* ta = (double*)malloc((na + CSRMatrix::DELTA)*sizeof(double));
+		int		* tj = (int*)malloc((na + CSRMatrix::DELTA)*sizeof(int));
+		memcpy(ta, a, na*sizeof(double));
+		memcpy(tj, ja, na*sizeof(int));
+		free(a);	free(ja);
+		a = ta;		ja = tj;
+		_na += CSRMatrix::DELTA;
+	}
 	int ii = ia[i];
-	double	* ta = (double*) malloc((na+1)*sizeof(double));
-	int		* tj = (int*)    malloc((na+1)*sizeof(int));
-	memcpy(ta, a,  na*sizeof(double));
-	memcpy(tj, ja, na*sizeof(int));
-	free(a);	free(ja);
-	a = ta;		ja = tj;
-	memcpy(&a[ii+1],  &a[ii],  (na-ii)*sizeof(double));
+	memcpy(&a[ii + 1], &a[ii], (na - ii)*sizeof(double));
 	memcpy(&ja[ii+1], &ja[ii], (na-ii)*sizeof(int));
 	a[ii]  = aa;
 	ja[ii] = j;
@@ -73,11 +81,24 @@ void CSRMatrix::add(int i, int j, double aa) {
 	set(i, j, get(i,j)+aa);
 }
 
+//void CSRMatrix::printToFile(const char *fileName) {
+//	FILE * fp = fopen(fileName, "w");
+//	for (int i = 0; i < n; i++) {
+//		for (int j = 0; j < n; j++) {
+//			fprintf(fp, "%16.8e ", get(i, j));
+//		}
+//		fprintf(fp, "\n");
+//	}
+//	fclose(fp);
+//}
+//
+
 void CSRMatrix::printToFile(const char *fileName) {
 	FILE * fp = fopen(fileName, "w");
 	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < n; j++) {
-			fprintf(fp, "%16.8e ", get(i,j));
+		for (int k = ia[i]; k < ia[i + 1]; k++)
+		{
+			fprintf(fp, "{{%d: %16.8e}}  ", ja[k], a[k]);    //if (ja[k] == j) return a[k];
 		}
 		fprintf(fp, "\n");
 	}

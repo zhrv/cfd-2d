@@ -16,6 +16,7 @@ public:
 	void setRightElement(int i, double* vectDim);
 	void addMatrElement(int i, int j, double** matrDim);
 	void addRightElement(int i, double* vectDim);
+	void createMatrElement(int i, int j);
 
 	virtual void solve(double eps, int& maxIter) = 0;
 
