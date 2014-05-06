@@ -66,14 +66,8 @@ private:
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
 	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);	//+.
-	void reconstruct(int iCell, Param& cell, Param neighbor[3]);			//+.
 	
-	// Заполняем cellsEdges.
-	void fillNAllocCellsEdges();											//+.
-	void freeCellsEdges();													//+.
 private:
-	//! массив размерность grid.cCount x 3. по которому можно определить, какая 3-угольная ячейка, какие нормера ребер имеет.
-	int			  **cellsEdges;
 
 	double			TMAX;
 	double			TAU;

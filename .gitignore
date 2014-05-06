@@ -15,3 +15,5 @@ Test*/*
 *.log
 *.xml
 *.opensdf
+*.sdf
+*.suo

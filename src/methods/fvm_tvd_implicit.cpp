@@ -128,84 +128,8 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	//заполнение массива cellsEdges значениями.
-	fillNAllocCellsEdges();
-
 	calcTimeStep();
 	save(0);
-}
-
-void FVM_TVD_IMPLICIT::fillNAllocCellsEdges()
-{
-	static bool isCall;
-	if (!isCall)
-	{
-		cellsEdges = new int* [grid.cCount];
-		for (int iCells = 0; iCells < grid.cCount; ++iCells)
-		{
-			cellsEdges[iCells] = new int [3];
-			for (int j = 0; j < 3; ++j)
-				cellsEdges[iCells][j] = -1;
-		}
-		for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
-		{
-			assert(grid.edges[iEdge].c1 < grid.cCount);
-			if (grid.edges[iEdge].c1 >= 0)
-			{	
-				bool edgeExist = false;
-				for (int j = 0; j < 3; ++j)
-				{
-					if (cellsEdges[grid.edges[iEdge].c1][j] == iEdge) 
-					{
-							edgeExist = true;
-							break;
-					}
-				}
-				if (!edgeExist)
-				{
-					for (int j = 0; j < 3; ++j)	
-					{
-						if (cellsEdges[grid.edges[iEdge].c1][j] == -1)
-						{
-							cellsEdges[grid.edges[iEdge].c1][j] = iEdge;
-							break;
-						}
-					}
-				}
-			}
-			assert(grid.edges[iEdge].c2 < grid.cCount);
-			if (grid.edges[iEdge].c2 >= 0)
-			{	
-				bool edgeExist = false;
-				for (int j = 0; j < 3; ++j)
-				{
-					if (cellsEdges[grid.edges[iEdge].c2][j] == iEdge) 
-					{
-							edgeExist = true;
-							break;
-					}
-				}
-				if (!edgeExist)
-				{
-					for (int j = 0; j < 3; ++j)	
-					{
-						if (cellsEdges[grid.edges[iEdge].c2][j] == -1)
-						{
-							cellsEdges[grid.edges[iEdge].c2][j] = iEdge;
-							break;
-						}
-					}
-				}
-			}
-		}
-		isCall = true;
-	}
-}
-void FVM_TVD_IMPLICIT::freeCellsEdges()
-{
-	for (int iCell = 0; iCell < grid.cCount; ++iCell)
-		delete cellsEdges[iCell];
-	delete [] cellsEdges;
 }
 
 double **FVM_TVD_IMPLICIT::allocMtx4()
@@ -365,28 +289,6 @@ void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double
 	average.cz = sqrt(GAM*average.p/average.r);
 	average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
 }
-void FVM_TVD_IMPLICIT::reconstruct(int iCell, Param& cell, Param neighbor[3])
-{
-	assert(iCell >= 0 && iCell < grid.cCount);
-	for (int j = 0; j < 3; ++j)
-	{
-		int iEdge = cellsEdges[iCell][j];
-		if (grid.edges[iEdge].type == Edge::TYPE_INNER)
-		{
-			int c1	= grid.edges[iEdge].c1;
-			int c2	= grid.edges[iEdge].c2;
-			if (c1 != iCell)	std::swap(c1, c2);
-			assert(c1 == iCell);
-			convertConsToPar(c1, cell);
-			convertConsToPar(c2, neighbor[j]);
-		} else {
-			int c1	= grid.edges[iEdge].c1;
-			assert(c1 == iCell);
-			convertConsToPar(c1, cell);
-			boundaryCond(iEdge, cell, neighbor[j]);
-		}
-	}
-}
 
 void FVM_TVD_IMPLICIT::run() 
 {
@@ -468,17 +370,6 @@ void FVM_TVD_IMPLICIT::run()
 			calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
 			calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
 			
-			double qq[4][4];
-
-			for (int i = 0; i < 4; i++) {
-				for (int j = 0; j < 4; j++) {
-					qq[i][j] = 0.0;
-					for (int k = 0; k < 4; k++) {
-						qq[i][j] += rEigenVector4[i][k] * lEigenVector4[k][j];
-					}
-				}
-			}
-
 			for (int i = 0; i < 4; ++i)
 			{
 				for (int j = 0; j < 4; ++j)
@@ -799,8 +690,6 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
-
-	freeCellsEdges();
 }
 
 Region & FVM_TVD_IMPLICIT::getRegionByCellType(int type)
