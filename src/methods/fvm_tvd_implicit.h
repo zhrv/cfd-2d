@@ -65,15 +65,18 @@ private:
 	// Заполняет в mtx4 A-.
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
-	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);	//+.
-	
-private:
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);							//+.
 
+private:
 	double			TMAX;
 	double			TAU;
 	double			CFL;
+	int				STEP_MAX;
 	int				FILE_SAVE_STEP;
 	int				PRINT_STEP;
+
+	bool			STEADY;		// false - нестационарное течение, true - стационанрное течение.
+	double			*cTau;		// локальный шаг по времени в ячейке.
 
 	int				matCount;
 	int				regCount;

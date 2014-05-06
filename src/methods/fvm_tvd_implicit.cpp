@@ -19,13 +19,22 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 
-
+	int steadyVal = 1;
 	node0 = task->FirstChild("control");
+	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
 	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
+	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+
+
+	if (steadyVal == 0) {
+		STEADY = false;
+	} else {
+		STEADY = true;
+	}
 
 	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
@@ -117,6 +126,8 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
+	cTau	= new double[grid.cCount];
+
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
 	rv		= new double[grid.cCount];
@@ -189,9 +200,10 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 	tau  *= CFL;
 	TAU = _min_(TAU, tau); 
 	
-	//TODO: !
-	//TAU = 1.0e-04;
-	printf("\n\nTime step TAU = %e.\n\n", TAU);
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		cTau[iCell] = TAU;
+	}
 }
 
 void FVM_TVD_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
@@ -315,6 +327,11 @@ void FVM_TVD_IMPLICIT::run()
 
 	solverMtx->init(nc, 4);
 
+	if (STEADY)		log("Steady-State Flow\n");
+	else			log("Unsteady-State Flow\n");
+
+	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);
+	
 	// инициализируем портрет матрицы
 	log("Matrix structure initialization:\n");
 	CSRMatrix::DELTA = 65536;
@@ -332,10 +349,15 @@ void FVM_TVD_IMPLICIT::run()
 		}
 	}
 	log("\tcomplete...\n");
-	while (t < TMAX)
+	
+	while (t < TMAX && step < STEP_MAX)
 	{
-		t += TAU;
-		++step;
+		if (!STEADY) {
+			t += TAU; 
+		} else {
+			calcTimeStep();
+		}
+		step++;
 
 		//заполнение матрицы.
 		Param		average, cellL, cellR;
@@ -426,23 +448,20 @@ void FVM_TVD_IMPLICIT::run()
 				for (int j = 0; j < 4; ++j)
 				{
 					if (i == j) {
-						mtx4[i][j] = grid.cells[iCell].S / TAU;
+						mtx4[i][j] = grid.cells[iCell].S / cTau[iCell];
 					}
 					else {
 						mtx4[i][j] = 0.0;
 					}
 				}
 			}
-			solverMtx->addMatrElement(iCell, iCell, mtx4);	//du(i, n+1)
-
-			solverMtx->setRightElement(iCell, right4[iCell]);			//F(i,j,n)
-
-			
+			solverMtx->addMatrElement(iCell, iCell, mtx4);	  //du(i, n+1)
+			solverMtx->setRightElement(iCell, right4[iCell]); //F(i,j,n)			
 		}
 
 		int maxIter = 5000;
 		const double eps = 1.0e-4;
-		solverMtx->printToFile("matrix.txt");
+		
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
@@ -479,41 +498,6 @@ void FVM_TVD_IMPLICIT::run()
 void FVM_TVD_IMPLICIT::save(int step)
 {
 	char fName[50];
-	//sprintf(fName, "res_%010d.dat", step);
-	//FILE * fp = fopen(fName, "w");
-	////fprintf(fp, "# x y ro p u v e M\n");
-	//for (int i = 0; i < grid.cCount; i++)
-	//{
-	//	Param p;
-	//	convertConsToPar(i, p);
-	//	fprintf(fp, "%25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f\n",	grid.cells[i].c.x,
-	//																						grid.cells[i].c.y,
-	//																						p.r,								//	плотность
-	//																						p.p,								//	давление
-	//																						p.u,								//	скорость
-	//																						p.v,								//
-	//																						p.e,								//	внутренняя энергия
-	//																						sqrt(_sqr_(p.u)+_sqr_(p.v))/p.cz);	//	число Маха
-	//}
-	//fclose(fp);
-	//// выводим градиенты примитивных переменных
-	//printf("File '%s' saved...\n", fName);
-	//sprintf(fName, "grad_%010d.dat", step);
-	//fp = fopen(fName, "w");
-	////fprintf(fp, "# x y ro p u v e M\n");
-	//for (int i = 0; i < grid.cCount; i++)
-	//{
-	//	fprintf(fp, "%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\n",	primGrad[ID_R][i].x,
-	//																									primGrad[ID_R][i].y,
-	//																									primGrad[ID_P][i].x,
-	//																									primGrad[ID_P][i].y,
-	//																									primGrad[ID_U][i].x,
-	//																									primGrad[ID_U][i].y,
-	//																									primGrad[ID_V][i].x,
-	//																									primGrad[ID_V][i].y	);
-	//}
-	//fclose(fp);
-	//printf("File '%s' saved...\n", fName);
 
 	sprintf(fName, "res_%010d.vtk", step);
 	FILE * fp = fopen(fName, "w");
@@ -521,6 +505,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 	fprintf(fp, "GASDIN data file\n");
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+	
 	fprintf(fp, "POINTS %d float\n", grid.nCount);
 	for (int i = 0; i < grid.nCount; i++)
 	{
@@ -584,11 +569,28 @@ void FVM_TVD_IMPLICIT::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
+	fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Material &mat = getMaterial(i);
+		double gam = mat.getGamma();
+		double agam = gam - 1.0;
+		Param p;
+		convertConsToPar(i, p);
+		double M2 = (p.u*p.u+p.v*p.v)/(gam*p.p/p.r);
+		fprintf(fp, "%f ", p.p*::pow(1.0+0.5*M2*agam, gam/(gam-1.0)) );
+		if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", cTau[i]);
+		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
+	}
 
 	fclose(fp);
 	printf("File '%s' saved...\n", fName);
-
-
 }
 
 void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
@@ -690,6 +692,7 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
+	delete[] cTau;
 }
 
 Region & FVM_TVD_IMPLICIT::getRegionByCellType(int type)
