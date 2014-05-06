@@ -29,12 +29,19 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
 
-
 	if (steadyVal == 0) {
 		STEADY = false;
 	} else {
 		STEADY = true;
 	}
+
+	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
+	node0 = task->FirstChild("limits");
+	node0->FirstChild("ro_min")->ToElement()->Attribute("value", &limitRmin);
+	node0->FirstChild("ro_max")->ToElement()->Attribute("value", &limitRmax);
+	node0->FirstChild("p_min")->ToElement()->Attribute( "value", &limitPmin);
+	node0->FirstChild("p_max")->ToElement()->Attribute( "value", &limitPmax);
+	node0->FirstChild("u_max")->ToElement()->Attribute( "value", &limitUmax);
 
 	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
@@ -126,7 +133,9 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
-	cTau	= new double[grid.cCount];
+	//TODO: не знаю почему, но если выделить мало памяти, то программа работает много медленнее.
+	//		нужно работать с профилировщиком. поэтому сейчас *2.
+	cTau	= new double[grid.cCount*2];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
@@ -189,6 +198,7 @@ void FVM_TVD_IMPLICIT::printMtx4(double **mtx4, char *msg)
 
 void FVM_TVD_IMPLICIT::calcTimeStep()
 {
+/*
 	double tau = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
@@ -198,12 +208,25 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 		if (tmp < tau) tau = tmp;
 	}
 	tau  *= CFL;
-	TAU = _min_(TAU, tau); 
-	
+	TAU = _min_(TAU, tau);
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+		cTau[iCell] = TAU;
+*/
+	double tauMin = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
-		cTau[iCell] = TAU;
+		if (STEADY) {
+			Param p;
+			convertConsToPar(iCell, p);
+			double tmp = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
+			cTau[iCell] = _min_(CFL*tmp, TAU);
+			if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
+		} else {
+			cTau[iCell] = TAU;
+		}
 	}
+	if (STEADY)	TAU = tauMin;
+	printf("\n\nTime step TAU = %e.\n\n", TAU);
 }
 
 void FVM_TVD_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
@@ -326,12 +349,11 @@ void FVM_TVD_IMPLICIT::run()
 	Amtx4M = allocMtx4();
 
 	solverMtx->init(nc, 4);
-
+	
 	if (STEADY)		log("Steady-State Flow\n");
 	else			log("Unsteady-State Flow\n");
+	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);	
 
-	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);
-	
 	// инициализируем портрет матрицы
 	log("Matrix structure initialization:\n");
 	CSRMatrix::DELTA = 65536;
@@ -349,14 +371,11 @@ void FVM_TVD_IMPLICIT::run()
 		}
 	}
 	log("\tcomplete...\n");
-	
 	while (t < TMAX && step < STEP_MAX)
 	{
-		if (!STEADY) {
-			t += TAU; 
-		} else {
-			calcTimeStep();
-		}
+//		if (STEADY)
+//			calcTimeStep();
+		t += TAU;
 		step++;
 
 		//заполнение матрицы.
@@ -455,8 +474,8 @@ void FVM_TVD_IMPLICIT::run()
 					}
 				}
 			}
-			solverMtx->addMatrElement(iCell, iCell, mtx4);	  //du(i, n+1)
-			solverMtx->setRightElement(iCell, right4[iCell]); //F(i,j,n)			
+			solverMtx->addMatrElement(iCell, iCell, mtx4);		//du(i, n+1)
+			solverMtx->setRightElement(iCell, right4[iCell]);	//F(i,j,n)			
 		}
 
 		int maxIter = 5000;
@@ -471,7 +490,8 @@ void FVM_TVD_IMPLICIT::run()
 			re[cellIndex] += solverMtx->x[ind+3];			
 		}
 		solverMtx->zero();
-
+		
+		log("step: %d max iter: %d\n", step, maxIter);
 		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);

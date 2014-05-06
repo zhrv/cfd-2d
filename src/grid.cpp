@@ -200,6 +200,11 @@ void Grid::initFromFiles(char* fName)
 		double p = (a+b+c)/2.0;
 		cells[i].S = sqrt(p*(p-a)*(p-b)*(p-c));
 	}
+	for (int i = 0; i < cCount; i++) 
+	{
+		cells[i].flag = CELL_FLAG_GOOD;
+	}
+
 
 	for (int i = 0; i < cCount; i++) 
 	{

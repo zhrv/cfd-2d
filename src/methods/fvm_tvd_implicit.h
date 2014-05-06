@@ -65,18 +65,21 @@ private:
 	// «аполн€ет в mtx4 A-.
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
-	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);							//+.
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);	//+.
+	
+	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
 
 private:
 	double			TMAX;
+	int				STEP_MAX;
 	double			TAU;
 	double			CFL;
-	int				STEP_MAX;
 	int				FILE_SAVE_STEP;
 	int				PRINT_STEP;
 
-	bool			STEADY;		// false - нестационарное течение, true - стационанрное течение.
-	double			*cTau;		// локальный шаг по времени в €чейке.
+	bool			STEADY;	// false - нестационарное течение, true - стационанрное течение.
+	double			*cTau;  // локальный шаг по времени в €чейке.
 
 	int				matCount;
 	int				regCount;
@@ -89,7 +92,14 @@ private:
 	double		   *ro;			 
 	double		   *ru;			
 	double		   *rv;			
-	double		   *re;			
+	double		   *re;
+
+	//! лимиты
+	double limitRmin;
+	double limitRmax;
+	double limitPmin;
+	double limitPmax;
+	double limitUmax;
 };
 
 #endif

@@ -7,6 +7,10 @@
 #include <string.h>
 #include "global.h"
 
+const unsigned int CELL_FLAG_GOOD	= 0x000000;
+const unsigned int CELL_FLAG_BAD	= 0x000001;
+const unsigned int CELL_FLAG_LIM	= 0x000002;
+
 class Cell 
 {
 public:
@@ -23,6 +27,8 @@ public:
 	Point c; // центр €чейки
 	double HX;
 	double HY;
+	unsigned int flag;
+
 	friend class Grid;
 };
 
