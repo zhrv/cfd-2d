@@ -69,6 +69,7 @@ private:
 	
 	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
 	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+	void remediateLimCells();
 
 private:
 	double			TMAX;
@@ -77,6 +78,8 @@ private:
 	double			CFL;
 	int				FILE_SAVE_STEP;
 	int				PRINT_STEP;
+
+	double			TAU_MIN;
 
 	bool			STEADY;	// false - нестационарное течение, true - стационанрное течение.
 	double			*cTau;  // локальный шаг по времени в €чейке.

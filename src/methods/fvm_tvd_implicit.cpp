@@ -225,8 +225,7 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 			cTau[iCell] = TAU;
 		}
 	}
-	if (STEADY)	TAU = tauMin;
-	printf("\n\nTime step TAU = %e.\n\n", TAU);
+	if (STEADY)	TAU_MIN = tauMin;
 }
 
 void FVM_TVD_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
@@ -373,9 +372,9 @@ void FVM_TVD_IMPLICIT::run()
 	log("\tcomplete...\n");
 	while (t < TMAX && step < STEP_MAX)
 	{
-//		if (STEADY)
-//			calcTimeStep();
-		t += TAU;
+		if (STEADY)
+			calcTimeStep();
+		t += TAU_MIN;
 		step++;
 
 		//заполнение матрицы.
@@ -484,11 +483,20 @@ void FVM_TVD_IMPLICIT::run()
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
+			if (cellIsLim(cellIndex))	continue;
 			ro[cellIndex] += solverMtx->x[ind+0];
 			ru[cellIndex] += solverMtx->x[ind+1];
 			rv[cellIndex] += solverMtx->x[ind+2];
-			re[cellIndex] += solverMtx->x[ind+3];			
+			re[cellIndex] += solverMtx->x[ind+3];	
+
+			Param par;
+			convertConsToPar(cellIndex, par);
+			if (par.r > limitRmax || par.r < limitRmin)				{ setCellFlagLim(cellIndex); continue; }
+			if (par.p > limitPmax || par.p < limitPmin)				{ setCellFlagLim(cellIndex); continue; }
+			if (abs(par.u) > limitUmax || abs(par.v) > limitUmax)	{ setCellFlagLim(cellIndex); continue; }
 		}
+		remediateLimCells();
+
 		solverMtx->zero();
 		
 		log("step: %d max iter: %d\n", step, maxIter);
@@ -513,6 +521,43 @@ void FVM_TVD_IMPLICIT::run()
 	}
 	delete[] right4;
 	delete solverMtx;
+}
+
+void FVM_TVD_IMPLICIT::remediateLimCells()
+{
+	for (int iCell = 0; iCell < grid.cCount; iCell++) 
+	{
+		if (cellIsLim(iCell)) 
+		{
+			// пересчитываем по соседям
+			double sRO = 0.0;
+			double sRU = 0.0;
+			double sRV = 0.0;
+			double sRE = 0.0;
+			double S   = 0.0;
+			for (int i = 0; i < grid.cells[iCell].eCount; i++)
+			{
+				int iEdge = grid.cells[iCell].edgesInd[i];
+				int j = grid.edges[iEdge].c2;
+				int s = grid.cells[j].S;
+				S += s;
+				if (j >= 0) {
+					sRO += ro[j]*s;
+					sRU += ru[j]*s;
+					sRV += rv[j]*s;
+					sRE += re[j]*s;
+				} 
+			}
+			ro[iCell] = sRO/S;
+			ru[iCell] = sRU/S;
+			rv[iCell] = sRV/S;
+			re[iCell] = sRE/S;
+
+			// после 0x20 итераций пробуем вернуть ячейку в счет
+			grid.cells[iCell].flag += 0x010000;
+			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+		}
+	}
 }
 
 void FVM_TVD_IMPLICIT::save(int step)
