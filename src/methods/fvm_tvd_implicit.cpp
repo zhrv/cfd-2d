@@ -135,7 +135,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 
 	//TODO: не знаю почему, но если выделить мало памяти, то программа работает много медленнее.
 	//		нужно работать с профилировщиком. поэтому сейчас *2.
-	cTau	= new double[grid.cCount*2];
+	cTau	= new double[grid.cCount];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
@@ -348,7 +348,7 @@ void FVM_TVD_IMPLICIT::run()
 	Amtx4M = allocMtx4();
 
 	solverMtx->init(nc, 4);
-	
+
 	if (STEADY)		log("Steady-State Flow\n");
 	else			log("Unsteady-State Flow\n");
 	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);	
@@ -373,8 +373,12 @@ void FVM_TVD_IMPLICIT::run()
 	while (t < TMAX && step < STEP_MAX)
 	{
 		if (STEADY)
+		{
 			calcTimeStep();
-		t += TAU_MIN;
+			t += TAU_MIN;
+		} else {
+			t += TAU;
+		}
 		step++;
 
 		//заполнение матрицы.
@@ -483,7 +487,7 @@ void FVM_TVD_IMPLICIT::run()
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
-			if (cellIsLim(cellIndex))	continue;
+			//if (cellIsLim(cellIndex))	continue;
 			ro[cellIndex] += solverMtx->x[ind+0];
 			ru[cellIndex] += solverMtx->x[ind+1];
 			rv[cellIndex] += solverMtx->x[ind+2];
@@ -495,10 +499,8 @@ void FVM_TVD_IMPLICIT::run()
 			if (par.p > limitPmax || par.p < limitPmin)				{ setCellFlagLim(cellIndex); continue; }
 			if (abs(par.u) > limitUmax || abs(par.v) > limitUmax)	{ setCellFlagLim(cellIndex); continue; }
 		}
-		remediateLimCells();
+		//remediateLimCells();
 
-		solverMtx->zero();
-		
 		log("step: %d max iter: %d\n", step, maxIter);
 		if (step % FILE_SAVE_STEP == 0)
 		{
@@ -537,9 +539,9 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 			double S   = 0.0;
 			for (int i = 0; i < grid.cells[iCell].eCount; i++)
 			{
-				int iEdge = grid.cells[iCell].edgesInd[i];
-				int j = grid.edges[iEdge].c2;
-				int s = grid.cells[j].S;
+				int		iEdge = grid.cells[iCell].edgesInd[i];
+				int		j = grid.edges[iEdge].c2;
+				double  s = grid.cells[j].S;
 				S += s;
 				if (j >= 0) {
 					sRO += ro[j]*s;

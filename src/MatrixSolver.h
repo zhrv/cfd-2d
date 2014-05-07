@@ -6,7 +6,7 @@
 class MatrixSolver
 {
 public:
-	~MatrixSolver();
+	virtual ~MatrixSolver();
 
 	void init(int cellsCount, int blockDimension);
 	
@@ -31,6 +31,23 @@ public:
 class SolverZeidel: public MatrixSolver 
 {
 	virtual void solve(double eps, int& maxIter);
+};
+
+class SolverJacobi: public MatrixSolver
+{
+public:
+	SolverJacobi() {
+		tempXAlloc = false;
+	}
+	~SolverJacobi() {
+		if (tempXAlloc) {
+			delete [] tempX;
+			tempXAlloc = false;
+		}
+	}
+	virtual void	solve(double eps, int& maxIter);
+	double			*tempX;
+	bool			tempXAlloc;
 };
 
 #endif

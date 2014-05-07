@@ -125,3 +125,58 @@ void SolverZeidel::solve(double eps, int& maxIter)
 	}
 	maxIter = step;
 }
+
+void SolverJacobi::solve(double eps, int& maxIter)
+{
+	if (!tempXAlloc) {
+		tempX = new double [a->n];
+		tempXAlloc = true;
+	}
+	double	aii;
+	double	err = 1.0;
+	int		step = 0;
+	double	tmp;
+	//memset(x, 0, sizeof(double)*a->n);
+	while(err > eps && step < maxIter)
+	{
+		step++;
+		for (int i = 0; i < a->n; i++)
+		{
+			tmp = 0.0;
+			aii = 0;
+			for (int k = a->ia[i]; k < a->ia[i+1]; k++)
+			{
+				if (i == a->ja[k])	// i == j
+				{
+					aii = a->a[k];
+				} else {
+					tmp += a->a[k]*x[a->ja[k]];
+				}
+			}
+			if (fabs(aii) <= eps*eps) 
+			{
+				printf("JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
+
+			}
+			//x[i] = (-tmp+b[i])/aii;
+			tempX[i] = (-tmp+b[i])/aii;
+		}
+		err = 0.0;
+		for (int i = 0; i < a->n; i++)
+		{
+			tmp = 0.0;
+			for (int k = a->ia[i]; k < a->ia[i+1]; k++)
+			{
+				x[a->ja[k]] = tempX[a->ja[k]];
+				tmp += a->a[k]*x[a->ja[k]];
+			}
+			err += fabs(tmp-b[i]);
+		}
+		int qqqqq = 0; // ZHRV_WARN
+	}
+	if (step >= maxIter)
+	{
+		printf("JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+	}
+	maxIter = step;
+}
