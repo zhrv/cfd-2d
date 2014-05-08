@@ -505,7 +505,7 @@ void FVM_TVD_IMPLICIT::run()
 		}
 		remediateLimCells();
 
-		log("step: %d max iter: %d\n", step, maxIter);
+		//log("step: %d max iter: %d\n", step, maxIter);
 		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);
@@ -535,7 +535,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 	{
 		if (cellIsLim(iCell)) 
 		{
-			// пересчитываем по соседям
+			// пересчитываем по соседям			
 			double sRO = 0.0;
 			double sRU = 0.0;
 			double sRV = 0.0;
@@ -545,20 +545,24 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 			{
 				int		iEdge = grid.cells[iCell].edgesInd[i];
 				int		j = grid.edges[iEdge].c2;
-				double  s = grid.cells[j].S;
-				S += s;
+				if (j == iCell)	{
+					std::swap(j, grid.edges[iEdge].c1);
+				}
 				if (j >= 0) {
+					double  s = grid.cells[j].S;
+					S += s;
 					sRO += ro[j]*s;
 					sRU += ru[j]*s;
 					sRV += rv[j]*s;
 					sRE += re[j]*s;
 				} 
 			}
-			ro[iCell] = sRO/S;
-			ru[iCell] = sRU/S;
-			rv[iCell] = sRV/S;
-			re[iCell] = sRE/S;
-
+			if (S >= TAU*TAU) {
+				ro[iCell] = sRO/S;
+				ru[iCell] = sRU/S;
+				rv[iCell] = sRV/S;
+				re[iCell] = sRE/S;
+			}
 			// после 0x20 итераций пробуем вернуть ячейку в счет
 			grid.cells[iCell].flag += 0x010000;
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
