@@ -487,7 +487,7 @@ void FVM_TVD_IMPLICIT::run()
 		solverMtx->solve(eps, maxIter);
 		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 		{
-			//if (cellIsLim(cellIndex))	continue;
+			if (cellIsLim(cellIndex))	continue;
 			ro[cellIndex] += solverMtx->x[ind+0];
 			ru[cellIndex] += solverMtx->x[ind+1];
 			rv[cellIndex] += solverMtx->x[ind+2];
@@ -495,11 +495,15 @@ void FVM_TVD_IMPLICIT::run()
 
 			Param par;
 			convertConsToPar(cellIndex, par);
-			if (par.r > limitRmax || par.r < limitRmin)				{ setCellFlagLim(cellIndex); continue; }
-			if (par.p > limitPmax || par.p < limitPmin)				{ setCellFlagLim(cellIndex); continue; }
-			if (abs(par.u) > limitUmax || abs(par.v) > limitUmax)	{ setCellFlagLim(cellIndex); continue; }
+			if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+			if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+			if (abs(par.u) > limitUmax)		{ par.u = limitUmax;	setCellFlagLim(cellIndex); }
+			if (abs(par.v) > limitUmax)		{ par.v = limitUmax;	setCellFlagLim(cellIndex); }
+			if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+			if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+			if (cellIsLim(cellIndex)) 		{ par.e = par.p/((__GAM-1)*par.r); convertParToCons(cellIndex, par); }
 		}
-		//remediateLimCells();
+		remediateLimCells();
 
 		log("step: %d max iter: %d\n", step, maxIter);
 		if (step % FILE_SAVE_STEP == 0)
