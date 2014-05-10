@@ -69,6 +69,7 @@ private:
 	
 	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
 	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+	int getLimitedCellsCount();
 	void remediateLimCells();
 
 private:

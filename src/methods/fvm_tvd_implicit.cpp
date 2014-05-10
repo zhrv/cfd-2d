@@ -304,21 +304,21 @@ void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **eg
 void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
 	double WI, UN, UT;
-	double unl = pL.u*n.x+pL.v*n.y;
-	double unr = pR.u*n.x+pR.v*n.y;
-	double utl = pL.u*n.y-pL.v*n.x;
-	double utr = pR.u*n.y-pR.v*n.x;
-	rim_orig(average.r, average.e, average.p, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
-		
-	double UI = UN*n.x+UT*n.y;
-	double VI = UN*n.y-UT*n.x;
+	//double unl = pL.u*n.x+pL.v*n.y;
+	//double unr = pR.u*n.x+pR.v*n.y;
+	//double utl = pL.u*n.y-pL.v*n.x;
+	//double utr = pR.u*n.y-pR.v*n.x;
+	//rim_orig(average.r, average.e, average.p, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+	//	
+	//double UI = UN*n.x+UT*n.y;
+	//double VI = UN*n.y-UT*n.x;
 
-	average.u = UI;
-	average.v = VI;
+	//average.u = UI;
+	//average.v = VI;
 
-	//roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
-	//	pL.r, pL.p, pL.u, pL.v, 0.0,
-	//	pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
+	roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
+		pL.r, pL.p, pL.u, pL.v, 0.0,
+		pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
 
 	average.cz = sqrt(GAM*average.p/average.r);
 	average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
@@ -375,7 +375,7 @@ void FVM_TVD_IMPLICIT::run()
 		if (STEADY)
 		{
 			calcTimeStep();
-			t += TAU_MIN;
+			//t += TAU_MIN;
 		} else {
 			t += TAU;
 		}
@@ -512,7 +512,11 @@ void FVM_TVD_IMPLICIT::run()
 		}
 		if (step % PRINT_STEP == 0)
 		{
-			log("step: %d\t\ttime step: %.16f\t\tmax iter: %d\n", step, t, maxIter);
+			if (!STEADY) {
+				log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\n", step, t, maxIter, getLimitedCellsCount());
+			} else {
+				log("step: %d\tmax iter: %d\tlim: %d\n", step, maxIter, getLimitedCellsCount());
+			}
 		}
 	}
 
@@ -546,7 +550,8 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 				int		iEdge = grid.cells[iCell].edgesInd[i];
 				int		j = grid.edges[iEdge].c2;
 				if (j == iCell)	{
-					std::swap(j, grid.edges[iEdge].c1);
+					//std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+					j = grid.edges[iEdge].c1;
 				}
 				if (j >= 0) {
 					double  s = grid.cells[j].S;
@@ -568,6 +573,14 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
 		}
 	}
+}
+
+int FVM_TVD_IMPLICIT::getLimitedCellsCount() {
+	int n = 0;
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
+	}
+	return n;
 }
 
 void FVM_TVD_IMPLICIT::save(int step)
