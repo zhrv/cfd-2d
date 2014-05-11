@@ -105,6 +105,8 @@ private:
 	double		   *rv;			
 	double		   *re;
 
+	double			*tmpArr;
+
 	//! лимиты
 	double limitRmin;
 	double limitRmax;

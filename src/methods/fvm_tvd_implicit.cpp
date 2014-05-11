@@ -147,6 +147,8 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
 
+	tmpArr = new double[grid.cCount];
+
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Region & reg = getRegion(i);
@@ -217,20 +219,27 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 		cTau[iCell] = TAU;
 */
-	double tauMin = 1.0e+20;
-	for (int iCell = 0; iCell < grid.cCount; iCell++)
-	{
-		if (STEADY) {
-			Param p;
-			convertConsToPar(iCell, p);
-			double tmp = grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
-			cTau[iCell] = _min_(CFL*tmp, TAU);
-			if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
-		} else {
+	//double tauMin = 1.0e+20;
+	//for (int iCell = 0; iCell < grid.cCount; iCell++)
+	//{
+	//	if (STEADY) {
+	//		Param p;
+	//		convertConsToPar(iCell, p);
+	//		double tmp = grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
+	//		cTau[iCell] = _min_(CFL*tmp, TAU);
+	//		if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
+	//	} else {
+	//		cTau[iCell] = TAU;
+	//	}
+	//}
+	//if (STEADY)	TAU_MIN = tauMin;
+
+	if (!STEADY) {
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
+		{
 			cTau[iCell] = TAU;
 		}
 	}
-	if (STEADY)	TAU_MIN = tauMin;
 }
 
 void FVM_TVD_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
@@ -379,13 +388,7 @@ void FVM_TVD_IMPLICIT::run()
 	log("\tcomplete...\n");
 	while (t < TMAX && step < STEP_MAX)
 	{
-		if (STEADY)
-		{
-			calcTimeStep();
-			//t += TAU_MIN;
-		} else {
-			t += TAU;
-		}
+		if (!STEADY) t += TAU;
 		if (!solverErr) step++;
 
 		//заполнение матрицы.
@@ -396,6 +399,8 @@ void FVM_TVD_IMPLICIT::run()
 		for (int iCell = 0; iCell < nc; iCell++){
 			memset(right4[iCell], 0, 4 * sizeof(double));
 		}
+
+		memset(tmpArr, 0, grid.cCount*sizeof(double)); 
 
 		for (int iEdge = 0; iEdge < ne; iEdge++) {
 			int		numberOfEdge = iEdge;
@@ -413,6 +418,16 @@ void FVM_TVD_IMPLICIT::run()
 				boundaryCond(iEdge, cellL, cellR);
 			}
 			calcRoeAverage(average, cellL, cellR, __GAM, n);
+
+			// вычисляем спектральный радиус для вычисления шага по времени
+			if (STEADY) {
+				double lambda = sqrt(average.u*average.u + average.v*average.v) + average.cz;
+				lambda *= l;
+
+				tmpArr[c1] += lambda;
+				if (c2 >= 0) tmpArr[c2] += lambda;
+			}
+
 			double H = average.E + average.p / average.r;
 
 			eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
@@ -456,20 +471,32 @@ void FVM_TVD_IMPLICIT::run()
 			}
 			double		fr, fu, fv, fe;
 			calcFlux(fr, fu, fv, fe, cellL, cellR, n, __GAM);
+			
 			right4[c1][0] -= l*fr;
 			right4[c1][1] -= l*fu;
 			right4[c1][2] -= l*fv;
 			right4[c1][3] -= l*fe;
+			
 			if (c2 >= 0) {
 				right4[c2][0] += l*fr;
 				right4[c2][1] += l*fu;
 				right4[c2][2] += l*fv;
 				right4[c2][3] += l*fe;
 			}
+
 			//log("edge = %d of %d\n", iEdge, ne);
 		}
 
-		
+		// вычисляем шаги по временив ячейках по насчитанным ранее значениям спектра
+		if (STEADY) {
+			for (int iCell = 0; iCell < grid.cCount; iCell++)
+			{
+				Param p;
+				convertConsToPar(iCell, p);
+				cTau[iCell] = 2.0*CFL*grid.cells[iCell].S / (tmpArr[iCell] + 1.0e-100);
+			}
+		}
+
 		for (int iCell = 0; iCell < nc; ++iCell)
 		{
 			for (int i = 0; i < 4; ++i)
@@ -802,6 +829,7 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] rv;
 	delete[] re;
 	delete[] cTau;
+	delete[] tmpArr;
 }
 
 Region & FVM_TVD_IMPLICIT::getRegionByCellType(int type)
