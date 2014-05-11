@@ -77,7 +77,7 @@ void MatrixSolver::printToFile(const char* fileName)
 	a->printToFile(fileName);
 }
 
-void SolverZeidel::solve(double eps, int& maxIter)
+int SolverZeidel::solve(double eps, int& maxIter)
 {
 	double	aii;
 	double	err = 1.0;
@@ -103,7 +103,7 @@ void SolverZeidel::solve(double eps, int& maxIter)
 			if (fabs(aii) <= eps*eps) 
 			{
 				printf("ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
-
+				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
 			}
 			x[i] = (-tmp+b[i])/aii;
 		}
@@ -122,11 +122,14 @@ void SolverZeidel::solve(double eps, int& maxIter)
 	if (step >= maxIter)
 	{
 		printf("ZEIDEL_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		maxIter = step;
+		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}
 	maxIter = step;
+	return MatrixSolver::RESULT_OK;
 }
 
-void SolverJacobi::solve(double eps, int& maxIter)
+int SolverJacobi::solve(double eps, int& maxIter)
 {
 	if (!tempXAlloc) {
 		tempX = new double [a->n];
@@ -156,7 +159,7 @@ void SolverJacobi::solve(double eps, int& maxIter)
 			if (fabs(aii) <= eps*eps) 
 			{
 				printf("JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
-
+				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
 			}
 			//x[i] = (-tmp+b[i])/aii;
 			tempX[i] = (-tmp+b[i])/aii;
@@ -177,6 +180,9 @@ void SolverJacobi::solve(double eps, int& maxIter)
 	if (step >= maxIter)
 	{
 		printf("JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		maxIter = step;
+		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}
 	maxIter = step;
+	return MatrixSolver::RESULT_OK;
 }

@@ -6,6 +6,11 @@
 class MatrixSolver
 {
 public:
+
+	static const int RESULT_OK					= 0x0000;
+	static const int RESULT_ERR_ZERO_DIAG = 0x0001;
+	static const int RESULT_ERR_MAX_ITER = 0x0002;
+
 	virtual ~MatrixSolver();
 
 	void init(int cellsCount, int blockDimension);
@@ -18,7 +23,7 @@ public:
 	void addRightElement(int i, double* vectDim);
 	void createMatrElement(int i, int j);
 
-	virtual void solve(double eps, int& maxIter) = 0;
+	virtual int solve(double eps, int& maxIter) = 0;
 
 	void printToFile(const char* fileName);
 
@@ -30,7 +35,7 @@ public:
 
 class SolverZeidel: public MatrixSolver 
 {
-	virtual void solve(double eps, int& maxIter);
+	virtual int solve(double eps, int& maxIter);
 };
 
 class SolverJacobi: public MatrixSolver
@@ -45,7 +50,7 @@ public:
 			tempXAlloc = false;
 		}
 	}
-	virtual void	solve(double eps, int& maxIter);
+	virtual int	solve(double eps, int& maxIter);
 	double			*tempX;
 	bool			tempXAlloc;
 };

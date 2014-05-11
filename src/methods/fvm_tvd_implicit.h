@@ -72,11 +72,18 @@ private:
 	int getLimitedCellsCount();
 	void remediateLimCells();
 
+	void incCFL();
+	void decCFL();
+
 private:
 	double			TMAX;
 	int				STEP_MAX;
 	double			TAU;
 	double			CFL;
+	double			scaleCFL;
+	double			maxCFL;
+	int				stepCFL;
+	double			maxLimCells;
 	int				FILE_SAVE_STEP;
 	int				PRINT_STEP;
 

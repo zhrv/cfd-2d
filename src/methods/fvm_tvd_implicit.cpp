@@ -24,7 +24,6 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
-	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
 	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
@@ -33,6 +32,12 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		STEADY = false;
 	} else {
 		STEADY = true;
+		node1 = node0->FirstChild("CFL");
+		node1->FirstChild("start")->ToElement()->Attribute("value", &CFL);
+		node1->FirstChild("scale")->ToElement()->Attribute("value", &scaleCFL);
+		node1->FirstChild("max")->ToElement()->Attribute("value", &maxCFL);
+		node1->FirstChild("step")->ToElement()->Attribute("value", &stepCFL);
+		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
 
 	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
@@ -218,7 +223,7 @@ void FVM_TVD_IMPLICIT::calcTimeStep()
 		if (STEADY) {
 			Param p;
 			convertConsToPar(iCell, p);
-			double tmp = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
+			double tmp = grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
 			cTau[iCell] = _min_(CFL*tmp, TAU);
 			if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
 		} else {
@@ -336,6 +341,8 @@ void FVM_TVD_IMPLICIT::run()
 	double					**Amtx4P, **Amtx4M;
 	double					**right4, **mtx4;
 
+	int solverErr = 0;
+
 	right4 = new double*[nc];
 	for (int i = 0; i < nc; i++) {
 		right4[i] = new double[4];
@@ -379,7 +386,7 @@ void FVM_TVD_IMPLICIT::run()
 		} else {
 			t += TAU;
 		}
-		step++;
+		if (!solverErr) step++;
 
 		//заполнение матрицы.
 		Param		average, cellL, cellR;
@@ -423,10 +430,10 @@ void FVM_TVD_IMPLICIT::run()
 				}
 			}
 
-			solverMtx->addMatrElement(c1, c1, Amtx4M);
+			solverMtx->addMatrElement(c1, c1, Amtx4P);
 
 			if (c2 >= 0) {
-				solverMtx->addMatrElement(c1, c2, Amtx4P);	//du~(i,j,n+1)
+				solverMtx->addMatrElement(c1, c2, Amtx4M);	//du~(i,j,n+1)
 
 				eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
 				rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
@@ -443,8 +450,8 @@ void FVM_TVD_IMPLICIT::run()
 					}
 				}
 
-				solverMtx->addMatrElement(c2, c2, Amtx4M);
-				solverMtx->addMatrElement(c2, c1, Amtx4P);
+				solverMtx->addMatrElement(c2, c2, Amtx4P);
+				solverMtx->addMatrElement(c2, c1, Amtx4M);
 
 			}
 			double		fr, fu, fv, fe;
@@ -484,38 +491,52 @@ void FVM_TVD_IMPLICIT::run()
 		int maxIter = 5000;
 		const double eps = 1.0e-4;
 		
-		solverMtx->solve(eps, maxIter);
-		for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
-		{
-			if (cellIsLim(cellIndex))	continue;
-			ro[cellIndex] += solverMtx->x[ind+0];
-			ru[cellIndex] += solverMtx->x[ind+1];
-			rv[cellIndex] += solverMtx->x[ind+2];
-			re[cellIndex] += solverMtx->x[ind+3];	
+		solverErr = solverMtx->solve(eps, maxIter);
+		if (solverErr == MatrixSolver::RESULT_OK) {
+			for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
+			{
+				if (cellIsLim(cellIndex))	continue;
+				ro[cellIndex] += solverMtx->x[ind + 0];
+				ru[cellIndex] += solverMtx->x[ind + 1];
+				rv[cellIndex] += solverMtx->x[ind + 2];
+				re[cellIndex] += solverMtx->x[ind + 3];
 
-			Param par;
-			convertConsToPar(cellIndex, par);
-			if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-			if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-			if (abs(par.u) > limitUmax)		{ par.u = limitUmax;	setCellFlagLim(cellIndex); }
-			if (abs(par.v) > limitUmax)		{ par.v = limitUmax;	setCellFlagLim(cellIndex); }
-			if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-			if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-			if (cellIsLim(cellIndex)) 		{ par.e = par.p/((__GAM-1)*par.r); convertParToCons(cellIndex, par); }
-		}
-		remediateLimCells();
+				Param par;
+				convertConsToPar(cellIndex, par);
+				if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+				if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+				if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+				if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+			}
+			remediateLimCells();
+			int limCells = getLimitedCellsCount();
+			if (STEADY && (limCells >= maxLimCells)) decCFL();
+			//log("step: %d max iter: %d\n", step, maxIter);
+			if (step % FILE_SAVE_STEP == 0)
+			{
+				save(step);
+			}
+			if (step % PRINT_STEP == 0)
+			{
+				if (!STEADY) {
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\n", step, t, maxIter, limCells);
+				}
+				else {
+					log("step: %d\tmax iter: %d\tlim: %d\n", step, maxIter, limCells);
+				}
+			}
 
-		//log("step: %d max iter: %d\n", step, maxIter);
-		if (step % FILE_SAVE_STEP == 0)
-		{
-			save(step);
+			if (STEADY && (step % stepCFL == 0)) incCFL();
 		}
-		if (step % PRINT_STEP == 0)
-		{
-			if (!STEADY) {
-				log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\n", step, t, maxIter, getLimitedCellsCount());
-			} else {
-				log("step: %d\tmax iter: %d\tlim: %d\n", step, maxIter, getLimitedCellsCount());
+		else {
+			if (STEADY) {
+				decCFL();
+			}
+			else {
+				solverErr = 0;
 			}
 		}
 	}
@@ -824,6 +845,25 @@ void FVM_TVD_IMPLICIT::convertConsToPar(int iCell, Param & par)
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
 }
+
+void FVM_TVD_IMPLICIT::decCFL() 
+{
+	if (CFL > 0.1) {
+		CFL *= 0.75;
+		if (CFL < 0.1) CFL = 0.1;
+		log(" CFL Number has been decreased : %f \n", CFL);
+	}
+}
+
+void FVM_TVD_IMPLICIT::incCFL() 
+{
+	if (CFL < maxCFL) {
+		CFL *= scaleCFL;
+		if (CFL > maxCFL) CFL = maxCFL;
+		log(" CFL Number has been increased : %f \n", CFL);
+	}
+}
+
 
 
 
