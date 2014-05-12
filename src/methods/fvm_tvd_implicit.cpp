@@ -541,18 +541,22 @@ void FVM_TVD_IMPLICIT::run()
 			remediateLimCells();
 			int limCells = getLimitedCellsCount();
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
-			//log("step: %d max iter: %d\n", step, maxIter);
+			
+			//calcLiftForce();
+			//log("step: %d max iter: %d Lift Forece Fx: %e Fy: %e\n", step, maxIter, Fx, Fy);
 			if (step % FILE_SAVE_STEP == 0)
 			{
+				calcLiftForce();
 				save(step);
 			}
 			if (step % PRINT_STEP == 0)
 			{
+				calcLiftForce();
 				if (!STEADY) {
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\n", step, t, maxIter, limCells);
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d Lift Forece Fx: %e Fy: %e\n", step, t, maxIter, limCells, Fx, Fy);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d\n", step, maxIter, limCells);
+					log("step: %d\tmax iter: %d\tlim: %d Lift Forece Fx: %e Fy: %e\n", step, maxIter, limCells, Fx, Fy);
 				}
 			}
 
@@ -892,6 +896,26 @@ void FVM_TVD_IMPLICIT::incCFL()
 	}
 }
 
-
-
-
+void FVM_TVD_IMPLICIT::calcLiftForce()
+{
+	const double width = 1.0; // предполагаемая ширина профиля по z.
+	Param		 par;
+	Fx = Fy = 0.0;
+	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
+	{
+		if (grid.edges[iEdge].type == Edge::TYPE_WALL)
+		{
+			int			cellIndex = grid.edges[iEdge].c1;
+			double		nx = grid.edges[iEdge].n.x;
+			double		ny = grid.edges[iEdge].n.y;
+			if (cellIndex < 0) {
+				cellIndex = grid.edges[iEdge].c2;
+				nx *= -1.0;
+				ny *= -1.0;
+			}
+			convertConsToPar(cellIndex, par);
+			Fx += par.p*width*grid.edges[iEdge].l*nx;
+			Fy += par.p*width*grid.edges[iEdge].l*ny;
+		}
+	}
+}
