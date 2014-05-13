@@ -18,12 +18,16 @@
 			<max_limited_cells	value="10" />
 		</CFL>
 	</control>
+	<smoothing>
+		<using			value="1" />
+		<coefficient		value="0.0000001" />
+	</smoothing>
 	<limits>
-		<ro_min			value="0.1" />
-		<ro_max			value="1.0" />
-		<p_min			value="20000.0" />
-		<p_max			value="100000.0" />
-		<u_max			value="500.0" />
+		<ro_min			value="0.000001" />
+		<ro_max			value="100.0" />
+		<p_min			value="10.0" />
+		<p_max			value="10000000.0" />
+		<u_max			value="10000000.0" />
 	</limits>
 	<mesh>
 		<filesType value="berkeley_triangle" />
