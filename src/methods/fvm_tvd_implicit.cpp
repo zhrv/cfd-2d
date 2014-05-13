@@ -1,6 +1,7 @@
 ﻿#include "fvm_tvd_implicit.h"
 #include "tinyxml.h"
 #include <string>
+#include <time.h>
 #include "global.h"
 
 void FVM_TVD_IMPLICIT::init(char * xmlFileName)
@@ -39,6 +40,13 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("step")->ToElement()->Attribute("value", &stepCFL);
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
+
+	// сглаживание невязок
+	int smUsing = 1;
+	node0 = task->FirstChild("smoothing");
+	node0->FirstChild("using")->ToElement()->Attribute("value", &smUsing);
+	node0->FirstChild("coefficient")->ToElement()->Attribute("value", &SMOOTHING_PAR);
+	SMOOTHING = (smUsing == 1);
 
 	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
 	node0 = task->FirstChild("limits");
@@ -148,6 +156,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	re		= new double[grid.cCount];
 
 	tmpArr = new double[grid.cCount];
+	tmpArrInt = new int[grid.cCount];
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -388,6 +397,8 @@ void FVM_TVD_IMPLICIT::run()
 	log("\tcomplete...\n");
 	while (t < TMAX && step < STEP_MAX)
 	{
+		long timeStart, timeEnd;
+		timeStart = clock();
 		if (!STEADY) t += TAU;
 		if (!solverErr) step++;
 
@@ -519,7 +530,11 @@ void FVM_TVD_IMPLICIT::run()
 		const double eps = 1.0e-4;
 		
 		solverErr = solverMtx->solve(eps, maxIter);
+
 		if (solverErr == MatrixSolver::RESULT_OK) {
+
+			if (SMOOTHING) smoothingDelta(solverMtx->x);
+
 			for (int cellIndex = 0, ind = 0; cellIndex < nc; cellIndex++, ind += 4)
 			{
 				if (cellIsLim(cellIndex))	continue;
@@ -541,7 +556,9 @@ void FVM_TVD_IMPLICIT::run()
 			remediateLimCells();
 			int limCells = getLimitedCellsCount();
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
-			//log("step: %d max iter: %d\n", step, maxIter);
+			
+			timeEnd = clock(); 
+			
 			if (step % FILE_SAVE_STEP == 0)
 			{
 				save(step);
@@ -549,10 +566,10 @@ void FVM_TVD_IMPLICIT::run()
 			if (step % PRINT_STEP == 0)
 			{
 				if (!STEADY) {
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\n", step, t, maxIter, limCells);
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d\n", step, maxIter, limCells);
+					log("step: %d\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
 				}
 			}
 
@@ -631,6 +648,26 @@ int FVM_TVD_IMPLICIT::getLimitedCellsCount() {
 	return n;
 }
 
+void FVM_TVD_IMPLICIT::smoothingDelta(double* p)
+{
+	for (register int shift = 0; shift < 4; shift++) {
+		memset(tmpArr, 0, grid.cCount*sizeof(double));
+		memset(tmpArrInt, 0, grid.cCount*sizeof(int));
+		for (register int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+			if (grid.edges[iEdge].c2 >= 0) {
+				register int c1 = grid.edges[iEdge].c1;
+				register int c2 = grid.edges[iEdge].c2;
+				if (!cellIsLim(c2)) { tmpArr[c1] += p[c2*4 + shift]; tmpArrInt[c1]++; }
+				if (!cellIsLim(c1)) { tmpArr[c2] += p[c1*4 + shift]; tmpArrInt[c2]++; }
+			}
+		}
+		for (register int i = 0; i < grid.cCount; i++) {
+			register int iCell = i*4 + shift;
+			p[iCell] = (p[iCell] + SMOOTHING_PAR * tmpArr[i]) / (1.0 + SMOOTHING_PAR*tmpArrInt[i]);
+		}
+	}
+}
+
 void FVM_TVD_IMPLICIT::save(int step)
 {
 	char fName[50];
@@ -692,7 +729,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", (p.u*p.u+p.v*p.v)/p.cz);
+		fprintf(fp, "%25.16f ", sqrt(p.u*p.u+p.v*p.v)/p.cz);
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -731,48 +768,48 @@ void FVM_TVD_IMPLICIT::save(int step)
 
 void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	//{	// GODUNOV FLUX
-	//	double RI, EI, PI, UI, VI, WI, UN, UT;
-	//	//double unl = pL.u*n.x+pL.v*n.y;
-	//	//double unr = pR.u*n.x+pR.v*n.y;
-	//	//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-	//		
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double utl = pL.u*n.y-pL.v*n.x;
-	//	double utr = pR.u*n.y-pR.v*n.x;
-	//	rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
-	//	
-	//	UI = UN*n.x+UT*n.y;
-	//	VI = UN*n.y-UT*n.x;
-
-	//	fr = RI*UN;
-	//	fu = fr*UI+PI*n.x;
-	//	fv = fr*VI+PI*n.y;
-	//	fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
-	//}
-	{	// LAX-FRIEDRIX FLUX
+	{	// GODUNOV FLUX
+		double RI, EI, PI, UI, VI, WI, UN, UT;
+		//double unl = pL.u*n.x+pL.v*n.y;
+		//double unr = pR.u*n.x+pR.v*n.y;
+		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+			
 		double unl = pL.u*n.x+pL.v*n.y;
 		double unr = pR.u*n.x+pR.v*n.y;
-		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-		//pL.getToCons(rol, rul, rvl, rel);
-		//pR.getToCons(ror, rur, rvr, rer);
-		rol = pL.r;
-		rul = pL.r*pL.u;
-		rvl = pL.r*pL.v;
-		rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
-		ror = pR.r;
-		rur = pR.r*pR.u;
-		rvr = pR.r*pR.v;
-		rer = pR.p /(GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
-		double frl = rol*unl;
-		double frr = ror*unr;
-		fr = 0.5*(frr+frl								- alpha*(ror-rol));
-		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+		double utl = pL.u*n.y-pL.v*n.x;
+		double utr = pR.u*n.y-pR.v*n.x;
+		rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
+		
+		UI = UN*n.x+UT*n.y;
+		VI = UN*n.y-UT*n.x;
+
+		fr = RI*UN;
+		fu = fr*UI+PI*n.x;
+		fv = fr*VI+PI*n.y;
+		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	}
+	//{	// LAX-FRIEDRIX FLUX
+	//	double unl = pL.u*n.x+pL.v*n.y;
+	//	double unr = pR.u*n.x+pR.v*n.y;
+	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+	//	//pL.getToCons(rol, rul, rvl, rel);
+	//	//pR.getToCons(ror, rur, rvr, rer);
+	//	rol = pL.r;
+	//	rul = pL.r*pL.u;
+	//	rvl = pL.r*pL.v;
+	//	rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+	//	ror = pR.r;
+	//	rur = pR.r*pR.u;
+	//	rvr = pR.r*pR.v;
+	//	rer = pR.p /(GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
+	//	double frl = rol*unl;
+	//	double frr = ror*unr;
+	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
+	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	//}
 }
 
 void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
@@ -830,6 +867,7 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] re;
 	delete[] cTau;
 	delete[] tmpArr;
+	delete[] tmpArrInt;
 }
 
 Region & FVM_TVD_IMPLICIT::getRegionByCellType(int type)
@@ -872,6 +910,7 @@ void FVM_TVD_IMPLICIT::convertConsToPar(int iCell, Param & par)
 	par.e = par.E-0.5*(par.u*par.u+par.v*par.v);
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
+	mat.URS(par, 1);
 }
 
 void FVM_TVD_IMPLICIT::decCFL() 

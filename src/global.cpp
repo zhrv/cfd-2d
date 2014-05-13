@@ -251,6 +251,8 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 	double TGAM  =  (QGAM/2.0);
 	double UGAM  =  (sqrt(AGAM/GAM));
 
+	double US = 0.0, UF = 0.0;
+
 	double RF,RS,EF,ES,SBL,SFL,SSL,SEL,D;
 	double    eps=1.0e-5;
 	double    CB= sqrt(GAM*PB/RB);
@@ -317,7 +319,7 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
       double UBD=UB-D;
       double RUBD=RB*UBD;
       RF=RUBD*RUBD/(PB-P+RUBD*UBD);
-      double UF=D+RUBD/RF;
+      UF=D+RUBD/RF;
       EF=P/(AGAM*RF);
       SBL=D;
       SFL=D;
@@ -334,7 +336,7 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
       double UED=UE-D;
       double RUED=RE*UED;
       RS=RUED*RUED/(PE-P+RUED*UED);
-      double US=D+RUED/RS;
+      US=D+RUED/RS;
       ES=P/(AGAM*RS);
       SEL=D;
       SSL=D;

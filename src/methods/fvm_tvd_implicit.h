@@ -72,6 +72,8 @@ private:
 	int getLimitedCellsCount();
 	void remediateLimCells();
 
+	void smoothingDelta(double*);
+
 	void incCFL();
 	void decCFL();
 
@@ -91,6 +93,9 @@ private:
 
 	bool			STEADY;	// false - нестационарное течение, true - стационанрное течение.
 	double			*cTau;  // локальный шаг по времени в €чейке.
+	bool			SMOOTHING;
+	double			SMOOTHING_PAR;
+
 
 	int				matCount;
 	int				regCount;
@@ -106,6 +111,7 @@ private:
 	double		   *re;
 
 	double			*tmpArr;
+	int				*tmpArrInt;
 
 	//! лимиты
 	double limitRmin;

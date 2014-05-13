@@ -1,4 +1,5 @@
 #include "MatrixSolver.h"
+#include "global.h"
 
 void MatrixSolver::init(int cellsCount, int blockDimension)
 {
@@ -121,7 +122,7 @@ int SolverZeidel::solve(double eps, int& maxIter)
 	}
 	if (step >= maxIter)
 	{
-		printf("ZEIDEL_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		log("ZEIDEL_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
 		maxIter = step;
 		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}
@@ -158,7 +159,7 @@ int SolverJacobi::solve(double eps, int& maxIter)
 			}
 			if (fabs(aii) <= eps*eps) 
 			{
-				printf("JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
+				log("JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
 				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
 			}
 			//x[i] = (-tmp+b[i])/aii;
@@ -179,7 +180,7 @@ int SolverJacobi::solve(double eps, int& maxIter)
 	}
 	if (step >= maxIter)
 	{
-		printf("JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		log("JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
 		maxIter = step;
 		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}
