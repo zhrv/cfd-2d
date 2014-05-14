@@ -155,6 +155,11 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
 
+	gradR		= new Vector[grid.cCount];
+	gradP		= new Vector[grid.cCount];
+	gradU		= new Vector[grid.cCount];
+	gradV		= new Vector[grid.cCount];
+
 	tmpArr = new double[grid.cCount];
 	tmpArrInt = new int[grid.cCount];
 
@@ -166,6 +171,63 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 
 	calcTimeStep();
 	save(0);
+}
+
+void FVM_TVD_IMPLICIT::calcGrad() 
+{
+	int nc = grid.cCount;
+	int ne = grid.eCount;
+
+	memset(gradR, 0, grid.cCount*sizeof(Vector));
+	memset(gradP, 0, grid.cCount*sizeof(Vector));
+	memset(gradU, 0, grid.cCount*sizeof(Vector));
+	memset(gradV, 0, grid.cCount*sizeof(Vector));
+	
+	for (int iEdge = 0; iEdge < ne; iEdge++)
+	{
+			
+		int c1	= grid.edges[iEdge].c1;
+		int c2	= grid.edges[iEdge].c2;
+			
+		Param pL, pR;
+		reconstruct(iEdge, pL, pR);
+
+		Vector n	= grid.edges[iEdge].n;
+		double l	= grid.edges[iEdge].l;
+			
+		gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
+		gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
+		gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
+		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
+		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
+		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
+		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+		if (c2 > -1) 
+		{
+			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
+			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
+			gradP[c2].x -= (pL.p+pR.p)/2*n.x*l;
+			gradP[c2].y -= (pL.p+pR.p)/2*n.y*l;
+			gradU[c2].x -= (pL.u+pR.u)/2*n.x*l;
+			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
+			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
+			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+		}
+
+	}
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		register double si = grid.cells[iCell].S;
+		gradR[iCell].x /= si;
+		gradR[iCell].y /= si;
+		gradP[iCell].x /= si;
+		gradP[iCell].y /= si;
+		gradU[iCell].x /= si;
+		gradU[iCell].y /= si;
+		gradV[iCell].x /= si;
+		gradV[iCell].y /= si;
+	}
 }
 
 double **FVM_TVD_IMPLICIT::allocMtx4()
@@ -347,6 +409,51 @@ void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double
 	average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
 }
 
+void FVM_TVD_IMPLICIT::reconstruct(int iFace, Param& pL, Param& pR)
+{
+	int		c1 = grid.edges[iFace].c1;
+	int		c2 = grid.edges[iFace].c2;
+	convertConsToPar(c1, pL);
+	if (grid.edges[iFace].type == Edge::TYPE_INNER) {
+		convertConsToPar(c2, pR);
+	}
+	else {
+		boundaryCond(iFace, pL, pR);
+	}
+}
+
+void FVM_TVD_IMPLICIT::reconstruct(int iFace, Param& pL, Param& pR, Point p)
+{
+	if (grid.edges[iFace].type == Edge::TYPE_INNER) 
+	{
+		int c1	= grid.edges[iFace].c1;
+		int c2	= grid.edges[iFace].c2;
+		convertConsToPar(c1, pL);
+		convertConsToPar(c2, pR);
+		Point &PE = p;
+		Point P1 = grid.cells[c1].c;
+		Point P2 = grid.cells[c2].c;
+		Vector DL1;
+		Vector DL2;
+		DL1.x=PE.x-P1.x;
+		DL1.y=PE.y-P1.y;
+		DL2.x=PE.x-P2.x;
+		DL2.y=PE.y-P2.y;
+		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
+		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
+		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+	} else {
+		int c1	= grid.edges[iFace].c1;
+		convertConsToPar(c1, pL);
+		boundaryCond(iFace, pL, pR);
+	}
+}
+
 void FVM_TVD_IMPLICIT::run() 
 {
 	int						nc = grid.cCount; // количество ячеек.
@@ -412,22 +519,16 @@ void FVM_TVD_IMPLICIT::run()
 		}
 
 		memset(tmpArr, 0, grid.cCount*sizeof(double)); 
-
+		
+		calcGrad();
 		for (int iEdge = 0; iEdge < ne; iEdge++) {
-			int		numberOfEdge = iEdge;
-			int		c1 = grid.edges[numberOfEdge].c1;
-			int		c2 = grid.edges[numberOfEdge].c2;
-			double	l = grid.edges[numberOfEdge].l;
+			int		c1 = grid.edges[iEdge].c1;
+			int		c2 = grid.edges[iEdge].c2;
+			double	l = grid.edges[iEdge].l;
 
 			//сделаем нормаль внешней.
-			Vector	n = grid.edges[numberOfEdge].n;
-			convertConsToPar(c1, cellL);
-			if (grid.edges[iEdge].type == Edge::TYPE_INNER) {
-				convertConsToPar(c2, cellR);
-			}
-			else {
-				boundaryCond(iEdge, cellL, cellR);
-			}
+			Vector	n = grid.edges[iEdge].n;
+			reconstruct(iEdge, cellL, cellR);
 			calcRoeAverage(average, cellL, cellR, __GAM, n);
 
 			// вычисляем спектральный радиус для вычисления шага по времени
@@ -480,9 +581,23 @@ void FVM_TVD_IMPLICIT::run()
 				solverMtx->addMatrElement(c2, c1, Amtx4M);
 
 			}
-			double		fr, fu, fv, fe;
-			calcFlux(fr, fu, fv, fe, cellL, cellR, n, __GAM);
+
+			double	fr2, fu2, fv2, fe2;
+			calcFlux(fr2, fu2, fv2, fe2, cellL, cellR, n, __GAM);
 			
+			double	fr, fu, fv, fe;
+			fr = fu = fv = fe = 0.0;
+			for (int iGP = 0; iGP < grid.edges[iEdge].cCount; ++iGP) 
+			{
+				double fr1, fu1, fv1, fe1;
+				reconstruct(iEdge, cellL, cellR, grid.edges[iEdge].c[iGP]);
+				calcFlux(fr1, fu1, fv1, fe1, cellL, cellR, n, __GAM);
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+			}
+
 			right4[c1][0] -= l*fr;
 			right4[c1][1] -= l*fu;
 			right4[c1][2] -= l*fv;
@@ -558,7 +673,7 @@ void FVM_TVD_IMPLICIT::run()
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
 			
 			timeEnd = clock(); 
-			
+			log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\tLiftForce Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, t, maxIter, limCells, Fx, Fy, timeEnd-timeStart);
 			if (step % FILE_SAVE_STEP == 0)
 			{
 				save(step);
@@ -867,6 +982,12 @@ void FVM_TVD_IMPLICIT::done()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
+	
+	delete[] gradR;
+	delete[] gradP;
+	delete[] gradU;
+	delete[] gradV;
+
 	delete[] cTau;
 	delete[] tmpArr;
 	delete[] tmpArrInt;

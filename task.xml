@@ -11,23 +11,23 @@
 		<FILE_OUTPUT_STEP 	value="1000" />         <!-- количество итераций, через которые выполняется вывод результатов в файл -->
 		<LOG_OUTPUT_STEP 	value="100" />          <!-- интервал вывода краткой информации в лог-файл -->
 		<CFL>
-			<start 			value="10.0" />
+			<start 			value="0.05" />
 			<max			value="20.0" />
-			<scale 			value="1.25" />
-			<step			value="100" />
+			<scale 			value="1.05" />
+			<step			value="50" />
 			<max_limited_cells	value="10" />
 		</CFL>
 	</control>
 	<smoothing>
 		<using			value="1" />
-		<coefficient		value="0.0000001" />
+		<coefficient		value="0.001" />
 	</smoothing>
 	<limits>
 		<ro_min			value="0.000001" />
 		<ro_max			value="100.0" />
-		<p_min			value="10.0" />
-		<p_max			value="10000000.0" />
-		<u_max			value="10000000.0" />
+		<p_min			value="1.0" />
+		<p_max			value="500000.0" />
+		<u_max			value="10000.0" />
 	</limits>
 	<mesh>
 		<filesType value="berkeley_triangle" />

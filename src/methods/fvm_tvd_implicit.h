@@ -48,6 +48,10 @@ protected:
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
+	void reconstruct(int iFace, Param& pL, Param& pR);
+	void reconstruct(int iFace, Param& pL, Param& pR, Point p);
+
+	void calcGrad();
 private:
 	double **allocMtx4();													//+.
 	void freeMtx4(double **mtx4);											//+.
@@ -114,12 +118,18 @@ private:
 	double			*tmpArr;
 	int				*tmpArrInt;
 
+	//! градиенты.
+	Vector			*gradR;
+	Vector			*gradP;
+	Vector			*gradU;
+	Vector			*gradV;	
+
 	//! лимиты
-	double limitRmin;
-	double limitRmax;
-	double limitPmin;
-	double limitPmax;
-	double limitUmax;
+	double			limitRmin;
+	double			limitRmax;
+	double			limitPmin;
+	double			limitPmax;
+	double			limitUmax;
 
 	//! подъемная сила.
 	double			Fx;
