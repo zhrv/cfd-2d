@@ -96,7 +96,7 @@ private:
 	double			*cTau;  //! локальный шаг по времени в €чейке.
 	bool			SMOOTHING;
 	double			SMOOTHING_PAR;
-
+	int				FLUX;
 
 	int				matCount;
 	int				regCount;
@@ -124,6 +124,13 @@ private:
 	//! подъемна€ сила.
 	double			Fx;
 	double			Fy;
+
+
+protected:
+	const int FLUX_GODUNOV		= 0;
+	const int FLUX_LAX			= 1;
+
 };
+
 
 #endif
