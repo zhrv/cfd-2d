@@ -200,6 +200,23 @@ void Grid::initFromFiles(char* fName)
 		cells[i].S = sqrt(p*(p-a)*(p-b)*(p-c));
 	}
 
+
+	dist = new double [eCount];
+	min_dist = new double [cCount];
+
+	for (int i = 0; i < cCount; i++)
+	{
+		min_dist[i] = 1e100;
+		for (int j = 0; j < eCount; j++)
+		{
+			if (edges[j].type == Edge::TYPE_WALL)
+			{
+				dist[j] = sqrt(_sqr_(cells[i].c.x - edges[j].c[0].x) + _sqr_(cells[i].c.y - edges[j].c[0].y));		
+				min_dist[i] = _min_(dist[j], min_dist[i]);
+			}
+		}
+	}
+	
 	for (int i = 0; i < cCount; i++) 
 	{
 		delete[] neigh[i];

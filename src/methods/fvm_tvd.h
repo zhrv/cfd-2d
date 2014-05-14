@@ -2,6 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
+#include "sa_model.h"
 
 class FVM_TVD: public Method
 {
@@ -51,6 +52,13 @@ protected:
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
+
+	//_нач
+	void calcGrad(Vector *gradU, Vector *gradV);
+	void calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy);
+	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Param pL, Param pR, Vector n, int c1, int c2);
+	//_кон
+
 private:
 	double TMAX;
 	double TAU;
@@ -65,11 +73,13 @@ private:
 	Region		*	regions;
 	Boundary	*	boundaries;
 
+	ViscosityModel * viscosityModel;
+
 	//! консервативные переменные на текущем временном слое
-	double * ro;			 
-	double * ru;			
-	double * rv;			
-	double * re;			
+	double * ro;
+	double * ru;
+	double * rv;
+	double * re;
 
 	//! консервативные переменные на предыдущем временном слое
 	double * ro_old;
@@ -83,7 +93,11 @@ private:
 	double * rv_int;
 	double * re_int;
 	
+	Vector *gradU, *gradV;
+	double *Txx, *Tyy, *Txy;
 
+	// TODO: Вынести
+	double lambda, mu;
 };
 
 #endif
