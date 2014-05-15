@@ -1,8 +1,13 @@
-п»ї#include "fvm_tvd_implicit.h"
+#include "fvm_tvd_implicit.h"
 #include "tinyxml.h"
 #include <string>
 #include <time.h>
 #include "global.h"
+
+const char* FLUX_NAMES[2] = {
+		"GODUNOV",
+		"LAX"
+};
 
 void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 {
@@ -28,6 +33,16 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+	const char * flxStr = node0->FirstChild("FLUX")->ToElement()->Attribute("value");
+	if (strcmp(flxStr, "GODUNOV") == 0) {
+		FLUX = FLUX_GODUNOV;
+	}
+	else if (strcmp(flxStr, "LAX") == 0) {
+		FLUX = FLUX_LAX;
+	}
+	else {
+		FLUX = FLUX_GODUNOV;
+	}	
 
 	if (steadyVal == 0) {
 		STEADY = false;
@@ -41,14 +56,14 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
 
-	// СЃРіР»Р°Р¶РёРІР°РЅРёРµ РЅРµРІСЏР·РѕРє
+	// сглаживание невязок
 	int smUsing = 1;
 	node0 = task->FirstChild("smoothing");
 	node0->FirstChild("using")->ToElement()->Attribute("value", &smUsing);
 	node0->FirstChild("coefficient")->ToElement()->Attribute("value", &SMOOTHING_PAR);
 	SMOOTHING = (smUsing == 1);
 
-	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РџР Р•Р”Р•Р›Р¬РќР«РҐ Р—РќРђР§Р•РќРРЇРҐ
+	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
 	node0 = task->FirstChild("limits");
 	node0->FirstChild("ro_min")->ToElement()->Attribute("value", &limitRmin);
 	node0->FirstChild("ro_max")->ToElement()->Attribute("value", &limitRmax);
@@ -56,7 +71,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("p_max")->ToElement()->Attribute( "value", &limitPmax);
 	node0->FirstChild("u_max")->ToElement()->Attribute( "value", &limitUmax);
 
-	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
+	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -76,7 +91,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		matNode = matNode->NextSibling("material");
 	}
 
-	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
+	// чтение параметров о РЕГИОНАХ
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -101,7 +116,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		regNode = regNode->NextSibling("region");
 	}
 
-	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р“Р РђРќРР§РќР«РҐ РЈРЎР›РћР’РРЇРҐ
+	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
 	node0 = task->FirstChild("boundaries");
 	node0->ToElement()->Attribute("count", &bCount);
 	boundaries = new Boundary[bCount];
@@ -461,8 +476,8 @@ void FVM_TVD_IMPLICIT::reconstruct(int iFace, Param& pL, Param& pR, Point p)
 
 void FVM_TVD_IMPLICIT::run() 
 {
-	int						nc = grid.cCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЏС‡РµРµРє.
-	int						ne = grid.eCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРµР±РµСЂ.
+	int						nc = grid.cCount; // количество ячеек.
+	int						ne = grid.eCount; // количество ребер.
 	double					t = 0.0;
 	unsigned int			step = 0;
 
@@ -489,8 +504,9 @@ void FVM_TVD_IMPLICIT::run()
 	if (STEADY)		log("Steady-State Flow\n");
 	else			log("Unsteady-State Flow\n");
 	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);	
-
-	// РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РїРѕСЂС‚СЂРµС‚ РјР°С‚СЂРёС†С‹
+	log("Flux calculation method: %s\n", FLUX_NAMES[FLUX]);
+	
+	// инициализируем портрет матрицы
 	log("Matrix structure initialization:\n");
 	CSRMatrix::DELTA = 65536;
 	for (int iEdge = 0; iEdge < ne; iEdge++) {
@@ -514,9 +530,9 @@ void FVM_TVD_IMPLICIT::run()
 		if (!STEADY) t += TAU;
 		if (!solverErr) step++;
 
-		//Р·Р°РїРѕР»РЅРµРЅРёРµ РјР°С‚СЂРёС†С‹.
+		//заполнение матрицы.
 		Param		average, cellL, cellR;
-		double		__GAM = 1.4;			// TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
+		double		__GAM = 1.4;			// TODO: сделать правильное вычисление показателя адиабаты
 
 		solverMtx->zero();
 		for (int iCell = 0; iCell < nc; iCell++){
@@ -531,12 +547,12 @@ void FVM_TVD_IMPLICIT::run()
 			int		c2 = grid.edges[iEdge].c2;
 			double	l = grid.edges[iEdge].l;
 
-			//СЃРґРµР»Р°РµРј РЅРѕСЂРјР°Р»СЊ РІРЅРµС€РЅРµР№.
+			//сделаем нормаль внешней.
 			Vector	n = grid.edges[iEdge].n;
 			reconstruct(iEdge, cellL, cellR);
 			calcRoeAverage(average, cellL, cellR, __GAM, n);
 
-			// РІС‹С‡РёСЃР»СЏРµРј СЃРїРµРєС‚СЂР°Р»СЊРЅС‹Р№ СЂР°РґРёСѓСЃ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ С€Р°РіР° РїРѕ РІСЂРµРјРµРЅРё
+			// вычисляем спектральный радиус для вычисления шага по времени
 			if (STEADY) {
 				double lambda = sqrt(average.u*average.u + average.v*average.v) + average.cz;
 				lambda *= l;
@@ -618,7 +634,7 @@ void FVM_TVD_IMPLICIT::run()
 			//log("edge = %d of %d\n", iEdge, ne);
 		}
 
-		// РІС‹С‡РёСЃР»СЏРµРј С€Р°РіРё РїРѕ РІСЂРµРјРµРЅРёРІ СЏС‡РµР№РєР°С… РїРѕ РЅР°СЃС‡РёС‚Р°РЅРЅС‹Рј СЂР°РЅРµРµ Р·РЅР°С‡РµРЅРёСЏРј СЃРїРµРєС‚СЂР°
+		// вычисляем шаги по временив ячейках по насчитанным ранее значениям спектра
 		if (STEADY) {
 			for (int iCell = 0; iCell < grid.cCount; iCell++)
 			{
@@ -679,7 +695,6 @@ void FVM_TVD_IMPLICIT::run()
 			
 			timeEnd = clock(); 
 			
-			//log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
 			if (step % FILE_SAVE_STEP == 0)
 			{
 				save(step);
@@ -689,10 +704,10 @@ void FVM_TVD_IMPLICIT::run()
 				calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\tLiftForce Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, t, maxIter, limCells, Fx, Fy, timeEnd-timeStart);
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d Lift Force Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, t, maxIter, limCells, Fx, Fy, timeEnd-timeStart);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d\tLiftForce Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart);
+					log("step: %d\tmax iter: %d\tlim: %d Lift Force Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart);
 				}
 			}
 
@@ -727,7 +742,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 	{
 		if (cellIsLim(iCell)) 
 		{
-			// РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј РїРѕ СЃРѕСЃРµРґСЏРј			
+			// пересчитываем по соседям			
 			double sRO = 0.0;
 			double sRU = 0.0;
 			double sRV = 0.0;
@@ -738,7 +753,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 				int		iEdge = grid.cells[iCell].edgesInd[i];
 				int		j = grid.edges[iEdge].c2;
 				if (j == iCell)	{
-					//std::swap(j, grid.edges[iEdge].c1); // С‚Р°Рє РЅСѓР¶РЅРѕ РµС‰Рµ РЅРѕСЂРјР°Р»СЊ РїРѕРІРѕСЂС‡РёРІР°С‚СЊ С‚РѕРіРґР°
+					//std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
 					j = grid.edges[iEdge].c1;
 				}
 				if (j >= 0) {
@@ -756,7 +771,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 				rv[iCell] = sRV/S;
 				re[iCell] = sRE/S;
 			}
-			// РїРѕСЃР»Рµ 0x20 РёС‚РµСЂР°С†РёР№ РїСЂРѕР±СѓРµРј РІРµСЂРЅСѓС‚СЊ СЏС‡РµР№РєСѓ РІ СЃС‡РµС‚
+			// после 0x20 итераций пробуем вернуть ячейку в счет
 			grid.cells[iCell].flag += 0x010000;
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
 		}
@@ -862,7 +877,16 @@ void FVM_TVD_IMPLICIT::save(int step)
 		Param p;
 		convertConsToPar(i, p);
 		fprintf(fp, "%25.16f %25.16f %25.16f ", p.u, p.v, 0.0);
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+	
+	fprintf(fp, "SCALARS Total_energy float 1\nLOOKUP_TABLE default\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.E);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");	
 	}
 
 	fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
@@ -873,8 +897,8 @@ void FVM_TVD_IMPLICIT::save(int step)
 		double agam = gam - 1.0;
 		Param p;
 		convertConsToPar(i, p);
-		double M2 = (p.u*p.u+p.v*p.v)/(gam*p.p/p.r);
-		fprintf(fp, "%f ", p.p*::pow(1.0+0.5*M2*agam, gam/(gam-1.0)) );
+		double M2 = (p.u*p.u + p.v*p.v) / (p.cz*p.cz);
+		fprintf(fp, "%25.16e ", p.p*::pow(1.0+0.5*M2*agam, gam/agam) );
 		if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -891,7 +915,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 
 void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	{	// GODUNOV FLUX
+	if (FLUX == FLUX_GODUNOV) {	// GODUNOV FLUX
 		double RI, EI, PI, UI, VI, WI, UN, UT;
 		//double unl = pL.u*n.x+pL.v*n.y;
 		//double unr = pR.u*n.x+pR.v*n.y;
@@ -911,28 +935,28 @@ void FVM_TVD_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, 
 		fv = fr*VI+PI*n.y;
 		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	}
-	//{	// LAX-FRIEDRIX FLUX
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	//pL.getToCons(rol, rul, rvl, rel);
-	//	//pR.getToCons(ror, rur, rvr, rer);
-	//	rol = pL.r;
-	//	rul = pL.r*pL.u;
-	//	rvl = pL.r*pL.v;
-	//	rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
-	//	ror = pR.r;
-	//	rur = pR.r*pR.u;
-	//	rvr = pR.r*pR.v;
-	//	rer = pR.p /(GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
-	//}
+	if (FLUX == FLUX_LAX) {	// LAX-FRIEDRIX FLUX
+		double unl = pL.u*n.x+pL.v*n.y;
+		double unr = pR.u*n.x+pR.v*n.y;
+		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+		//pL.getToCons(rol, rul, rvl, rel);
+		//pR.getToCons(ror, rur, rvr, rer);
+		rol = pL.r;
+		rul = pL.r*pL.u;
+		rvl = pL.r*pL.v;
+		rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+		ror = pR.r;
+		rur = pR.r*pR.u;
+		rvr = pR.r*pR.v;
+		rer = pR.p /(GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
+		double frl = rol*unl;
+		double frr = ror*unr;
+		fr = 0.5*(frr+frl								- alpha*(ror-rol));
+		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+	}
 }
 
 void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
@@ -957,10 +981,10 @@ void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	switch (b.type)
 	{
 	case Boundary::BOUND_INLET:
-		pR.T  = b.par[0];		//!< С‚РµРјРїРµСЂР°С‚СѓСЂР°
-		pR.p  = b.par[1];		//!< РґР°РІР»РµРЅРёРµ
-		pR.u  = b.par[2];		//!< РїРµСЂРІР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
-		pR.v  = b.par[3];		//!< РІС‚РѕСЂР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
+		pR.T  = b.par[0];		//!< температура
+		pR.p  = b.par[1];		//!< давление
+		pR.u  = b.par[2];		//!< первая компонента вектора скорости
+		pR.v  = b.par[3];		//!< вторая компонента вектора скорости
 		
 		m.URS(pR, 2);
 		m.URS(pR, 1);
@@ -1062,7 +1086,7 @@ void FVM_TVD_IMPLICIT::incCFL()
 
 void FVM_TVD_IMPLICIT::calcLiftForce()
 {
-	const double width = 1.0; // РїСЂРµРґРїРѕР»Р°РіР°РµРјР°СЏ С€РёСЂРёРЅР° РїСЂРѕС„РёР»СЏ РїРѕ z.
+	const double width = 1.0; // предполагаемая ширина профиля по z.
 	Param		 par;
 	Fx = Fy = 0.0;
 	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
