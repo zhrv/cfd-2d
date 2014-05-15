@@ -138,27 +138,21 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 			log("ERROR: unsupported boundary condition type '%s'", str);
 			EXIT(1);
 		}
-		
+
 		bNode = bNode->NextSibling("boundCond");
 	}
+
 
 	node0 = task->FirstChild("mesh");
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
-	//TODO: не знаю почему, но если выделить мало памяти, то программа работает много медленнее.
-	//		нужно работать с профилировщиком. поэтому сейчас *2.
 	cTau	= new double[grid.cCount];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
 	rv		= new double[grid.cCount];
 	re		= new double[grid.cCount];
-
-	gradR		= new Vector[grid.cCount];
-	gradP		= new Vector[grid.cCount];
-	gradU		= new Vector[grid.cCount];
-	gradV		= new Vector[grid.cCount];
 
 	tmpArr = new double[grid.cCount];
 	tmpArrInt = new int[grid.cCount];
@@ -175,6 +169,15 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 
 void FVM_TVD_IMPLICIT::calcGrad() 
 {
+	static bool isCall;
+	if (!isCall) {		//hardcore memory optimization.
+		gradR		= new Vector[grid.cCount];
+		gradP		= new Vector[grid.cCount];
+		gradU		= new Vector[grid.cCount];
+		gradV		= new Vector[grid.cCount];
+		isCall = true;
+	}
+
 	int nc = grid.cCount;
 	int ne = grid.eCount;
 
@@ -447,6 +450,8 @@ void FVM_TVD_IMPLICIT::reconstruct(int iFace, Param& pL, Param& pR, Point p)
 		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
 		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
 		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+
+
 	} else {
 		int c1	= grid.edges[iFace].c1;
 		convertConsToPar(c1, pL);
@@ -587,7 +592,7 @@ void FVM_TVD_IMPLICIT::run()
 			
 			double	fr, fu, fv, fe;
 			fr = fu = fv = fe = 0.0;
-			for (int iGP = 0; iGP < grid.edges[iEdge].cCount; ++iGP) 
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; ++iGP) 
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, cellL, cellR, grid.edges[iEdge].c[iGP]);
@@ -598,16 +603,16 @@ void FVM_TVD_IMPLICIT::run()
 				fe += fe1;
 			}
 
-			right4[c1][0] -= l*fr;
-			right4[c1][1] -= l*fu;
-			right4[c1][2] -= l*fv;
-			right4[c1][3] -= l*fe;
+			right4[c1][0] -= 0.5*l*fr;
+			right4[c1][1] -= 0.5*l*fu;
+			right4[c1][2] -= 0.5*l*fv;
+			right4[c1][3] -= 0.5*l*fe;
 			
 			if (c2 >= 0) {
-				right4[c2][0] += l*fr;
-				right4[c2][1] += l*fu;
-				right4[c2][2] += l*fv;
-				right4[c2][3] += l*fe;
+				right4[c2][0] += 0.5*l*fr;
+				right4[c2][1] += 0.5*l*fu;
+				right4[c2][2] += 0.5*l*fv;
+				right4[c2][3] += 0.5*l*fe;
 			}
 
 			//log("edge = %d of %d\n", iEdge, ne);
