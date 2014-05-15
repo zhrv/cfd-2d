@@ -137,8 +137,8 @@ private:
 	double			Fy;
 	
 protected:
-	const int FLUX_GODUNOV		= 0;
-	const int FLUX_LAX			= 1;
+	const static int FLUX_GODUNOV		= 0;
+	const static int FLUX_LAX			= 1;
 };
 
 #endif

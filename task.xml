@@ -10,11 +10,12 @@
 		<STEP_MAX		value="1000000" />	<!-- максимальное количество итераций -->
 		<FILE_OUTPUT_STEP 	value="1000" />         <!-- количество итераций, через которые выполняется вывод результатов в файл -->
 		<LOG_OUTPUT_STEP 	value="100" />          <!-- интервал вывода краткой информации в лог-файл -->
+		<FLUX			value="LAX" />
 		<CFL>
 			<start 			value="0.05" />
-			<max			value="20.0" />
+			<max			value="15.0" />
 			<scale 			value="1.05" />
-			<step			value="50" />
+			<step			value="500" />
 			<max_limited_cells	value="10" />
 		</CFL>
 	</control>
