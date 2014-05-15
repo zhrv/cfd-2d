@@ -678,7 +678,8 @@ void FVM_TVD_IMPLICIT::run()
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
 			
 			timeEnd = clock(); 
-			log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\tLiftForce Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, t, maxIter, limCells, Fx, Fy, timeEnd-timeStart);
+			
+			//log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
 			if (step % FILE_SAVE_STEP == 0)
 			{
 				save(step);
