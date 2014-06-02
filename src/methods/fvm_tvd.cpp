@@ -512,9 +512,10 @@ void FVM_TVD::calcTensor(double lambda, double mu, Vector *gradU, Vector *gradV,
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel->getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel->getMuT(iCell) ) * gradU[iCell].x;
-		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + viscosityModel->getMuT(iCell) )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + viscosityModel->getMuT(iCell) ) * gradV[iCell].y;
-		Txy[iCell] = ( mu + viscosityModel->getMuT(iCell) ) * ( gradU[iCell].y + gradV[iCell].x );
+		register double muTi = viscosityModel->getMuT(iCell);
+		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + muTi )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + muTi ) * gradU[iCell].x;
+		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + muTi )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + muTi ) * gradV[iCell].y;
+		Txy[iCell] = ( mu + muTi ) * ( gradU[iCell].y + gradV[iCell].x );
 	}
 }
 

@@ -7,6 +7,9 @@ const double KEpsModel::C_eps2 = 1.92;
 const double KEpsModel::Sigma_K = 1.0;
 const double KEpsModel::Sigma_Eps = 1.3;
 
+const double KEpsModel::It_Start = 0.01;
+const double KEpsModel::Lt_Start = 1.4e-5;
+
 
 KEpsModel::KEpsModel(void)
 {
@@ -43,9 +46,33 @@ void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, Vector 
 	this->gradK = new Vector[grid->cCount];
 	this->gradEps = new Vector[grid->cCount];
 
+	/*
 	memset(muT, 0, grid->cCount*sizeof(double));
 	memset(rk, 0, grid->cCount*sizeof(double));
 	memset(reps, 0, grid->cCount*sizeof(double));
+	*/
+
+	startCond();
+}
+
+
+void KEpsModel::startCond()
+{
+	int nc = grid->cCount;
+	
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		KEpsParam par;
+		kEpsConvertConsToPar(iCell, par);
+		
+		double q = sqrt( par.u * par.u + par.v * par.v );
+		
+		par.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
+		par.eps = pow(C_mu, 3.0 / 4.0) * pow(par.k, 3.0 / 2.0) / Lt_Start;
+		par.muT = par.r * C_mu * ( par.k * par.k / par.eps );
+
+		kEpsConvertParToCons(iCell, par);
+	}
 }
 
 inline double KEpsModel::getMuT( const int iCell )
@@ -220,9 +247,20 @@ void KEpsModel::kEpsConvertConsToPar( int iCell, KEpsParam& par )
 	par.muT = muT[iCell];
 }
 
+void KEpsModel::kEpsConvertParToCons( int iCell, KEpsParam& par )
+{
+	ro[iCell] = par.r;
+	ru[iCell] = par.u * par.r;
+	rv[iCell] = par.v * par.r;
+
+	rk[iCell] = par.k * par.r;
+	reps[iCell] = par.eps * par.r;
+
+	muT[iCell] = par.muT;
+}
+
 void KEpsModel::boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR )
 {
 	// TODO: узнать, правильно ли это
 	pR = pL;
 }
-

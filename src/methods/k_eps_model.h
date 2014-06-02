@@ -35,6 +35,9 @@ private:
 	static const double C_eps2;
 	static const double Sigma_K;
 	static const double Sigma_Eps;
+
+	static const double It_Start;
+	static const double Lt_Start;
 	
 	double * rk;
 	double * reps;
@@ -46,7 +49,9 @@ private:
 
 	void calcGrad();
 	void kEpsReconstruct( int iEdge, KEpsParam& pL, KEpsParam& pR );
-	void kEpsConvertConsToPar( int iCell, KEpsParam&  par );
+	void kEpsConvertConsToPar( int iCell, KEpsParam& par );
+	void kEpsConvertParToCons( int iCell, KEpsParam& par );
+	void startCond();
 	void boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR );
 };
 
