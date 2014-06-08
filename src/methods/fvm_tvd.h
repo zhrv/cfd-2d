@@ -98,6 +98,7 @@ private:
 
 	// TODO: Вынести
 	double lambda, mu;
+	double ro_m, u_m, v_m;
 };
 
 #endif
