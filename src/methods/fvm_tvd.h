@@ -2,8 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
-#include "sa_model.h"
-#include "k_eps_model.h"
+#include "viscosity_model.h"
 
 class FVM_TVD: public Method
 {
@@ -58,6 +57,7 @@ protected:
 	void calcGrad(Vector *gradU, Vector *gradV);
 	void calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy);
 	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Param pL, Param pR, Vector n, int c1, int c2);
+	void chooseTurbulenceModel( const char * turbModelStr );
 	//_кон
 
 private:

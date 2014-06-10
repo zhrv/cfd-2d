@@ -89,11 +89,12 @@
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
     <ClCompile Include="src\methods\fvm_tvd.cpp" />
-    <ClCompile Include="src\methods\sa_model.cpp" />
-    <ClCompile Include="src\methods\k_eps_model.cpp" />
     <ClCompile Include="src\methods\method.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
     <ClCompile Include="src\methods\viscosity_model.cpp" />
+    <ClCompile Include="src\methods\viscosity_models\empty_viscosity_model.cpp" />
+    <ClCompile Include="src\methods\viscosity_models\k_eps_model.cpp" />
+    <ClCompile Include="src\methods\viscosity_models\sa_model.cpp" />
     <ClCompile Include="src\tinyxml\tinystr.cpp" />
     <ClCompile Include="src\tinyxml\tinyxml.cpp" />
     <ClCompile Include="src\tinyxml\tinyxmlerror.cpp" />
@@ -106,11 +107,12 @@
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
-    <ClInclude Include="src\methods\sa_model.h" />
-    <ClInclude Include="src\methods\k_eps_model.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />
     <ClInclude Include="src\methods\viscosity_model.h" />
+    <ClInclude Include="src\methods\viscosity_models\empty_viscosity_model.h" />
+    <ClInclude Include="src\methods\viscosity_models\k_eps_model.h" />
+    <ClInclude Include="src\methods\viscosity_models\sa_model.h" />
     <ClInclude Include="src\tinyxml\tinystr.h" />
     <ClInclude Include="src\tinyxml\tinyxml.h" />
   </ItemGroup>

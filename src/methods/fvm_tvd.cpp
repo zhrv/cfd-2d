@@ -2,6 +2,28 @@
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
+#include "viscosity_models/empty_viscosity_model.h"
+#include "viscosity_models/sa_model.h"
+#include "viscosity_models/k_eps_model.h"
+
+const char * TURBULENCE_MODELS_NAMES[3] = { "NONE", "SA", "K_EPS" };
+
+void FVM_TVD::chooseTurbulenceModel( const char * turbModelStr )
+{
+	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[1]))
+	{
+		this->viscosityModel = new SAModel();
+		return;
+	}
+
+	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[2]))
+	{
+		this->viscosityModel = new KEpsModel();
+		return;
+	}
+
+	this->viscosityModel = new EmptyViscosityModel();
+}
 
 void FVM_TVD::init(char * xmlFileName)
 {
@@ -32,6 +54,8 @@ void FVM_TVD::init(char * xmlFileName)
 	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+	const char * turbModelStr = node0->FirstChild("TURBULENCE_MODEL")->ToElement()->Attribute("value");
+	chooseTurbulenceModel(turbModelStr);
 
 	// ÷òåíèå ïàðàìåòðîâ î ÌÀÒÅÐÈÀËÀÕ
 	node0 = task->FirstChild("materials");
@@ -161,12 +185,6 @@ void FVM_TVD::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	// TODO: make model choice, that depends on task data
-	viscosityModel = new SAModel();
-	viscosityModel->init(&grid, ro, ru, rv, ro_m, u_m, v_m, gradU, gradV, Txx, Tyy, Txy, mu);
-
-	// TODO: make model choice, that depends on task data
-	viscosityModel = new KEpsModel();
 	viscosityModel->init(&grid, ro, ru, rv, ro_m, u_m, v_m, gradU, gradV, Txx, Tyy, Txy, mu);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));

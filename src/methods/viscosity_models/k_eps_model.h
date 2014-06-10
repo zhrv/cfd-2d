@@ -17,8 +17,7 @@ struct KEpsParam
 	double muT;	
 };
 
-class KEpsModel :
-	public ViscosityModel
+class KEpsModel : public ViscosityModel
 {
 public:
 	KEpsModel(void);
