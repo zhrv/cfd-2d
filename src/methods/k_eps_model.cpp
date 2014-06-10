@@ -189,29 +189,33 @@ void KEpsModel::calcGrad()
 		int c2 = grid->edges[iEdge].c2;
 
         KEpsParam pL, pR;
-		// TODO: здесь нужны только k и eps
 		kEpsReconstruct(iEdge, pL, pR);
 
 		Vector n = grid->edges[iEdge].n;
 		double l = grid->edges[iEdge].l;
 
-		gradK[c1].x += (pL.k+pR.k)/2*n.x*l;
-		gradK[c1].y += (pL.k+pR.k)/2*n.y*l;
-		gradEps[c1].x += (pL.eps+pR.eps)/2*n.x*l;
-		gradEps[c1].y += (pL.eps+pR.eps)/2*n.y*l;
+		gradK[c1].x += ( pL.k+pR.k ) / 2.0 * n.x * l;
+		gradK[c1].y += ( pL.k+pR.k ) / 2.0 * n.y * l;
+		gradEps[c1].x += ( pL.eps+pR.eps ) / 2.0 * n.x * l;
+		gradEps[c1].y += ( pL.eps+pR.eps ) / 2.0 * n.y * l;
 
 		if (c2 > -1)
 		{
-			gradK[c2].x -= (pL.k+pR.k)/2*n.x*l;
-			gradK[c2].y -= (pL.k+pR.k)/2*n.y*l;
-			gradEps[c2].x -= (pL.eps+pR.eps)/2*n.x*l;
-			gradEps[c2].y -= (pL.eps+pR.eps)/2*n.y*l;
+			gradK[c2].x -= ( pL.k+pR.k ) / 2.0 * n.x * l;
+			gradK[c2].y -= ( pL.k+pR.k ) / 2.0 * n.y * l;
+			gradEps[c2].x -= ( pL.eps+pR.eps ) / 2.0 * n.x * l;
+			gradEps[c2].y -= ( pL.eps+pR.eps ) / 2.0 * n.y * l;
 		}
 
 	}
 
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
+#ifdef _DEBUG
+		KEpsParam par;
+		kEpsConvertConsToPar(iCell, par);
+#endif
+
 		register double si = grid->cells[iCell].S;
 		gradK[iCell].x /= si;
 		gradK[iCell].y /= si;
