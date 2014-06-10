@@ -22,7 +22,7 @@ SAModel::~SAModel(void)
 {
 }
 
-void SAModel::init( Grid * grid, double * ro, double *ru, double * rv, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu, double ro_m, double u_m, double v_m )
+void SAModel::init( Grid * grid, double * ro, double *ru, double * rv, double * ro_m, double * u_m, double * v_m, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu )
 {
 	this->grid = grid;
 	this->ro = ro;
@@ -124,12 +124,12 @@ void SAModel::calcMuT( const double TAU )
 		gradNT_m.y = (gradNT[c1].y + gradNT[c2].y) / 2.0;
 
 		// Первая скобка
-		register double tmp1 = ro_m * (u_m * n.x + v_m * n.y) * l;
+		register double tmp1 = ro_m[iEdge] * (u_m[iEdge] * n.x + v_m[iEdge] * n.y) * l;
 		rnt_int[c1] -= nt_m * tmp1;
 		rnt_int[c2] += nt_m * tmp1;
 
 		// Вторая скобка
-		tmp1 = ((nu_m + nt_m) / Sigma) * ( gradNT_m.x * u_m + gradNT_m.y * v_m ) * l;
+		tmp1 = ((nu_m + nt_m) / Sigma) * ( gradNT_m.x * u_m[iEdge] + gradNT_m.y * v_m[iEdge] ) * l;
 		rnt_int[c1] += tmp1;
 		rnt_int[c2] -= tmp1;
 	}

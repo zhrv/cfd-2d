@@ -143,6 +143,10 @@ void FVM_TVD::init(char * xmlFileName)
 	rv_int	= new double[grid.cCount];
 	re_int	= new double[grid.cCount];
 
+	ro_m = new double[grid.eCount];
+	u_m = new double[grid.eCount];
+	v_m = new double[grid.eCount];
+
 	gradU = new Vector[grid.cCount];
 	gradV = new Vector[grid.cCount];
 
@@ -159,11 +163,11 @@ void FVM_TVD::init(char * xmlFileName)
 
 	// TODO: make model choice, that depends on task data
 	viscosityModel = new SAModel();
-	viscosityModel->init(&grid, ro, ru, rv, gradU, gradV, Txx, Tyy, Txy, mu, ro_m, u_m, v_m);
+	viscosityModel->init(&grid, ro, ru, rv, ro_m, u_m, v_m, gradU, gradV, Txx, Tyy, Txy, mu);
 
 	// TODO: make model choice, that depends on task data
 	viscosityModel = new KEpsModel();
-	viscosityModel->init(&grid, ro, ru, rv, gradU, gradV, Txx, Tyy, Txy, mu);
+	viscosityModel->init(&grid, ro, ru, rv, ro_m, u_m, v_m, gradU, gradV, Txx, Tyy, Txy, mu);
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
@@ -224,7 +228,7 @@ void FVM_TVD::run()
 			Param pL, pR;
 			reconstruct(iEdge, pL, pR);
 			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-			calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
+			calcFlux(fr, fu, fv, fe, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
 			calcDiffFlux(fu_diff, fv_diff, fe_diff, pL, pR, n, c1, c2);
 			
 			ro_int[c1] += fr*l;
@@ -388,7 +392,7 @@ void FVM_TVD::save(int step)
 
 }
 
-void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
+void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, double& ro_m, double& u_m, double& v_m, Param pL, Param pR, Vector n, double GAM)
 {
 	{	// GODUNOV FLUX
 		double RI, EI, PI, UI, VI, WI, UN, UT;

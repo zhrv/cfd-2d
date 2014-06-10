@@ -20,12 +20,16 @@ KEpsModel::~KEpsModel(void)
 {
 }
 
-void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu )
+void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, double * ro_m, double * u_m, double * v_m, Vector * gradU, Vector * gradV, double * Txx, double * Tyy, double * Txy, const double mu )
 {
 	this->grid = grid;
 	this->ro = ro;
 	this->ru = ru;
 	this->rv = rv;
+
+	this->ro_m = ro_m;
+	this->u_m = u_m;
+	this->v_m = v_m;
 
 	this->gradU = gradU;
 	this->gradV = gradV;

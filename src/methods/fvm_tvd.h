@@ -51,7 +51,7 @@ protected:
 	/**
 	 *	Вычисление численного потока
 	 */
-	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
+	void calcFlux(double& fr, double& fu, double& fv, double& fe, double& ro_m, double& u_m, double& v_m, Param pL, Param pR, Vector n, double GAM);
 
 
 	//_нач
@@ -93,13 +93,17 @@ private:
 	double * ru_int;
 	double * rv_int;
 	double * re_int;
+
+	//! средние значения консервативных переменных на рёбрах
+	double * ro_m;
+	double * u_m;
+	double * v_m;
 	
 	Vector *gradU, *gradV;
 	double *Txx, *Tyy, *Txy;
 
 	// TODO: Вынести
 	double lambda, mu;
-	double ro_m, u_m, v_m;
 };
 
 #endif
