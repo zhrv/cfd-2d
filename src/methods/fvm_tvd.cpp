@@ -10,13 +10,13 @@ const char * TURBULENCE_MODELS_NAMES[3] = { "NONE", "SA", "K_EPS" };
 
 void FVM_TVD::chooseTurbulenceModel( const char * turbModelStr )
 {
-	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[1]))
+	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[1]) == 0)
 	{
 		this->viscosityModel = new SAModel();
 		return;
 	}
 
-	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[2]))
+	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[2]) == 0)
 	{
 		this->viscosityModel = new KEpsModel();
 		return;
