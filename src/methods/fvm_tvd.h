@@ -2,6 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
+#include "sa_model.h"
 #include "k_eps_model.h"
 
 class FVM_TVD: public Method
@@ -98,6 +99,7 @@ private:
 
 	// TODO: Вынести
 	double lambda, mu;
+	double ro_m, u_m, v_m;
 };
 
 #endif

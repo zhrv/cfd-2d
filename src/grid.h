@@ -72,6 +72,9 @@ public:
 	int    nCount;
 	int    cCount;
 	int    eCount;
+
+	double * dist;
+	double * min_dist;
 };
 
 inline double _max_(double a, double b)

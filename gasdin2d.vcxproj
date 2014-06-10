@@ -20,14 +20,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v100</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v100</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -89,6 +89,7 @@
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
     <ClCompile Include="src\methods\fvm_tvd.cpp" />
+    <ClCompile Include="src\methods\sa_model.cpp" />
     <ClCompile Include="src\methods\k_eps_model.cpp" />
     <ClCompile Include="src\methods\method.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
@@ -105,6 +106,7 @@
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
+    <ClInclude Include="src\methods\sa_model.h" />
     <ClInclude Include="src\methods\k_eps_model.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />

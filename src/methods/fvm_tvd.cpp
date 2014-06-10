@@ -158,6 +158,10 @@ void FVM_TVD::init(char * xmlFileName)
 	}
 
 	// TODO: make model choice, that depends on task data
+	viscosityModel = new SAModel();
+	viscosityModel->init(&grid, ro, ru, rv, gradU, gradV, Txx, Tyy, Txy, mu, ro_m, u_m, v_m);
+
+	// TODO: make model choice, that depends on task data
 	viscosityModel = new KEpsModel();
 	viscosityModel->init(&grid, ro, ru, rv, gradU, gradV, Txx, Tyy, Txy, mu);
 
@@ -397,9 +401,14 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 		double utl = pL.u*n.y-pL.v*n.x;
 		double utr = pR.u*n.y-pR.v*n.x;
 		rim_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
-		
+		//roe_orig(RI, EI, PI, UN, UT, WI,  pL.r, pL.p, unl, utl, 0,  pR.r, pR.p, unr, utr, 0, GAM);
+
 		UI = UN*n.x+UT*n.y;
 		VI = UN*n.y-UT*n.x;
+
+		ro_m = RI;
+		u_m = UI;
+		v_m = VI;
 
 		fr = RI*UN;
 		fu = fr*UI+PI*n.x;
@@ -481,17 +490,17 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 		Vector n = grid.edges[iEdge].n;
 		double l = grid.edges[iEdge].l;
 
-		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
-		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
-		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
-		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+		gradU[c1].x += ( pL.u + pR.u ) / 2.0 * n.x * l;
+		gradU[c1].y += ( pL.u + pR.u ) / 2.0 * n.y * l;
+		gradV[c1].x += ( pL.v + pR.v ) / 2.0 * n.x * l;
+		gradV[c1].y += ( pL.v + pR.v ) / 2.0 * n.y * l;
 
 		if (c2 > -1)
 		{
-			gradU[c2].x -= (pL.u+pR.u)/2*n.x*l;
-			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
-			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
-			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+			gradU[c2].x -= ( pL.u + pR.u) / 2.0 * n.x * l;
+			gradU[c2].y -= ( pL.u + pR.u) / 2.0 * n.y * l;
+			gradV[c2].x -= ( pL.v + pR.v) / 2.0 * n.x * l;
+			gradV[c2].y -= ( pL.v + pR.v) / 2.0 * n.y * l;
 		}
 
 	}
