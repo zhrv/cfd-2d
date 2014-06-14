@@ -68,7 +68,7 @@ void SAModel::startCond()
 		double q = sqrt( par.u * par.u + par.v * par.v );
 		par.nt = sqrt( 3.0 / 2.0 ) * It_Start * Lt_Start * q;
 		double hi = par.r * par.nt / mu;
-		double f_v1 = pow(hi, 3) / ( pow(hi, 3) + pow(C_v1, 3));
+		double f_v1 = pow(hi, 3.0) / ( pow(hi, 3.0) + pow(C_v1, 3.0));
 		par.muT = par.r * par.nt * f_v1;
 
 		SAConvertParToCons(iCell, par);
@@ -113,23 +113,21 @@ void SAModel::calcMuT( const double TAU )
 		if (c2 <= -1)
 			continue;
 
-		//double ro_m = (pL.r + pR.r) / 2.0;
-		//double u_m = (pL.u + pR.u) / 2.0;
-		//double v_m = (pL.v + pR.v) / 2.0;
+		//ro_m[iEdge] = (pL.r + pR.r) / 2.0;
+		//u_m[iEdge] = (pL.u + pR.u) / 2.0;
+		//v_m[iEdge] = (pL.v + pR.v) / 2.0;
 		double nt_m = (pL.nt + pR.nt) / 2.0;
-		double nu_m = 1 / mu;
+		double nu_m = mu / ro_m[iEdge];
 
 		Vector gradNT_m;
 		gradNT_m.x = (gradNT[c1].x + gradNT[c2].x) / 2.0;
 		gradNT_m.y = (gradNT[c1].y + gradNT[c2].y) / 2.0;
 
-		// Первая скобка
 		register double tmp1 = ro_m[iEdge] * (u_m[iEdge] * n.x + v_m[iEdge] * n.y) * l;
 		rnt_int[c1] -= nt_m * tmp1;
 		rnt_int[c2] += nt_m * tmp1;
 
-		// Вторая скобка
-		tmp1 = ((nu_m + nt_m) / Sigma) * ( gradNT_m.x * u_m[iEdge] + gradNT_m.y * v_m[iEdge] ) * l;
+		tmp1 = ro_m[iEdge] * ((nu_m + nt_m) / Sigma) * ( gradNT_m.x * n.x + gradNT_m.y * n.y ) * l;
 		rnt_int[c1] += tmp1;
 		rnt_int[c2] -= tmp1;
 	}
@@ -137,36 +135,33 @@ void SAModel::calcMuT( const double TAU )
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid->cells[iCell].S;
-		// TODO: проверить
+
 		double nu = mu / ro[iCell];
 
 		double hi = rnt[iCell] / nu;
-		double f_v1 = pow(hi, 3) / ( pow(hi, 3) + pow(C_v1, 3) );
+		double f_v1 = pow(hi, 3.0) / ( pow(hi, 3.0) + pow(C_v1, 3.0) );
 		double f_v2 = 1 - hi / (1 + hi * f_v1);
-		double omega = (gradU[iCell].y - gradV[iCell].x) / 2.0; //TODO: переделать
-		double S = sqrt(2.0) * fabs(omega) + ( rnt[iCell] / pow(K * min_dist[iCell], 2) ) * f_v2;
+		double omega = (gradU[iCell].y - gradV[iCell].x) / 2.0;
+		double S = sqrt(2.0) * fabs(omega) + ( rnt[iCell] / pow(K * min_dist[iCell], 2.0) ) * f_v2;
 
-		double r = rnt[iCell] / ( pow(K * min_dist[iCell], 2) * S );
-		double g = r + C_w2 * (pow(r, 6) - r);
-		double f_w = g * pow( (1 + pow(C_w3, 6))/(pow(g, 6) + pow(C_w3, 6)), 1/6 );
-		double eps = C_w1 * f_w * pow(rnt[iCell] / min_dist[iCell], 2);
+		double r = rnt[iCell] / ( pow(K * min_dist[iCell], 2.0) * S );
+		double g = r + C_w2 * (pow(r, 6.0) - r);
+		double f_w = g * pow( (1 + pow(C_w3, 6.0))/(pow(g, 6.0) + pow(C_w3, 6.0)), 1.0/6.0 );
+		double eps = C_w1 * f_w * pow(rnt[iCell] / min_dist[iCell], 2.0);
 		double rP = C_b1 * S * rnt[iCell];
-		// TODO: знаки, знаки!
 		
-		rnt_int[iCell] += si * C_b2 * pow(gradNT[iCell].x + gradNT[iCell].y, 2) / Sigma + si * rP - si * eps; //TODO: переделать
-		double bull = 1;
+		rnt_int[iCell] += si * ( C_b2 * pow(gradNT[iCell].x + gradNT[iCell].y, 2.0) / Sigma + rP - eps );
 	}
 
 	
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		// TODO: знаки, знаки!
 		register double cfl = TAU/grid->cells[iCell].S;
 		rnt[iCell] += cfl * rnt_int[iCell];
 
 		double nu = mu / ro[iCell];
 		double hi = rnt[iCell] / nu;
-		double f_v1 = pow(hi, 3) / ( pow(hi, 3) + pow(C_v1, 3) );
+		double f_v1 = pow(hi, 3.0) / ( pow(hi, 3.0) + pow(C_v1, 3.0) );
 		
 		muT[iCell] = rnt[iCell] * f_v1;
 	}
@@ -182,12 +177,10 @@ void SAModel::calcGrad()
 
 	for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
-
 		int c1 = grid->edges[iEdge].c1;
 		int c2 = grid->edges[iEdge].c2;
 
         SAParam pL, pR;
-		// TODO: здесь нужен только n
 		SAReconstruct(iEdge, pL, pR);
 
 		Vector n = grid->edges[iEdge].n;
@@ -201,7 +194,6 @@ void SAModel::calcGrad()
 			gradNT[c2].x -= (pL.nt+pR.nt)/2.0*n.x*l;
 			gradNT[c2].y -= (pL.nt+pR.nt)/2.0*n.y*l;
 		}
-
 	}
 
 	for (int iCell = 0; iCell < nc; iCell++)
@@ -251,7 +243,6 @@ void SAModel::SAConvertParToCons( int iCell, SAParam& par )
 
 void SAModel::boundaryCond( int iEdge, SAParam& pL, SAParam& pR )
 {
-	// TODO: узнать, правильно ли это
 	pR = pL;
 }
 
