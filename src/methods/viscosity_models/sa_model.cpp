@@ -113,9 +113,9 @@ void SAModel::calcMuT( const double TAU )
 		if (c2 <= -1)
 			continue;
 
-		//ro_m[iEdge] = (pL.r + pR.r) / 2.0;
-		//u_m[iEdge] = (pL.u + pR.u) / 2.0;
-		//v_m[iEdge] = (pL.v + pR.v) / 2.0;
+		ro_m[iEdge] = (pL.r + pR.r) / 2.0;
+		u_m[iEdge] = (pL.u + pR.u) / 2.0;
+		v_m[iEdge] = (pL.v + pR.v) / 2.0;
 		double nt_m = (pL.nt + pR.nt) / 2.0;
 		double nu_m = mu / ro_m[iEdge];
 
