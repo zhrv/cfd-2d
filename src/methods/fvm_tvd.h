@@ -30,6 +30,7 @@ protected:
 	 *	Вычисление параметров справа и слева от границы ячейки
 	 */
 	void reconstruct(int iFace, Param& pL, Param& pR);
+	void reconstruct(int iFace, Param& pL, Param& pR, Point p);
 
 	/**
 	 *	Вычисление параметров с внешней стороны от границы ячейки согласно граничным условиям
@@ -54,18 +55,27 @@ protected:
 
 
 	//_нач
-	void calcGrad(Vector *gradU, Vector *gradV);
+	void calcGrad(Vector *gradR, Vector *gradP, Vector *gradU, Vector *gradV);
 	void calcTensor(double l, double m, Vector *gradU, Vector *gradV, double *Txx, double *Tyy, double *Txy);
 	void calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Param pL, Param pR, Vector n, int c1, int c2);
 	void chooseTurbulenceModel( const char * turbModelStr );
 	//_кон
 
+	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+
+	void remediateLimCells();
+
 private:
 	double TMAX;
 	double TAU;
 	double CFL;
+	int STEP_MAX;
 	int FILE_SAVE_STEP;
 	int PRINT_STEP;
+
+	bool			STEADY;		// false - нестационарное течение, true - стационанрное течение.
+	double		*	cTau;		// локальный шаг по времени в ячейке
 
 	int				matCount;
 	int				regCount;
@@ -99,11 +109,21 @@ private:
 	double * u_m;
 	double * v_m;
 	
-	Vector *gradU, *gradV;
+	//! градиенты
+	Vector *gradR, *gradP, *gradU, *gradV;
+
+	//! тензоры
 	double *Txx, *Tyy, *Txy;
 
 	// TODO: Вынести
 	double lambda, mu;
+
+	//! лимиты
+	double limitRmin;
+	double limitRmax;
+	double limitPmin;
+	double limitPmax;
+	double limitUmax;
 };
 
 #endif

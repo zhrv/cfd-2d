@@ -32,6 +32,8 @@ void FVM_TVD::init(char * xmlFileName)
 
 	// TODO: В дипломе нужно пересчитывать динамически
 	mu = 1.85E-5;
+
+	STEADY = true;
 	
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
@@ -47,15 +49,31 @@ void FVM_TVD::init(char * xmlFileName)
 	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 
-
+	int steadyVal = 1;
 	node0 = task->FirstChild("control");
+	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
 	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
+	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
 	const char * turbModelStr = node0->FirstChild("TURBULENCE_MODEL")->ToElement()->Attribute("value");
 	chooseTurbulenceModel(turbModelStr);
+
+	if (steadyVal == 0) {
+		STEADY = false;
+	} else {
+		STEADY = true;
+	}
+
+	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
+	node0 = task->FirstChild("limits");
+	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
+	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
+	node0->FirstChild("p")->ToElement()->Attribute( "min", &limitPmin);
+	node0->FirstChild("p")->ToElement()->Attribute( "max", &limitPmax);
+	node0->FirstChild("u")->ToElement()->Attribute( "max", &limitUmax);
 
 	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
@@ -151,6 +169,7 @@ void FVM_TVD::init(char * xmlFileName)
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
+	cTau	= new double[grid.cCount];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
@@ -171,6 +190,8 @@ void FVM_TVD::init(char * xmlFileName)
 	u_m = new double[grid.eCount];
 	v_m = new double[grid.eCount];
 
+	gradR = new Vector[grid.cCount];
+	gradP = new Vector[grid.cCount];
 	gradU = new Vector[grid.cCount];
 	gradV = new Vector[grid.cCount];
 
@@ -199,6 +220,7 @@ void FVM_TVD::init(char * xmlFileName)
 
 void FVM_TVD::calcTimeStep()
 {
+	/*
 	double tau = 1.0e+20;
 	for (int iCell = 0; iCell < grid.cCount; iCell++)
 	{
@@ -210,14 +232,27 @@ void FVM_TVD::calcTimeStep()
 	tau  *= CFL;
 	TAU = _min_(TAU, tau);
 	printf("\n\nTime step TAU = %e.\n\n", TAU);
+	*/
+	//double tau = 1.0e+20;
+	
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		if (STEADY) {
+			Param p;
+			convertConsToPar(iCell, p);
+			cTau[iCell] = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
+		} else {
+			cTau[iCell] = TAU;
+		}
+		
+	}
+	
 }
 
 
 
 void FVM_TVD::run() 
 {
-
-
 	int nc = grid.cCount;
 	int ne = grid.eCount;
 
@@ -225,14 +260,28 @@ void FVM_TVD::run()
 	unsigned int	step	= 0;
 	while (t < TMAX) 
 	{
-		t += TAU; 
+		//t += TAU; 
+		
+		if (!STEADY) {
+			t += TAU; 
+		} else {
+			calcTimeStep();
+		}
+		
 		step++;
+
+		memcpy(ro_old, ro, nc*sizeof(double));
+		memcpy(ru_old, ru, nc*sizeof(double));
+		memcpy(rv_old, rv, nc*sizeof(double));
+		memcpy(re_old, re, nc*sizeof(double));
+
+		// первый подшаг метода Р.-К.
 		memset(ro_int, 0, nc*sizeof(double));
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
 		memset(re_int, 0, nc*sizeof(double));
 
-		calcGrad(gradU, gradV);
+		calcGrad(gradR, gradP, gradU, gradV);
 		calcTensor(lambda, mu, gradU, gradV, Txx, Tyy, Txy);
 
 		for (int iEdge = 0; iEdge < ne; iEdge++)
@@ -242,57 +291,207 @@ void FVM_TVD::run()
 			int c1	= grid.edges[iEdge].c1;
 			int c2	= grid.edges[iEdge].c2;
 			Vector n	= grid.edges[iEdge].n;
-			double l		= grid.edges[iEdge].l;
+			double l		= grid.edges[iEdge].l * 0.5;
 			Param pL, pR;
-			reconstruct(iEdge, pL, pR);
-			double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-			calcFlux(fr, fu, fv, fe, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
-			calcDiffFlux(fu_diff, fv_diff, fe_diff, pL, pR, n, c1, c2);
 			
-			ro_int[c1] += fr*l;
-			ru_int[c1] += (fu + fu_diff) * l;
-			rv_int[c1] += (fv + fv_diff) * l;
-			re_int[c1] += (fe + fe_diff) * l;
+			fr = 0.0;
+			fu = 0.0;
+			fv = 0.0;
+			fe = 0.0;
+	
+			fu_diff = 0.0;
+			fv_diff = 0.0;
+			fe_diff = 0.0;
+
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			{
+				double fr1, fu1, fv1, fe1;
+				double fu_diff1, fv_diff1, fe_diff1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
+				calcDiffFlux(fu_diff1, fv_diff1, fe_diff1, pL, pR, n, c1, c2);
+
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+
+				fu_diff += fu_diff1;
+				fv_diff += fv_diff1;
+				fe_diff += fe_diff1;
+			}
+			
+			ro_int[c1] -= fr*l;
+			ru_int[c1] -= (fu + fu_diff) * l;
+			rv_int[c1] -= (fv + fv_diff) * l;
+			re_int[c1] -= (fe + fe_diff) * l;
 			if (c2 > -1) 
 			{
-				ro_int[c2] -= fr*l;
-				ru_int[c2] -= (fu + fu_diff) * l;
-				rv_int[c2] -= (fv + fv_diff) * l;
-				re_int[c2] -= (fe + fe_diff) * l;
+				ro_int[c2] += fr*l;
+				ru_int[c2] += (fu + fu_diff) * l;
+				rv_int[c2] += (fv + fv_diff) * l;
+				re_int[c2] += (fe + fe_diff) * l;
 			}
 
 		}
-		memcpy(ro, ro_old, nc*sizeof(double));
-		memcpy(ru, ru_old, nc*sizeof(double));
-		memcpy(rv, rv_old, nc*sizeof(double));
-		memcpy(re, re_old, nc*sizeof(double));
+		
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
-			register double cfl = TAU/grid.cells[iCell].S;
-			ro[iCell] -= cfl*ro_int[iCell];
-			ru[iCell] -= cfl*ru_int[iCell];
-			rv[iCell] -= cfl*rv_int[iCell];
-			re[iCell] -= cfl*re_int[iCell];
+			if (cellIsLim(iCell)) continue;
+			register double cfl = cTau[iCell]/grid.cells[iCell].S;
+			ro[iCell] += cfl*ro_int[iCell];
+			ru[iCell] += cfl*ru_int[iCell];
+			rv[iCell] += cfl*rv_int[iCell];
+			re[iCell] += cfl*re_int[iCell];
 		}
-		memcpy(ro_old, ro, nc*sizeof(double));
-		memcpy(ru_old, ru, nc*sizeof(double));
-		memcpy(rv_old, rv, nc*sizeof(double));
-		memcpy(re_old, re, nc*sizeof(double));
 
+		// второй подшаг метода Р.-К.
+		memset(ro_int, 0, nc*sizeof(double));
+		memset(ru_int, 0, nc*sizeof(double));
+		memset(rv_int, 0, nc*sizeof(double));
+		memset(re_int, 0, nc*sizeof(double));
 
-		viscosityModel->calcMuT(TAU);
+		calcGrad(gradR, gradP, gradU, gradV);
+		calcTensor(lambda, mu, gradU, gradV, Txx, Tyy, Txy);
+
+		for (int iEdge = 0; iEdge < ne; iEdge++)
+		{
+			double fr, fu, fv, fe;
+			double fu_diff, fv_diff, fe_diff;
+			int c1	= grid.edges[iEdge].c1;
+			int c2	= grid.edges[iEdge].c2;
+			Vector n	= grid.edges[iEdge].n;
+			double l	= grid.edges[iEdge].l*0.5;
+			Param pL, pR;
+
+			fr = 0.0;
+			fu = 0.0;
+			fv = 0.0;
+			fe = 0.0;
+	
+			fu_diff = 0.0;
+			fv_diff = 0.0;
+			fe_diff = 0.0;
+
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			{
+				double fr1, fu1, fv1, fe1;
+				double fu_diff1, fv_diff1, fe_diff1;
+				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				calcFlux(fr1, fu1, fv1, fe1, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
+				calcDiffFlux(fu_diff1, fv_diff1, fe_diff1, pL, pR, n, c1, c2);
+
+				fr += fr1;
+				fu += fu1;
+				fv += fv1;
+				fe += fe1;
+
+				fu_diff += fu_diff1;
+				fv_diff += fv_diff1;
+				fe_diff += fe_diff1;
+			}
+
+			ro_int[c1] -= fr*l;
+			ru_int[c1] -= (fu + fu_diff) * l;
+			rv_int[c1] -= (fv + fv_diff) * l;
+			re_int[c1] -= (fe + fe_diff) * l;
+
+			if (c2 > -1) 
+			{
+				ro_int[c2] += fr*l;
+				ru_int[c2] += (fu + fu_diff) * l;
+				rv_int[c2] += (fv + fv_diff) * l;
+				re_int[c2] += (fe + fe_diff) * l;
+			}
+
+		}
+
+		for (int iCell = 0; iCell < nc; iCell++)
+		{
+			if (cellIsLim(iCell)) continue;
+			register double cfl = cTau[iCell]/grid.cells[iCell].S;
+			ro[iCell] += cfl*ro_int[iCell];
+			ru[iCell] += cfl*ru_int[iCell];
+			rv[iCell] += cfl*rv_int[iCell];
+			re[iCell] += cfl*re_int[iCell];
+		}
+
+		// полусумма: формула (4.10) из icase-1997-65.pdf
+	
+		for (int iCell = 0; iCell < nc; iCell++)
+		{
+			if (cellIsLim(iCell)) continue;
+
+			ro[iCell] = 0.5*(ro_old[iCell]+ro[iCell]);
+			ru[iCell] = 0.5*(ru_old[iCell]+ru[iCell]);
+			rv[iCell] = 0.5*(rv_old[iCell]+rv[iCell]);
+			re[iCell] = 0.5*(re_old[iCell]+re[iCell]);
+
+			Param par;
+			convertConsToPar(iCell, par);
+
+			if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
+			if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
+			if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
+			if (par.p > limitPmax)			{ par.p = limitPmax; setCellFlagLim(iCell); }
+			if (fabs(par.u) > limitUmax)	{ par.u = limitUmax; setCellFlagLim(iCell); }
+			if (fabs(par.v) > limitUmax)	{ par.v = limitUmax; setCellFlagLim(iCell); }
+		}
+
+		remediateLimCells();
 		
+		viscosityModel->calcMuT(TAU);
 		
 		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);
 		}
+
 		if (step % PRINT_STEP == 0)
 		{
 			log("step: %d\t\ttime step: %.16f\n", step, t);
 		}
 	}
 
+}
+
+void FVM_TVD::remediateLimCells()
+{
+	for (int iCell = 0; iCell < grid.cCount; iCell++) 
+	{
+		if (cellIsLim(iCell)) 
+		{
+			// пересчитываем по соседям
+			double sRO = 0.0;
+			double sRU = 0.0;
+			double sRV = 0.0;
+			double sRE = 0.0;
+			double S   = 0.0;
+			for (int i = 0; i < grid.cells[iCell].eCount; i++)
+			{
+				int iEdge = grid.cells[iCell].edgesInd[i];
+				int j = grid.edges[iEdge].c2;
+				int s = grid.cells[j].S;
+				S += s;
+				if (j >= 0) {
+					sRO += ro[j]*s;
+					sRU += ru[j]*s;
+					sRV += rv[j]*s;
+					sRE += re[j]*s;
+				} 
+			}
+			ro[iCell] = sRO/S;
+			ru[iCell] = sRU/S;
+			rv[iCell] = sRV/S;
+			re[iCell] = sRE/S;
+
+			// после 0x20 итераций пробуем вернуть ячейку в счет
+			grid.cells[iCell].flag += 0x010000;
+			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+		}
+	}
 }
 
 void FVM_TVD::save(int step)
@@ -403,6 +602,13 @@ void FVM_TVD::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", cTau[i]);
+		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
+	}
+
 
 	fclose(fp);
 	printf("File '%s' saved...\n", fName);
@@ -489,11 +695,13 @@ void FVM_TVD::calcDiffFlux(double& fu_diff, double& fv_diff, double& fe_diff, Pa
     }    
 }
 
-void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
+void FVM_TVD::calcGrad(Vector *gradR, Vector *gradP, Vector *gradU, Vector *gradV)
 {
 	int nc = grid.cCount;
 	int ne = grid.eCount;
 
+	memset(gradR, 0, grid.cCount*sizeof(Vector));
+	memset(gradP, 0, grid.cCount*sizeof(Vector));
 	memset(gradU, 0, grid.cCount*sizeof(Vector));
 	memset(gradV, 0, grid.cCount*sizeof(Vector));
 
@@ -504,6 +712,14 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 		int c2 = grid.edges[iEdge].c2;
 
         Param pL, pR;
+		/*
+		convertConsToPar(c1, pL);
+		if (c2 > -1) {
+			convertConsToPar(c2, pR);
+		} else {
+			boundaryCond(iEdge, pL, pR);
+		}
+		*/
 		reconstruct(iEdge, pL, pR);
 
 		/*Param pL, pR;
@@ -512,6 +728,10 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 		Vector n = grid.edges[iEdge].n;
 		double l = grid.edges[iEdge].l;
 
+		gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
+		gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
+		gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
+		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
 		gradU[c1].x += ( pL.u + pR.u ) / 2.0 * n.x * l;
 		gradU[c1].y += ( pL.u + pR.u ) / 2.0 * n.y * l;
 		gradV[c1].x += ( pL.v + pR.v ) / 2.0 * n.x * l;
@@ -519,6 +739,10 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 
 		if (c2 > -1)
 		{
+			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
+			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
+			gradP[c2].x -= (pL.p+pR.p)/2*n.x*l;
+			gradP[c2].y -= (pL.p+pR.p)/2*n.y*l;
 			gradU[c2].x -= ( pL.u + pR.u) / 2.0 * n.x * l;
 			gradU[c2].y -= ( pL.u + pR.u) / 2.0 * n.y * l;
 			gradV[c2].x -= ( pL.v + pR.v) / 2.0 * n.x * l;
@@ -530,6 +754,10 @@ void FVM_TVD::calcGrad(Vector *gradU, Vector *gradV)
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid.cells[iCell].S;
+		gradR[iCell].x /= si;
+		gradR[iCell].y /= si;
+		gradP[iCell].x /= si;
+		gradP[iCell].y /= si;
 		gradU[iCell].x /= si;
 		gradU[iCell].y /= si;
 		gradV[iCell].x /= si;
@@ -544,6 +772,7 @@ void FVM_TVD::calcTensor(double lambda, double mu, Vector *gradU, Vector *gradV,
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double muTi = viscosityModel->getMuT(iCell);
+	//	log("%d: %25.16f\n", iCell, muTi);
 		Txx[iCell] = ( lambda - 2.0 / 3.0 * ( mu + muTi )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + muTi ) * gradU[iCell].x;
 		Tyy[iCell] = ( lambda - 2.0 / 3.0 * ( mu + muTi )) * ( gradU[iCell].x + gradV[iCell].y ) + 2.0 * ( mu + muTi ) * gradV[iCell].y;
 		Txy[iCell] = ( mu + muTi ) * ( gradU[iCell].y + gradV[iCell].x );
@@ -567,6 +796,39 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR)
 	}
 }
 
+void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
+{
+	if (grid.edges[iEdge].type == Edge::TYPE_INNER) 
+	{
+		int c1	= grid.edges[iEdge].c1;
+		int c2	= grid.edges[iEdge].c2;
+		convertConsToPar(c1, pL);
+		convertConsToPar(c2, pR);
+		//Point PE = grid.edges[iEdge].c[0];
+		Point &PE = p;
+		Point P1 = grid.cells[c1].c;
+		Point P2 = grid.cells[c2].c;
+		Vector DL1;
+		Vector DL2;
+		DL1.x=PE.x-P1.x;
+		DL1.y=PE.y-P1.y;
+		DL2.x=PE.x-P2.x;
+		DL2.y=PE.y-P2.y;
+		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
+		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
+		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+
+	} else {
+		int c1	= grid.edges[iEdge].c1;
+		convertConsToPar(c1, pL);
+		boundaryCond(iEdge, pL, pR);
+	}
+}
 
 void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
@@ -615,7 +877,6 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 	}
 }
 
-
 void FVM_TVD::done()
 {
 	delete[] ro;
@@ -633,6 +894,8 @@ void FVM_TVD::done()
 	delete[] rv_int;
 	delete[] re_int;
 
+	delete [] gradR;
+    delete [] gradP;
     delete [] gradU;
     delete [] gradV;
 
