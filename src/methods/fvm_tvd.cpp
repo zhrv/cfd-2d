@@ -394,6 +394,13 @@ void FVM_TVD::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
+	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
+		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
+	}
+
 	fprintf(fp, "VECTORS Velosity float\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
