@@ -226,7 +226,11 @@ void KEpsModel::calcMuT( double * cTau )
 			muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
 		}
 
-		// saveTurbulentParamsToFile(step, iTau);
+		if (step % 10 == 0 && iTau == 10)
+		{
+			//saveTurbulentParamsToFile(step, iTau);
+		}
+		//setAllBoundariesCond();
 	}
 }
 
@@ -323,11 +327,30 @@ void KEpsModel::boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR )
 {
 	// TODO: узнать, правильно ли это
 	pR = pL;
+
+	/*
+	Edge * edge = &grid->edges[iEdge];
+
+	if (edge->type == Boundary::BOUND_INLET)
+	{
+		double q = sqrt( pL.u * pL.u + pL.v * pL.v );
+
+		pL.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
+		pL.eps = pow(C_mu, 3.0 / 4.0) * pow(pL.k, 3.0 / 2.0) / Lt_Start;
+
+		pR = pL;
+	}
+
+	if (edge->type == Boundary::BOUND_WALL)
+	{
+		pR = pL;
+	}
+	*/
 }
 
 void KEpsModel::fprintParams(FILE * file)
 {
-	fprintf(file, "SCALARS Turb_K float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	/*fprintf(file, "SCALARS Turb_K float 1\nLOOKUP_TABLE default\n", grid->cCount);
 	for (int i = 0; i < grid->cCount; i++)
 	{
 		KEpsParam p;
@@ -343,12 +366,121 @@ void KEpsModel::fprintParams(FILE * file)
 		kEpsConvertConsToPar(i, p);
 		fprintf(file, "%25.16f ", p.eps);
 		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(file, "\n");
+	}*/
+
+	frpintfTurbulentParams(file);
+}
+
+void KEpsModel::frpintfTurbulentParams( FILE * fp )
+{
+	fprintf(fp, "SCALARS K_int_kinematic_flow float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk_int_kinematic_flow[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS K_int_turbulent_diffusion float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk_int_turbulent_diffusion[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS K_int_generation float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk_int_generation[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS K_int_dissipation float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk_int_dissipation[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Eps_int_kinematic_flow float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps_int_kinematic_flow[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Eps_int_turbulent_diffusion float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps_int_turbulent_diffusion[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Eps_int_generation float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps_int_generation[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Eps_int_dissipation float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps_int_dissipation[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS K_int float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk_int[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Eps_int float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps_int[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS RK float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", rk[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS REps float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", reps[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid->cCount);
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", muT[i]);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "VECTORS Grad_K float\n");
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f %25.16f %25.16f ", gradK[i].x, gradK[i].y, 0.0);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "VECTORS Grad_Eps float\n");
+	for (int i = 0; i < grid->cCount; i++)
+	{
+		fprintf(fp, "%25.16f %25.16f %25.16f ", gradEps[i].x, gradEps[i].y, 0.0);
+		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
 	}
 }
 
 void KEpsModel::saveTurbulentParamsToFile(int step, int iTau)
 {
-	/*
 	char fName[50];
 
 	sprintf(fName, "res_turb_%05d%05d.vtk", step, iTau);
@@ -375,85 +507,38 @@ void KEpsModel::saveTurbulentParamsToFile(int step, int iTau)
 	for (int i = 0; i < grid->cCount; i++) fprintf(fp, "5\n");
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid->cCount);
-	for (int i = 0; i < grid->cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid->cCount) fprintf(fp, "\n");
-	}
+	fprintf(fp, "CELL_DATA %d\n", grid->cCount);
 
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-	fprintf(fp, "SCALARS MuT float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+	frpintfTurbulentParams(fp);
 
 
 	fclose(fp);
 	printf("File '%s' saved...\n", fName);
+}
+
+void KEpsModel::setAllBoundariesCond()
+{
+	/*
+	int nc = grid->cCount;
+
+	for (int iCell = 0; iCell < nc; iCell++)
+	{
+		Cell * cell = &grid->cells[iCell];
+		
+		if (grid->edges[cell->edgesInd[0]].type == Edge::TYPE_INLET
+			|| grid->edges[cell->edgesInd[1]].type == Edge::TYPE_OUTLET)
+		{
+			KEpsParam par;
+			kEpsConvertConsToPar(iCell, par);
+
+			double q = sqrt( par.u * par.u + par.v * par.v );
+
+			par.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
+			par.eps = pow(C_mu, 3.0 / 4.0) * pow(par.k, 3.0 / 2.0) / Lt_Start;
+			par.muT = par.r * C_mu * ( par.k * par.k / par.eps );
+
+			kEpsConvertParToCons(iCell, par);
+		}
+	}
 	*/
 }

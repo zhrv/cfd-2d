@@ -68,6 +68,9 @@ private:
 	void boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR );
 
 	void saveTurbulentParamsToFile( int step, int iTau );
+	void setAllBoundariesCond();
+
+	void frpintfTurbulentParams(FILE * fp);
 };
 
 #endif

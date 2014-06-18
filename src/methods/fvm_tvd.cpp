@@ -737,10 +737,10 @@ void FVM_TVD::calcGrad(Vector *gradR, Vector *gradP, Vector *gradU, Vector *grad
 		Vector n = grid.edges[iEdge].n;
 		double l = grid.edges[iEdge].l;
 
-		gradR[c1].x += (pL.r+pR.r)/2*n.x*l;
-		gradR[c1].y += (pL.r+pR.r)/2*n.y*l;
-		gradP[c1].x += (pL.p+pR.p)/2*n.x*l;
-		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
+		gradR[c1].x += (pL.r+pR.r)/2.0*n.x*l;
+		gradR[c1].y += (pL.r+pR.r)/2.0*n.y*l;
+		gradP[c1].x += (pL.p+pR.p)/2.0*n.x*l;
+		gradP[c1].y += (pL.p+pR.p)/2.0*n.y*l;
 		gradU[c1].x += ( pL.u + pR.u ) / 2.0 * n.x * l;
 		gradU[c1].y += ( pL.u + pR.u ) / 2.0 * n.y * l;
 		gradV[c1].x += ( pL.v + pR.v ) / 2.0 * n.x * l;
@@ -748,10 +748,10 @@ void FVM_TVD::calcGrad(Vector *gradR, Vector *gradP, Vector *gradU, Vector *grad
 
 		if (c2 > -1)
 		{
-			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
-			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
-			gradP[c2].x -= (pL.p+pR.p)/2*n.x*l;
-			gradP[c2].y -= (pL.p+pR.p)/2*n.y*l;
+			gradR[c2].x -= (pL.r+pR.r)/2.0*n.x*l;
+			gradR[c2].y -= (pL.r+pR.r)/2.0*n.y*l;
+			gradP[c2].x -= (pL.p+pR.p)/2.0*n.x*l;
+			gradP[c2].y -= (pL.p+pR.p)/2.0*n.y*l;
 			gradU[c2].x -= ( pL.u + pR.u) / 2.0 * n.x * l;
 			gradU[c2].y -= ( pL.u + pR.u) / 2.0 * n.y * l;
 			gradV[c2].x -= ( pL.v + pR.v) / 2.0 * n.x * l;
