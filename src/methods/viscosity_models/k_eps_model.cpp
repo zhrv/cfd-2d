@@ -213,7 +213,7 @@ void KEpsModel::calcMuT( double * cTau )
 			reps_int_dissipation[iCell] -= si * C_eps2 * reps[iCell] * reps[iCell] / rk[iCell];
 
 			rk_int[iCell] = rk_int_kinematic_flow[iCell] + rk_int_turbulent_diffusion[iCell] + rk_int_generation[iCell] + rk_int_dissipation[iCell];
-			reps_int[iCell] = rk_int_kinematic_flow[iCell] + rk_int_turbulent_diffusion[iCell] + rk_int_generation[iCell] + rk_int_dissipation[iCell];
+			reps_int[iCell] = reps_int_kinematic_flow[iCell] + reps_int_turbulent_diffusion[iCell] + reps_int_generation[iCell] + reps_int_dissipation[iCell];
 		}
 
 		for (int iCell = 0; iCell < nc; iCell++)
