@@ -202,7 +202,7 @@ void KEpsModel::calcMuT( double * cTau )
 			// TODO: проверить
 			double rPk = Txx[iCell] * gradU[iCell].x + Txy[iCell] * ( gradU[iCell].y + gradV[iCell].x ) + Tyy[iCell] * gradV[iCell].y;
 
-			// несжимаемые потоки!
+			// сжимаемые потоки!
 			rPk += 2.0 / 3.0 * ( ( ( rk[iCell] + muT[iCell] * gradU->x ) * gradU->x ) + ( ( rk[iCell] + muT[iCell] * gradV->y ) * gradV->y ) );
 
 			// TODO: знаки, знаки!
