@@ -112,7 +112,7 @@ void KEpsModel::calcMuT( double * cTau )
 	int nc = grid->cCount;
 	int ne = grid->eCount;
 
-	for (int iTau = 1; iTau <= 10; iTau++)
+	for (int iTau = 1; iTau <= 100; iTau++)
 	{
 		memset(rk_int, 0, nc*sizeof(double));
 		memset(reps_int, 0, nc*sizeof(double));
@@ -207,7 +207,7 @@ void KEpsModel::calcMuT( double * cTau )
 
 			// TODO: знаки, знаки!
 			rk_int_generation[iCell] += si * rPk;
-			reps_int_generation[iCell] -= si * rPk * C_eps1 * reps[iCell] / rk[iCell];
+			reps_int_generation[iCell] += si * rPk * C_eps1 * reps[iCell] / rk[iCell];
 
 			rk_int_dissipation[iCell] -= si * reps[iCell];
 			reps_int_dissipation[iCell] -= si * C_eps2 * reps[iCell] * reps[iCell] / rk[iCell];
@@ -219,7 +219,7 @@ void KEpsModel::calcMuT( double * cTau )
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
 			// TODO: знаки, знаки!
-			register double cfl = cTau[iCell] / 10.0 / grid->cells[iCell].S;
+			register double cfl = cTau[iCell] / 100.0 / grid->cells[iCell].S;
 			rk[iCell] += cfl * rk_int[iCell];
 			reps[iCell] += cfl * reps_int[iCell];
 

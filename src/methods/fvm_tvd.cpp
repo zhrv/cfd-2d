@@ -31,7 +31,7 @@ void FVM_TVD::init(char * xmlFileName)
 	lambda = 0;
 
 	// TODO: ¬ дипломе нужно пересчитывать динамически
-	mu = 0.0;
+	mu = 1.85E-5;
 
 	STEADY = true;
 	
