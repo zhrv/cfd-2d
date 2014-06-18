@@ -17,7 +17,7 @@ double EmptyViscosityModel::getMuT( const int iCell )
 	return 0.0;
 }
 
-void EmptyViscosityModel::calcMuT( const double TAU )
+void EmptyViscosityModel::calcMuT( double * cTau )
 {
 }
 

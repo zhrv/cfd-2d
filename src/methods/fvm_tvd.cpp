@@ -442,7 +442,7 @@ void FVM_TVD::run()
 
 		remediateLimCells();
 		
-		viscosityModel->calcMuT(TAU);
+		viscosityModel->calcMuT(cTau);
 		
 		if (step % FILE_SAVE_STEP == 0)
 		{

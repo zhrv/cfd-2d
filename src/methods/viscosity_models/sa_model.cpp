@@ -88,7 +88,7 @@ void SAModel::done()
 	delete [] gradNT;
 }
 
-void SAModel::calcMuT( const double TAU )
+void SAModel::calcMuT( double * cTau )
 {
 	int nc = grid->cCount;
 	int ne = grid->eCount;
@@ -156,7 +156,7 @@ void SAModel::calcMuT( const double TAU )
 	
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		register double cfl = TAU/grid->cells[iCell].S;
+		register double cfl = cTau[iCell] / grid->cells[iCell].S;
 		rnt[iCell] += cfl * rnt_int[iCell];
 
 		double nu = mu / ro[iCell];
