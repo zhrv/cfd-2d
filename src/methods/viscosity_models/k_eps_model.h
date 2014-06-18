@@ -28,6 +28,8 @@ public:
 	void calcMuT( double * cTau );
 	void done();
 
+	void fprintParams(FILE * file);
+
 private:
 	static const double C_mu;
 	static const double C_eps1;
@@ -37,12 +39,24 @@ private:
 
 	static const double It_Start;
 	static const double Lt_Start;
+
+	int step;
 	
 	double * rk;
 	double * reps;
 
 	double * rk_int;
 	double * reps_int;
+
+	double * rk_int_kinematic_flow;
+	double * rk_int_turbulent_diffusion;
+	double * rk_int_generation;
+	double * rk_int_dissipation;
+
+	double * reps_int_kinematic_flow;
+	double * reps_int_turbulent_diffusion;
+	double * reps_int_generation;
+	double * reps_int_dissipation;
 
 	Vector *gradK, *gradEps;
 
@@ -52,6 +66,8 @@ private:
 	void kEpsConvertParToCons( int iCell, KEpsParam& par );
 	void startCond();
 	void boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR );
+
+	void saveTurbulentParamsToFile( int step, int iTau );
 };
 
 #endif

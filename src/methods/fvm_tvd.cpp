@@ -2,8 +2,10 @@
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
+/*
 #include "viscosity_models/empty_viscosity_model.h"
 #include "viscosity_models/sa_model.h"
+*/
 #include "viscosity_models/k_eps_model.h"
 
 const char * TURBULENCE_MODELS_NAMES[3] = { "NONE", "SA", "K_EPS" };
@@ -12,7 +14,7 @@ void FVM_TVD::chooseTurbulenceModel( const char * turbModelStr )
 {
 	if (strcmp(turbModelStr, TURBULENCE_MODELS_NAMES[1]) == 0)
 	{
-		this->viscosityModel = new SAModel();
+		// this->viscosityModel = new SAModel();
 		return;
 	}
 
@@ -22,7 +24,7 @@ void FVM_TVD::chooseTurbulenceModel( const char * turbModelStr )
 		return;
 	}
 
-	this->viscosityModel = new EmptyViscosityModel();
+	// this->viscosityModel = new EmptyViscosityModel();
 }
 
 void FVM_TVD::init(char * xmlFileName)
@@ -31,7 +33,7 @@ void FVM_TVD::init(char * xmlFileName)
 	lambda = 0;
 
 	// TODO: ¬ дипломе нужно пересчитывать динамически
-	mu = 1.85E-5;
+	mu = 0.0;
 
 	STEADY = true;
 	
@@ -599,6 +601,8 @@ void FVM_TVD::save(int step)
 		fprintf(fp, "%25.16f ", viscosityModel->getMuT(i));
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
+
+	viscosityModel->fprintParams(fp);
 
 	fprintf(fp, "VECTORS Velosity float\n");
 	for (int i = 0; i < grid.cCount; i++)

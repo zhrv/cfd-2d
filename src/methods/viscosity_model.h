@@ -12,6 +12,8 @@ public:
 	virtual void calcMuT( double * cTau ) = 0;
 	virtual void done() = 0;
 
+	virtual void fprintParams(FILE * file) = 0;
+
 protected:
 	Grid * grid;
 	
