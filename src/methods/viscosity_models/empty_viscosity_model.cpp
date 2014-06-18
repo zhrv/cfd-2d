@@ -24,3 +24,7 @@ void EmptyViscosityModel::calcMuT( double * cTau )
 void EmptyViscosityModel::done()
 {
 }
+
+void EmptyViscosityModel::fprintParams(FILE * file)
+{
+}

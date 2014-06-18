@@ -28,6 +28,8 @@ public:
 	void calcMuT( double * cTau );
 	void done();
 
+	void fprintParams(FILE * file);
+
 private:
 	static const double K;
 	static const double C_b1;

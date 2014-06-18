@@ -246,3 +246,8 @@ void SAModel::boundaryCond( int iEdge, SAParam& pL, SAParam& pR )
 	pR = pL;
 }
 
+void SAModel::fprintParams( FILE * file )
+{
+
+}
+

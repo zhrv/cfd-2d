@@ -13,6 +13,8 @@ public:
 	double getMuT(const int iCell);
 	void calcMuT( double * cTau );
 	void done();
+
+	void fprintParams(FILE * file);
 };
 
 #endif
