@@ -69,6 +69,7 @@ void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, double 
 
 	this->step = 0;
 	startCond();
+	setAllBoundariesCond();
 }
 
 
@@ -91,8 +92,8 @@ void KEpsModel::startCond()
 		kEpsConvertParToCons(iCell, par);
 		
 		/*
-		rk[iCell] = 2.7E-4;
-		reps[iCell] = 4.35E-2;
+		rk[iCell] = 2.7E-16;
+		reps[iCell] = 4.35E-8;
 		muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
 		*/
 	}
@@ -241,7 +242,7 @@ void KEpsModel::calcMuT( double * cTau )
 		{
 			saveTurbulentParamsToFile(step, iTau);
 		}*/
-		//setAllBoundariesCond();
+		setAllBoundariesCond();
 	}
 }
 
@@ -536,20 +537,24 @@ void KEpsModel::setAllBoundariesCond()
 	{
 		Cell * cell = &grid->cells[iCell];
 		
-		if (grid->edges[cell->edgesInd[0]].type == Edge::TYPE_INLET
-			|| grid->edges[cell->edgesInd[1]].type == Edge::TYPE_OUTLET)
+		if (grid->edges[cell->edgesInd[0]].type == Edge::TYPE_INLET || grid->edges[cell->edgesInd[0]].type == Edge::TYPE_OUTLET
+			|| grid->edges[cell->edgesInd[1]].type == Edge::TYPE_INLET || grid->edges[cell->edgesInd[1]].type == Edge::TYPE_OUTLET
+			|| grid->edges[cell->edgesInd[2]].type == Edge::TYPE_INLET || grid->edges[cell->edgesInd[2]].type == Edge::TYPE_OUTLET)
 		{
-			KEpsParam par;
-			kEpsConvertConsToPar(iCell, par);
+			rk[iCell] = 2.7E-16;
+			reps[iCell] = 4.35E-8;
+			muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
+			/*
+			for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+			{
+				int neighCellIdx = grid->cells[iCell].neigh[iNeighCell];
+				if (neighCellIdx < 0)
+					continue;
 
-			double q = sqrt( par.u * par.u + par.v * par.v );
-
-			//double tmpK = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
-			par.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
-			par.eps = pow(C_mu, 3.0 / 4.0) * pow(par.k, 3.0 / 2.0) / Lt_Start;
-			par.muT = par.r * C_mu * ( par.k * par.k / par.eps );
-
-			kEpsConvertParToCons(iCell, par);
+				rk[neighCellIdx] = 2.7E-16;
+				reps[neighCellIdx] = 4.35E-8;
+				muT[neighCellIdx] = C_mu * rk[neighCellIdx] * rk[neighCellIdx] / reps[neighCellIdx];
+			}*/
 		}
 	}
 	
