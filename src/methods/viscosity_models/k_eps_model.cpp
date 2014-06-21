@@ -1,5 +1,6 @@
 #include "k_eps_model.h"
 
+#include <vector>
 
 const double KEpsModel::C_mu = 0.09;
 const double KEpsModel::C_eps1 = 1.44;
@@ -77,6 +78,7 @@ void KEpsModel::startCond()
 	
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
+		
 		KEpsParam par;
 		kEpsConvertConsToPar(iCell, par);
 		
@@ -87,6 +89,12 @@ void KEpsModel::startCond()
 		par.muT = par.r * C_mu * ( par.k * par.k / par.eps );
 
 		kEpsConvertParToCons(iCell, par);
+		
+		/*
+		rk[iCell] = 2.7E-4;
+		reps[iCell] = 4.35E-2;
+		muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
+		*/
 	}
 }
 
@@ -219,17 +227,20 @@ void KEpsModel::calcMuT( double * cTau )
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
 			// TODO: знаки, знаки!
-			register double cfl = cTau[iCell] / 100.0 / grid->cells[iCell].S;
+			double tauMultiplier = 0.01;
+			register double cfl = cTau[iCell] * tauMultiplier / grid->cells[iCell].S;
 			rk[iCell] += cfl * rk_int[iCell];
 			reps[iCell] += cfl * reps_int[iCell];
 
 			muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
 		}
 
-		if (step % 10 == 0 && iTau == 10)
+		checkParamsLimitsInCells();
+		
+		/*if (iTau % 100 == 0)
 		{
-			//saveTurbulentParamsToFile(step, iTau);
-		}
+			saveTurbulentParamsToFile(step, iTau);
+		}*/
 		//setAllBoundariesCond();
 	}
 }
@@ -518,7 +529,7 @@ void KEpsModel::saveTurbulentParamsToFile(int step, int iTau)
 
 void KEpsModel::setAllBoundariesCond()
 {
-	/*
+	
 	int nc = grid->cCount;
 
 	for (int iCell = 0; iCell < nc; iCell++)
@@ -533,6 +544,7 @@ void KEpsModel::setAllBoundariesCond()
 
 			double q = sqrt( par.u * par.u + par.v * par.v );
 
+			//double tmpK = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
 			par.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
 			par.eps = pow(C_mu, 3.0 / 4.0) * pow(par.k, 3.0 / 2.0) / Lt_Start;
 			par.muT = par.r * C_mu * ( par.k * par.k / par.eps );
@@ -540,5 +552,221 @@ void KEpsModel::setAllBoundariesCond()
 			kEpsConvertParToCons(iCell, par);
 		}
 	}
-	*/
+	
+}
+
+void KEpsModel::checkParamsLimitsInCells()
+{
+	//checkKLimitsInCells();
+	//checkEpsLimitsInCells();
+
+	//recalculateMuT();
+
+	std::vector<int> * incorrectCells = new std::vector<int>();
+	std::vector<int> * newIncorrectCells = new std::vector<int>();
+
+	for (int iCell = 0; iCell < grid->cCount; iCell++)
+	{
+		if (rk[iCell] < 0 || reps[iCell] < 0)
+		{
+			incorrectCells->push_back(iCell);
+		}
+	}
+
+	while (incorrectCells->size() > 0)
+	{
+		for (std::vector<int>::iterator it = incorrectCells->begin(); it != incorrectCells->end(); it++)
+		{
+			double fixedKSum = 0.0;
+			double fixedEpsSum = 0.0;
+			int neighsWithCorrectParamsCount = 0;
+
+			for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+			{
+				int neighCellIdx = grid->cells[*it].neigh[iNeighCell];
+				if (neighCellIdx < 0)
+					continue;
+
+				if (rk[neighCellIdx] > 0.0 && reps[neighCellIdx] > 0.0)
+				{
+					fixedKSum += rk[neighCellIdx] / ro[neighCellIdx];
+					fixedEpsSum += reps[neighCellIdx] / ro[neighCellIdx];
+					neighsWithCorrectParamsCount++;
+				}
+			}
+
+			if (neighsWithCorrectParamsCount == 0)
+			{
+				newIncorrectCells->push_back(*it);
+				continue;
+			}
+
+			rk[*it] = fixedKSum / (double)neighsWithCorrectParamsCount * ro[*it];
+			reps[*it] = (fixedEpsSum / (double)neighsWithCorrectParamsCount) * ro[*it];
+
+			muT[*it] = C_mu * rk[*it] * rk[*it] / reps[*it];
+		}
+
+		std::vector<int> * tmp = incorrectCells;
+		incorrectCells = newIncorrectCells;
+		newIncorrectCells = tmp;
+		newIncorrectCells->clear();
+	}
+
+	delete incorrectCells;
+	delete newIncorrectCells;
+
+
+	for (int iCell = 0; iCell < grid->cCount; iCell++)
+	{
+		double neighMuTSum = 0.0;
+		double neighsCount = 0;
+		
+		for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+		{
+			int neighCellIdx = grid->cells[iCell].neigh[iNeighCell];
+			if (neighCellIdx < 0)
+				continue;
+
+			neighMuTSum += muT[neighCellIdx];
+			neighsCount++;
+		}
+		
+		if (muT[iCell] > 1.2 * ( neighMuTSum / (double)neighsCount ))
+		{
+			double fixedKSum = 0.0;
+			double fixedEpsSum = 0.0;
+			int neighsCount = 0;
+
+			for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+			{
+				int neighCellIdx = grid->cells[iCell].neigh[iNeighCell];
+				if (neighCellIdx < 0)
+					continue;
+
+				fixedKSum += rk[neighCellIdx] / ro[neighCellIdx];
+				fixedEpsSum += reps[neighCellIdx] / ro[neighCellIdx];
+				neighsCount++;
+			}
+
+			rk[iCell] = fixedKSum / (double)neighsCount * ro[iCell];
+			reps[iCell] = (fixedEpsSum / (double)neighsCount) * ro[iCell];
+
+			muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
+		}
+	}
+}
+
+void KEpsModel::checkKLimitsInCells()
+{
+	std::vector<int> * incorrectKCells = new std::vector<int>();
+	std::vector<int> * newIncorrectKCells = new std::vector<int>();
+
+	for (int iCell = 0; iCell < grid->cCount; iCell++)
+	{
+		if (rk[iCell] < 0)
+		{
+			incorrectKCells->push_back(iCell);
+		}
+	}
+
+	while (incorrectKCells->size() > 0)
+	{
+		for (std::vector<int>::iterator it = incorrectKCells->begin(); it != incorrectKCells->end(); it++)
+		{
+			double fixedKSum = 0.0;
+			int neighsWithCorrectKCount = 0;
+
+			for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+			{
+				int neighCellIdx = grid->cells[*it].neigh[iNeighCell];
+				if (neighCellIdx < 0)
+					continue;
+
+				if (rk[neighCellIdx] > 0.0)
+				{
+					fixedKSum += rk[neighCellIdx] / ro[neighCellIdx];
+					neighsWithCorrectKCount++;
+				}
+			}
+
+			if (neighsWithCorrectKCount == 0)
+			{
+				newIncorrectKCells->push_back(*it);
+				continue;
+			}
+
+			double newKVal = fixedKSum / (double)neighsWithCorrectKCount * ro[*it];
+			rk[*it] = newKVal < reps[*it] ? newKVal : reps[*it];
+		}
+
+		std::vector<int> * tmp = incorrectKCells;
+		incorrectKCells = newIncorrectKCells;
+		newIncorrectKCells = tmp;
+		newIncorrectKCells->clear();
+	}
+
+	delete incorrectKCells;
+	delete newIncorrectKCells;
+}
+
+void KEpsModel::checkEpsLimitsInCells()
+{
+	std::vector<int> * incorrectEpsCells = new std::vector<int>();
+	std::vector<int> * newIncorrectEpsCells = new std::vector<int>();
+	
+	for (int iCell = 0; iCell < grid->cCount; iCell++)
+	{
+		if (reps[iCell] < 0)
+		{
+			incorrectEpsCells->push_back(iCell);
+		}
+	}
+
+	while (incorrectEpsCells->size() > 0)
+	{
+		for (std::vector<int>::iterator it = incorrectEpsCells->begin(); it != incorrectEpsCells->end(); it++)
+		{
+			double fixedEpsSum = 0.0;
+			int neighsWithCorrectEpsCount = 0;
+
+			for (int iNeighCell = 0; iNeighCell < 3; iNeighCell++)
+			{
+				int neighCellIdx = grid->cells[*it].neigh[iNeighCell];
+				if (neighCellIdx < 0)
+					continue;
+
+				if (reps[neighCellIdx] > 0.0)
+				{
+					fixedEpsSum += reps[neighCellIdx] / ro[neighCellIdx];
+					neighsWithCorrectEpsCount++;
+				}
+			}
+
+			if (neighsWithCorrectEpsCount == 0)
+			{
+				newIncorrectEpsCells->push_back(*it);
+				continue;
+			}
+
+			double newREpsVal = (fixedEpsSum / (double)neighsWithCorrectEpsCount) * ro[*it];
+			reps[*it] = newREpsVal > rk[*it] ? newREpsVal : rk[*it];
+		}
+
+		std::vector<int> * tmp = incorrectEpsCells;
+		incorrectEpsCells = newIncorrectEpsCells;
+		newIncorrectEpsCells = tmp;
+		newIncorrectEpsCells->clear();
+	}
+
+	delete incorrectEpsCells;
+	delete newIncorrectEpsCells;
+}
+
+void KEpsModel::recalculateMuT()
+{
+	for (int iCell = 0; iCell < grid->cCount; iCell++)
+	{
+		muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
+	}
 }

@@ -71,6 +71,11 @@ private:
 	void setAllBoundariesCond();
 
 	void frpintfTurbulentParams(FILE * fp);
+
+	void checkParamsLimitsInCells();
+	void checkKLimitsInCells();
+	void checkEpsLimitsInCells();
+	void recalculateMuT();
 };
 
 #endif
