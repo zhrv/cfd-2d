@@ -167,9 +167,10 @@ struct Boundary
 	double *	par;
 	int			parCount;
 
-	static const int BOUND_INLET	= 1;
-	static const int BOUND_OUTLET	= 2;
-	static const int BOUND_WALL		= 3;
+	static const int BOUND_INLET		= 1;
+	static const int BOUND_OUTLET		= 2;
+	static const int BOUND_WALL			= 3;
+	static const int BOUND_WALL_NO_SLIP	= 4;
 };
 
 extern FILE * hLog;

@@ -69,7 +69,7 @@ void KEpsModel::init( Grid * grid, double * ro, double *ru, double * rv, double 
 
 	this->step = 0;
 	startCond();
-	setAllBoundariesCond();
+	//setAllBoundariesCond();
 }
 
 
@@ -121,7 +121,7 @@ void KEpsModel::calcMuT( double * cTau )
 	int nc = grid->cCount;
 	int ne = grid->eCount;
 
-	for (int iTau = 1; iTau <= 100; iTau++)
+	for (int iTau = 1; iTau <= 1; iTau++)
 	{
 		memset(rk_int, 0, nc*sizeof(double));
 		memset(reps_int, 0, nc*sizeof(double));
@@ -149,9 +149,17 @@ void KEpsModel::calcMuT( double * cTau )
 			KEpsParam pL, pR;
 			kEpsReconstruct(iEdge, pL, pR);
 
-			double ro_m = (pL.r + pR.r) / 2.0;
-			double u_m = (pL.u + pR.u) / 2.0;
-			double v_m = (pL.v + pR.v) / 2.0;
+			//double ro_m = (pL.r + pR.r) / 2.0;
+			//double u_m = (pL.u + pR.u) / 2.0;
+			//double v_m = (pL.v + pR.v) / 2.0;
+			double fSL = sqrt(pL.r);
+			double fSR = sqrt(pR.r);
+			double fS_ = 1.0 / (fSL + fSR);
+
+			double ro_m = fSL * fSR;
+			double u_m = (fSL * pL.u + fSR * pR.u) * fS_;
+			double v_m = (fSL * pL.v + fSR * pR.v) * fS_;
+			
 			double k_m = (pL.k + pR.k) / 2.0;
 			double eps_m = (pL.eps + pR.eps) / 2.0;
 			double muT_m = (pL.muT + pR.muT) / 2.0;
@@ -228,7 +236,7 @@ void KEpsModel::calcMuT( double * cTau )
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
 			// TODO: знаки, знаки!
-			double tauMultiplier = 0.01;
+			double tauMultiplier = 1;
 			register double cfl = cTau[iCell] * tauMultiplier / grid->cells[iCell].S;
 			rk[iCell] += cfl * rk_int[iCell];
 			reps[iCell] += cfl * reps_int[iCell];
@@ -236,13 +244,13 @@ void KEpsModel::calcMuT( double * cTau )
 			muT[iCell] = C_mu * rk[iCell] * rk[iCell] / reps[iCell];
 		}
 
-		checkParamsLimitsInCells();
+		//checkParamsLimitsInCells();
 		
 		/*if (iTau % 100 == 0)
 		{
 			saveTurbulentParamsToFile(step, iTau);
 		}*/
-		setAllBoundariesCond();
+		//setAllBoundariesCond();
 	}
 }
 
@@ -260,7 +268,8 @@ void KEpsModel::calcGrad()
 		int c1 = grid->edges[iEdge].c1;
 		int c2 = grid->edges[iEdge].c2;
 
-        KEpsParam pL, pR;
+
+		KEpsParam pL, pR;
 		kEpsReconstruct(iEdge, pL, pR);
 
 		Vector n = grid->edges[iEdge].n;
@@ -340,24 +349,41 @@ void KEpsModel::boundaryCond( int iEdge, KEpsParam& pL, KEpsParam& pR )
 	// TODO: узнать, правильно ли это
 	pR = pL;
 
-	/*
+	
 	Edge * edge = &grid->edges[iEdge];
 
 	if (edge->type == Boundary::BOUND_INLET)
 	{
-		double q = sqrt( pL.u * pL.u + pL.v * pL.v );
-
-		pL.k = 3.0 / 2.0 * ( It_Start * q ) * ( It_Start * q );
-		pL.eps = pow(C_mu, 3.0 / 4.0) * pow(pL.k, 3.0 / 2.0) / Lt_Start;
+		double q = sqrt(pL.u * pL.u + pL.v * pL.v);
 
 		pR = pL;
+		pR.k = 3.0 / 2.0 * (It_Start * q) * (It_Start * q);
+		pR.eps = pow(C_mu, 3.0 / 4.0) * pow(pL.k, 3.0 / 2.0) / Lt_Start;
 	}
 
 	if (edge->type == Boundary::BOUND_WALL)
 	{
 		pR = pL;
+		double Un = pL.u*edge->n.x + pL.v*edge->n.y;
+		Vector V;
+		V.x = edge->n.x*Un*2.0;
+		V.y = edge->n.y*Un*2.0;
+		pR.u = pL.u - V.x;
+		pR.v = pL.v - V.y;
 	}
-	*/
+
+	if (edge->type == Boundary::BOUND_WALL_NO_SLIP)
+	{
+		pR = pL;
+		double Un = pL.u*edge->n.x + pL.v*edge->n.y;
+		Vector V;
+		V.x = edge->n.x*Un*2.0;
+		V.y = edge->n.y*Un*2.0;
+		pR.u = pL.u - V.x;
+		pR.v = pL.v - V.y;
+		pR.k = 0.0;
+	}
+
 }
 
 void KEpsModel::fprintParams(FILE * file)

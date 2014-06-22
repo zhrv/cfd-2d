@@ -130,13 +130,21 @@ void FVM_TVD::init(char * xmlFileName)
 		Boundary & b = boundaries[i];
 		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
 		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-		if (strcmp(str, "BOUND_WALL") == 0) 
+		if (strcmp(str, "BOUND_WALL") == 0)
 		{
 			b.parCount = 0;
 			b.par = NULL;
 			b.type = Boundary::BOUND_WALL;
-		} else
-		if (strcmp(str, "BOUND_OUTLET") == 0) 
+		}
+		else
+		if (strcmp(str, "BOUND_WALL_NO_SLIP") == 0)
+		{
+			b.parCount = 0;
+			b.par = NULL;
+			b.type = Boundary::BOUND_WALL;
+		}
+		else
+		if (strcmp(str, "BOUND_OUTLET") == 0)
 		{
 			b.parCount = 0;
 			b.par = NULL;
@@ -346,99 +354,99 @@ void FVM_TVD::run()
 			re[iCell] += cfl*re_int[iCell];
 		}
 
-		// второй подшаг метода Р.-К.
-		memset(ro_int, 0, nc*sizeof(double));
-		memset(ru_int, 0, nc*sizeof(double));
-		memset(rv_int, 0, nc*sizeof(double));
-		memset(re_int, 0, nc*sizeof(double));
+		//// второй подшаг метода Р.-К.
+		//memset(ro_int, 0, nc*sizeof(double));
+		//memset(ru_int, 0, nc*sizeof(double));
+		//memset(rv_int, 0, nc*sizeof(double));
+		//memset(re_int, 0, nc*sizeof(double));
 
-		calcGrad(gradR, gradP, gradU, gradV);
-		calcTensor(lambda, mu, gradU, gradV, Txx, Tyy, Txy);
+		//calcGrad(gradR, gradP, gradU, gradV);
+		//calcTensor(lambda, mu, gradU, gradV, Txx, Tyy, Txy);
 
-		for (int iEdge = 0; iEdge < ne; iEdge++)
-		{
-			double fr, fu, fv, fe;
-			double fu_diff, fv_diff, fe_diff;
-			int c1	= grid.edges[iEdge].c1;
-			int c2	= grid.edges[iEdge].c2;
-			Vector n	= grid.edges[iEdge].n;
-			double l	= grid.edges[iEdge].l*0.5;
-			Param pL, pR;
+		//for (int iEdge = 0; iEdge < ne; iEdge++)
+		//{
+		//	double fr, fu, fv, fe;
+		//	double fu_diff, fv_diff, fe_diff;
+		//	int c1	= grid.edges[iEdge].c1;
+		//	int c2	= grid.edges[iEdge].c2;
+		//	Vector n	= grid.edges[iEdge].n;
+		//	double l	= grid.edges[iEdge].l*0.5;
+		//	Param pL, pR;
 
-			fr = 0.0;
-			fu = 0.0;
-			fv = 0.0;
-			fe = 0.0;
+		//	fr = 0.0;
+		//	fu = 0.0;
+		//	fv = 0.0;
+		//	fe = 0.0;
 	
-			fu_diff = 0.0;
-			fv_diff = 0.0;
-			fe_diff = 0.0;
+		//	fu_diff = 0.0;
+		//	fv_diff = 0.0;
+		//	fe_diff = 0.0;
 
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
-			{
-				double fr1, fu1, fv1, fe1;
-				double fu_diff1, fv_diff1, fe_diff1;
-				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-				calcFlux(fr1, fu1, fv1, fe1, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
-				calcDiffFlux(fu_diff1, fv_diff1, fe_diff1, pL, pR, n, c1, c2);
+		//	for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+		//	{
+		//		double fr1, fu1, fv1, fe1;
+		//		double fu_diff1, fv_diff1, fe_diff1;
+		//		reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+		//		double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+		//		calcFlux(fr1, fu1, fv1, fe1, ro_m[iEdge], u_m[iEdge], v_m[iEdge], pL, pR, n, __GAM);
+		//		calcDiffFlux(fu_diff1, fv_diff1, fe_diff1, pL, pR, n, c1, c2);
 
-				fr += fr1;
-				fu += fu1;
-				fv += fv1;
-				fe += fe1;
+		//		fr += fr1;
+		//		fu += fu1;
+		//		fv += fv1;
+		//		fe += fe1;
 
-				fu_diff += fu_diff1;
-				fv_diff += fv_diff1;
-				fe_diff += fe_diff1;
-			}
+		//		fu_diff += fu_diff1;
+		//		fv_diff += fv_diff1;
+		//		fe_diff += fe_diff1;
+		//	}
 
-			ro_int[c1] -= fr*l;
-			ru_int[c1] -= (fu + fu_diff) * l;
-			rv_int[c1] -= (fv + fv_diff) * l;
-			re_int[c1] -= (fe + fe_diff) * l;
+		//	ro_int[c1] -= fr*l;
+		//	ru_int[c1] -= (fu + fu_diff) * l;
+		//	rv_int[c1] -= (fv + fv_diff) * l;
+		//	re_int[c1] -= (fe + fe_diff) * l;
 
-			if (c2 > -1) 
-			{
-				ro_int[c2] += fr*l;
-				ru_int[c2] += (fu + fu_diff) * l;
-				rv_int[c2] += (fv + fv_diff) * l;
-				re_int[c2] += (fe + fe_diff) * l;
-			}
+		//	if (c2 > -1) 
+		//	{
+		//		ro_int[c2] += fr*l;
+		//		ru_int[c2] += (fu + fu_diff) * l;
+		//		rv_int[c2] += (fv + fv_diff) * l;
+		//		re_int[c2] += (fe + fe_diff) * l;
+		//	}
 
-		}
+		//}
 
-		for (int iCell = 0; iCell < nc; iCell++)
-		{
-			if (cellIsLim(iCell)) continue;
-			register double cfl = cTau[iCell]/grid.cells[iCell].S;
-			ro[iCell] += cfl*ro_int[iCell];
-			ru[iCell] += cfl*ru_int[iCell];
-			rv[iCell] += cfl*rv_int[iCell];
-			re[iCell] += cfl*re_int[iCell];
-		}
+		//for (int iCell = 0; iCell < nc; iCell++)
+		//{
+		//	if (cellIsLim(iCell)) continue;
+		//	register double cfl = cTau[iCell]/grid.cells[iCell].S;
+		//	ro[iCell] += cfl*ro_int[iCell];
+		//	ru[iCell] += cfl*ru_int[iCell];
+		//	rv[iCell] += cfl*rv_int[iCell];
+		//	re[iCell] += cfl*re_int[iCell];
+		//}
 
-		// полусумма: формула (4.10) из icase-1997-65.pdf
+		//// полусумма: формула (4.10) из icase-1997-65.pdf
 	
-		for (int iCell = 0; iCell < nc; iCell++)
-		{
-			if (cellIsLim(iCell)) continue;
+		//for (int iCell = 0; iCell < nc; iCell++)
+		//{
+		//	if (cellIsLim(iCell)) continue;
 
-			ro[iCell] = 0.5*(ro_old[iCell]+ro[iCell]);
-			ru[iCell] = 0.5*(ru_old[iCell]+ru[iCell]);
-			rv[iCell] = 0.5*(rv_old[iCell]+rv[iCell]);
-			re[iCell] = 0.5*(re_old[iCell]+re[iCell]);
+		//	ro[iCell] = 0.5*(ro_old[iCell]+ro[iCell]);
+		//	ru[iCell] = 0.5*(ru_old[iCell]+ru[iCell]);
+		//	rv[iCell] = 0.5*(rv_old[iCell]+rv[iCell]);
+		//	re[iCell] = 0.5*(re_old[iCell]+re[iCell]);
 
-			Param par;
-			convertConsToPar(iCell, par);
+		//	Param par;
+		//	convertConsToPar(iCell, par);
 
-			if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
-			if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
-			if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
-			if (par.p > limitPmax)			{ par.p = limitPmax; setCellFlagLim(iCell); }
-			if (fabs(par.u) > limitUmax)	{ par.u = limitUmax; setCellFlagLim(iCell); }
-			if (fabs(par.v) > limitUmax)	{ par.v = limitUmax; setCellFlagLim(iCell); }
-		}
+		//	if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
+		//	if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
+		//	if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
+		//	if (par.p > limitPmax)			{ par.p = limitPmax; setCellFlagLim(iCell); }
+		//	if (fabs(par.u) > limitUmax)	{ par.u = limitUmax; setCellFlagLim(iCell); }
+		//	if (fabs(par.v) > limitUmax)	{ par.v = limitUmax; setCellFlagLim(iCell); }
+		//}
 
 		remediateLimCells();
 		
@@ -657,8 +665,16 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, double& r
 	//	double unr = pR.u*n.x+pR.v*n.y;
 	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
 	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	pL.getToCons(rol, rul, rvl, rel);
-	//	pR.getToCons(ror, rur, rvr, rer);
+	//	//pL.getToCons(rol, rul, rvl, rel);
+	//	//pR.getToCons(ror, rur, rvr, rer);
+	//	rol = pL.r;
+	//	rul = pL.r*pL.u;
+	//	rvl = pL.r*pL.u;
+	//	rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+	//	ror = pR.r;
+	//	rur = pR.r*pR.u;
+	//	rvr = pR.r*pR.u;
+	//	rer = pR.p / (GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
 	//	double frl = rol*unl;
 	//	double frr = ror*unr;
 	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
