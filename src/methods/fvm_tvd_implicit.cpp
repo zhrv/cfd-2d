@@ -801,7 +801,7 @@ void FVM_TVD_IMPLICIT::smoothingDelta(double* p)
 		}
 		for (register int i = 0; i < grid.cCount; i++) {
 			register int iCell = i*4 + shift;
-			p[iCell] = (p[iCell] + SMOOTHING_PAR * tmpArr[i]) / (1.0 + SMOOTHING_PAR*tmpArrInt[i]);
+			p[iCell] = (p[iCell] + SMOOTHING_PAR * tmpArr[iCell]) / (1.0 + SMOOTHING_PAR*tmpArrInt[iCell]);
 		}
 	}
 }
