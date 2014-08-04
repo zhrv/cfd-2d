@@ -2,6 +2,10 @@
 #define _MatrixSolver_
 
 #include "CSR.h"
+#include "_hypre_utilities.h"
+#include "HYPRE_krylov.h"
+#include "HYPRE.h"
+#include "HYPRE_parcsr_ls.h"
 
 class MatrixSolver
 {
@@ -13,15 +17,15 @@ public:
 
 	virtual ~MatrixSolver();
 
-	void init(int cellsCount, int blockDimension);
+	virtual void init(int cellsCount, int blockDimension);
 	
-	void zero();
+	virtual void zero();
 	
-	void setMatrElement(int i, int j, double** matrDim);
-	void setRightElement(int i, double* vectDim);
-	void addMatrElement(int i, int j, double** matrDim);
-	void addRightElement(int i, double* vectDim);
-	void createMatrElement(int i, int j);
+	virtual void setMatrElement(int i, int j, double** matrDim);
+	virtual void setRightElement(int i, double* vectDim);
+	virtual void addMatrElement(int i, int j, double** matrDim);
+	virtual void addRightElement(int i, double* vectDim);
+	virtual void createMatrElement(int i, int j);
 
 	virtual int solve(double eps, int& maxIter) = 0;
 
@@ -58,7 +62,34 @@ public:
 
 class SolverHYPREBoomerAMG : public MatrixSolver
 {
+public:
+	virtual ~SolverHYPREBoomerAMG();
+
 	virtual int solve(double eps, int& maxIter);
+
+	virtual void init(int cellsCount, int blockDimension);
+
+	virtual void zero();
+
+	virtual void setMatrElement(int i, int j, double** matrDim);
+	virtual void setRightElement(int i, double* vectDim);
+	virtual void addMatrElement(int i, int j, double** matrDim);
+	virtual void addRightElement(int i, double* vectDim);
+	virtual void createMatrElement(int i, int j);
+protected:
+	void initMatrVectors();
+
+protected:
+	int solver_id = 0;
+	int* cols;
+	HYPRE_Solver solver, precond;
+	HYPRE_Int ilower, iupper, local_size;
+	HYPRE_IJMatrix A;
+	HYPRE_ParCSRMatrix parcsr_A;
+	HYPRE_IJVector bb;
+	HYPRE_ParVector par_bb;
+	HYPRE_IJVector xx;
+	HYPRE_ParVector par_xx;
 };
 
 

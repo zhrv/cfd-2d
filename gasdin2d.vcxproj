@@ -156,6 +156,7 @@
     <ClCompile Include="src\grid.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\MatrixSolver.cpp" />
+    <ClCompile Include="src\MatrixSolverBoomerAMG.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />

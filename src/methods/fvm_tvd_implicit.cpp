@@ -662,7 +662,7 @@ void FVM_TVD_IMPLICIT::run()
 			solverMtx->setRightElement(iCell, right4[iCell]);	//F(i,j,n)			
 		}
 
-		int maxIter = 5000;
+		int maxIter = 1000;
 		const double eps = 1.0e-7;
 		
 		solverErr = solverMtx->solve(eps, maxIter);
@@ -704,10 +704,10 @@ void FVM_TVD_IMPLICIT::run()
 				calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d Lift Force Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, t, maxIter, limCells, Fx, Fy, timeEnd-timeStart);
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d \ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d Lift Force Fx = %.16f Fy = %.16f\ttime: %d ms\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart);
+					log("step: %d\tmax iter: %d\tlim: %d ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
 				}
 			}
 
