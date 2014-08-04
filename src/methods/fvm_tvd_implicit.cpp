@@ -481,7 +481,7 @@ void FVM_TVD_IMPLICIT::run()
 	double					t = 0.0;
 	unsigned int			step = 0;
 
-	MatrixSolver			*solverMtx = new SolverZeidel();
+	MatrixSolver			*solverMtx = new SolverHYPREBoomerAMG();
 	double					**eigenMtx4, **rEigenVector4, **lEigenVector4;
 	double					**Amtx4P, **Amtx4M;
 	double					**right4, **mtx4;
@@ -663,7 +663,7 @@ void FVM_TVD_IMPLICIT::run()
 		}
 
 		int maxIter = 5000;
-		const double eps = 1.0e-4;
+		const double eps = 1.0e-7;
 		
 		solverErr = solverMtx->solve(eps, maxIter);
 

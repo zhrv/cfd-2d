@@ -55,4 +55,13 @@ public:
 	bool			tempXAlloc;
 };
 
+
+class SolverHYPREBoomerAMG : public MatrixSolver
+{
+	virtual int solve(double eps, int& maxIter);
+};
+
+
+
+
 #endif

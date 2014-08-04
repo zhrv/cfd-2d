@@ -64,7 +64,8 @@ void Decomp::run()
 		}
 		xadj[i+1] = jj;
 	}
-	METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
+	// TODO: подключить х64 версию METIS
+	//METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
 	delete[] xadj;
 	delete[] adjncy;
 
