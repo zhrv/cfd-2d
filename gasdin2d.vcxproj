@@ -159,6 +159,7 @@
     <ClCompile Include="src\MatrixSolverBoomerAMG.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
+    <ClCompile Include="src\methods\fem_dg_implicit.cpp" />
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
     <ClCompile Include="src\methods\fvm_tvd.cpp" />
     <ClCompile Include="src\methods\fvm_tvd_implicit.cpp" />
@@ -176,6 +177,7 @@
     <ClInclude Include="src\MatrixSolver.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
+    <ClInclude Include="src\methods\fem_dg_implicit.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
     <ClInclude Include="src\methods\fvm_tvd_implicit.h" />

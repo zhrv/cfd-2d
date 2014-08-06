@@ -439,3 +439,120 @@ void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 	EI = PI/(RI*AGAM);
 
 } 
+
+
+
+void inverseMatr(double** a_src, double **am, int N)
+{
+	int	*	mask;
+	double	fmaxval;
+	int		maxind;
+	int		tmpi;
+	double	tmp;
+	//double	a[N][N];
+
+	double	**a;
+
+	mask = new int[N];
+	a = new double*[N];
+	for (int i = 0; i < N; i++)
+	{
+		a[i] = new double[N];
+		for (int j = 0; j < N; j++)
+		{
+			a[i][j] = a_src[i][j];
+		}
+	}
+	//::memcpy(a, a_src, sizeof(double)*N*N);
+
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (i == j)
+			{
+				am[i][j] = 1.0;
+			}
+			else {
+				am[i][j] = 0.0;
+			}
+		}
+	}
+	for (int i = 0; i < N; i++)
+	{
+		mask[i] = i;
+	}
+	for (int i = 0; i < N; i++)
+	{
+		maxind = i;
+		fmaxval = fabs(a[i][i]);
+		for (int ni = i + 1; ni < N; ni++)
+		{
+			if (fabs(fmaxval) <= fabs(a[ni][i]))
+			{
+				fmaxval = fabs(a[ni][i]);
+				maxind = ni;
+			}
+		}
+		fmaxval = a[maxind][i];
+		if (fmaxval == 0)
+		{
+			log("ERROR! Determinant of mass matrix is zero...\n");
+			return;
+		}
+		if (i != maxind)
+		{
+			for (int nj = 0; nj < N; nj++)
+			{
+				tmp = a[i][nj];
+				a[i][nj] = a[maxind][nj];
+				a[maxind][nj] = tmp;
+
+				tmp = am[i][nj];
+				am[i][nj] = am[maxind][nj];
+				am[maxind][nj] = tmp;
+			}
+			tmpi = mask[i];
+			mask[i] = mask[maxind];
+			mask[maxind] = tmpi;
+		}
+		double aii = a[i][i];
+		for (int j = 0; j < N; j++)
+		{
+			a[i][j] = a[i][j] / aii;
+			am[i][j] = am[i][j] / aii;
+		}
+		for (int ni = 0; ni < N; ni++)
+		{
+			if (ni != i)
+			{
+				double fconst = a[ni][i];
+				for (int nj = 0; nj < N; nj++)
+				{
+					a[ni][nj] = a[ni][nj] - fconst *  a[i][nj];
+					am[ni][nj] = am[ni][nj] - fconst * am[i][nj];
+				}
+			}
+		}
+	}
+	//for (int i = 0; i < N; i++)
+	//{
+	//	if (mask[i] != i) 
+	//	{
+	//		for (int j = 0; j < N; j++) 
+	//		{
+	//			tmp				= a[i][j];
+	//			a[i][j]			= a[mask[i]][j];
+	//			a[mask[i]][j]	= tmp;
+	//		}
+	//	}
+	//}
+	for (int i = 0; i < N; i++)
+	{
+		delete[] a[i];
+	}
+	delete[] a;
+	delete[] mask;
+	return;
+}
+

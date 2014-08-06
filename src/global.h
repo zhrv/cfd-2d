@@ -178,6 +178,9 @@ extern FILE * hLog;
 
 extern void log(char * format, ...);
 extern void EXIT(int err);
+extern void inverseMatr(double** a_src, double **am, int N);
+
+
 
 /**
  *	–ешение задачи о распаде произвольного разрыва

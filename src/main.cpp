@@ -22,5 +22,7 @@ int main(int argc, char** argv)
 
 	fclose(hLog);
 
+	MPI_Finalize();
+
 	return 0;
 }
