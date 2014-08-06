@@ -65,11 +65,11 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 
 	// ÷òåíèå ïàðàìåòðîâ î ÏÐÅÄÅËÜÍÛÕ ÇÍÀ×ÅÍÈßÕ
 	node0 = task->FirstChild("limits");
-	node0->FirstChild("ro_min")->ToElement()->Attribute("value", &limitRmin);
-	node0->FirstChild("ro_max")->ToElement()->Attribute("value", &limitRmax);
-	node0->FirstChild("p_min")->ToElement()->Attribute( "value", &limitPmin);
-	node0->FirstChild("p_max")->ToElement()->Attribute( "value", &limitPmax);
-	node0->FirstChild("u_max")->ToElement()->Attribute( "value", &limitUmax);
+	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
+	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
+	node0->FirstChild("p")->ToElement()->Attribute( "min", &limitPmin);
+	node0->FirstChild("p")->ToElement()->Attribute( "max", &limitPmax);
+	node0->FirstChild("u")->ToElement()->Attribute( "max", &limitUmax);
 
 	// ÷òåíèå ïàðàìåòðîâ î ÌÀÒÅÐÈÀËÀÕ
 	node0 = task->FirstChild("materials");
@@ -662,7 +662,7 @@ void FVM_TVD_IMPLICIT::run()
 			solverMtx->setRightElement(iCell, right4[iCell]);	//F(i,j,n)			
 		}
 
-		int maxIter = 1000;
+		int maxIter = 20;
 		const double eps = 1.0e-7;
 		
 		solverErr = solverMtx->solve(eps, maxIter);
