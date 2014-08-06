@@ -24,15 +24,9 @@ private:
 	Region   &	getRegion(int iCell);
 	Material &	getMaterial(int iCell);
 
-	/**
-	*	ѕреобразование примитивных переменных в консервативные
-	*/
-	void convertParToCons(int iCell, Param & par);
+	void convertParToCons(int iCell, Param & par); //!< ѕреобразование примитивных переменных в консервативные
 
-	/**
-	*	ѕреобразование консервативных переменных в примитивные
-	*/
-	void convertConsToPar(int iCell, Param & par);
+	void convertConsToPar(int iCell, Param & par); //!< ѕреобразование консервативных переменных в примитивные
 
 	double getField(int fld, int iCell, Point p);
 	double getField(int fld, int iCell, double x, double y);
@@ -47,6 +41,19 @@ private:
 	double getDfDy(int id, int iCell, double x, double y);
 
 	void save(int step);
+
+	inline void setCellFlagLim(int iCell){ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+	inline bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+	int getLimitedCellsCount();
+	void remediateLimCells();
+
+	void incCFL();
+	void decCFL();
+
+	void calcIntegral();		//!< вычисл€ем интеграл от(dF / dU)*deltaU*dFi / dx
+	void calcMatrWithTau();		//!< вычисл€ем матрицы перед производной по времени
+	void calcMatrFlux();		//!< ¬ычисл€ем потоковые величины 
+	void calcRHS();				//!< ¬ычисл€ем столбец правых членов
 
 private:
 	double			TMAX;
@@ -99,6 +106,8 @@ private:
 	double			limitPmin;
 	double			limitPmax;
 	double			limitUmax;
+
+	int				limCells;
 
 	//! подъемна€ сила.
 	double			Fx;

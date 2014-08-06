@@ -1,6 +1,7 @@
 #include "fem_dg_implicit.h"
 #include "tinyxml.h"
 #include "global.h"
+#include <ctime>
 
 #define POW_2(x) ((x)*(x))
 
@@ -659,9 +660,150 @@ void FEM_DG_IMPLICIT::save(int step)
 
 }
 
+int FEM_DG_IMPLICIT::getLimitedCellsCount() {
+	int n = 0;
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
+	}
+	return n;
+}
+
+void FEM_DG_IMPLICIT::remediateLimCells()
+{
+
+}
+
+
+void FEM_DG_IMPLICIT::decCFL()
+{
+	if (CFL > 0.1) {
+		CFL *= 0.75;
+		if (CFL < 0.1) CFL = 0.1;
+		log(" CFL Number has been decreased : %f \n", CFL);
+	}
+}
+
+void FEM_DG_IMPLICIT::incCFL()
+{
+	if (CFL < maxCFL) {
+		CFL *= scaleCFL;
+		if (CFL > maxCFL) CFL = maxCFL;
+		log(" CFL Number has been increased : %f \n", CFL);
+	}
+}
+
+void FEM_DG_IMPLICIT::calcIntegral()
+{
+
+}
+
+void FEM_DG_IMPLICIT::calcMatrWithTau()
+{
+
+}
+
+void FEM_DG_IMPLICIT::calcMatrFlux()
+{
+
+}
+
+void FEM_DG_IMPLICIT::calcRHS()
+{
+
+}
+
 
 void FEM_DG_IMPLICIT::run()
 {
+	double __GAM = 1.4;
+	double t = 0.0;
+	int step = 0;
+	while (t < TMAX && step < STEP_MAX) {
+		long timeStart, timeEnd;
+		timeStart = clock();
+
+		if (STEADY) {
+			calcTimeStep();
+		}
+		else {
+			t + TAU;
+		}
+
+		int solverErr = 0;
+		solverMtx->zero();
+
+		/* Заполняем элементы матрицы */
+		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
+		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
+		calcMatrFlux();			// Вычисляем потоковые величины 
+
+
+		/* Заполняем правую часть */
+		calcRHS();				// Вычисляем столбец правых членов
+
+
+		/* Решаем СЛАУ */
+		int maxIter = 20;
+		const double eps = 1.0e-7;
+
+		solverErr = solverMtx->solve(eps, maxIter);
+
+		if (solverErr == MatrixSolver::RESULT_OK) {
+
+			//if (SMOOTHING) smoothingDelta(solverMtx->x);
+
+			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+			{
+				//if (cellIsLim(cellIndex))	continue;
+				for (int iFld = 0; iFld < 4; iFld++) {
+					for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
+						fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
+					}
+				}
+
+				Param par;
+				convertConsToPar(cellIndex, par);
+				if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+				if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+				if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+				if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+			}
+			remediateLimCells();
+			int limCells = getLimitedCellsCount();
+			if (STEADY && (limCells >= maxLimCells)) decCFL();
+
+			timeEnd = clock();
+
+			if (step % FILE_SAVE_STEP == 0)
+			{
+				save(step);
+			}
+			if (step % PRINT_STEP == 0)
+			{
+				//calcLiftForce();
+				if (!STEADY) {
+
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d \ttime: %d ms\n", step, t, maxIter, limCells, timeEnd - timeStart);
+				}
+				else {
+					log("step: %d\tmax iter: %d\tlim: %d ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
+				}
+			}
+
+			if (STEADY && (step % stepCFL == 0)) incCFL();
+		}
+		else {
+			if (STEADY) {
+				//decCFL();
+			}
+			else {
+				solverErr = 0;
+			}
+		}
+	}
 }
 
 
