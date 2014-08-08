@@ -72,7 +72,7 @@ private:
 	void calcAx(double **dst4, double c, double GAM, double u, double v, double H);
 	void calcAy(double **dst4, double c, double GAM, double u, double v, double H);
 
-	void consToPar(double fRO, double fRU, double fRV, double fRE, Param par);
+	void consToPar(double fRO, double fRU, double fRV, double fRE, Param& par);
 
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 	void boundaryCond(int iEdge, Param& pL, Param& pR);

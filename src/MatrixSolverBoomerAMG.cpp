@@ -165,7 +165,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 
 		/* Set some parameters (See Reference Manual for more parameters) */
 		HYPRE_BoomerAMGSetMaxIter(solver, maxIter);
-		HYPRE_BoomerAMGSetPrintLevel(solver, 0);  /* print solve info + parameters */
+		HYPRE_BoomerAMGSetPrintLevel(solver, 3);  /* print solve info + parameters */
 		HYPRE_BoomerAMGSetCoarsenType(solver, 6); /* Falgout coarsening */
 		HYPRE_BoomerAMGSetRelaxType(solver, 3);   /* G-S/Jacobi hybrid relaxation */
 		HYPRE_BoomerAMGSetNumSweeps(solver, 1);   /* Sweeeps on each level */

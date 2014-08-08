@@ -318,7 +318,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 			}
 		}
 
-		inverseMatr(A, invA, N);
+		//inverseMatr(A, invA, N);
 	}
 
 
@@ -351,27 +351,24 @@ void FEM_DG_IMPLICIT::memAlloc()
 	re = new double*[n];
 
 	cellGP = new Point*[n];
-	edgeGP = new Point*[n];
-
 	cellGW = new double*[n];
-	edgeGW = new double*[n];
-	cellJ  = new double[n];
-	edgeJ  = new double[n];
+	cellJ = new double[n];
+
+	edgeGW = new double*[grid.eCount];
+	edgeJ  = new double[grid.eCount];
+	edgeGP = new Point*[grid.eCount];
 
 	matrA		= new double**[n];
 	matrInvA	= new double**[n];
 
-	for (int i = 0; i < grid.cCount; i++) {
+	for (int i = 0; i < n; i++) {
 		ro[i] = new double[BASE_FUNC_COUNT];
 		ru[i] = new double[BASE_FUNC_COUNT];
 		rv[i] = new double[BASE_FUNC_COUNT];
 		re[i] = new double[BASE_FUNC_COUNT];
 
 		cellGP[i] = new Point[GP_CELL_COUNT];
-		edgeGP[i] = new Point[GP_EDGE_COUNT];
-
 		cellGW[i] = new double[GP_CELL_COUNT];
-		edgeGW[i] = new double[GP_EDGE_COUNT];
 
 		matrA[i]	= new double*[BASE_FUNC_COUNT];
 		matrInvA[i]	= new double*[BASE_FUNC_COUNT];
@@ -379,6 +376,11 @@ void FEM_DG_IMPLICIT::memAlloc()
 			matrA[i][j] = new double[BASE_FUNC_COUNT];
 			matrInvA[i][j] = new double[BASE_FUNC_COUNT];
 		}
+	}
+
+	for (int i = 0; i < grid.eCount; i++) {
+		edgeGP[i] = new Point[GP_EDGE_COUNT];
+		edgeGW[i] = new double[GP_EDGE_COUNT];
 	}
 
 	tmpArr = new double[n];
@@ -392,12 +394,16 @@ void FEM_DG_IMPLICIT::memAlloc()
 	fields[FIELD_RE] = re;
 
 	matrSmall = new double*[BASE_FUNC_COUNT];
+	matrSmall2 = new double*[BASE_FUNC_COUNT];
 	for (int i = 0; i < BASE_FUNC_COUNT; i++) {
 		matrSmall[i] = new double[BASE_FUNC_COUNT];
+		matrSmall2[i] = new double[BASE_FUNC_COUNT];
 	}
-	matrBig = new double*[BASE_FUNC_COUNT*4];
-	for (int i = 0; i < BASE_FUNC_COUNT*4; i++) {
-		matrSmall[i] = new double[BASE_FUNC_COUNT*4];
+	matrBig = new double*[BASE_FUNC_COUNT * 4];
+	matrBig2 = new double*[BASE_FUNC_COUNT * 4];
+	for (int i = 0; i < BASE_FUNC_COUNT * 4; i++) {
+		matrBig[i] = new double[BASE_FUNC_COUNT * 4];
+		matrBig2[i] = new double[BASE_FUNC_COUNT * 4];
 	}
 }
 
@@ -427,10 +433,14 @@ Material &	FEM_DG_IMPLICIT::getMaterial(int iCell)
 
 void FEM_DG_IMPLICIT::convertParToCons(int iCell, Param & par)
 {
-	//ro[iCell] = par.r;
-	//ru[iCell] = par.r*par.u;
-	//rv[iCell] = par.r*par.v;
-	//re[iCell] = par.r*(par.e + 0.5*(par.u*par.u + par.v*par.v));
+	memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+	memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+	memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+	memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+	ro[iCell][0] = par.r;
+	ru[iCell][0] = par.r*par.u;
+	rv[iCell][0] = par.r*par.v;
+	re[iCell][0] = par.r*(par.e + 0.5*(par.u*par.u + par.v*par.v));
 }
 
 void FEM_DG_IMPLICIT::convertConsToPar(int iCell, Param & par)
@@ -562,7 +572,9 @@ double FEM_DG_IMPLICIT::getDfDy(int id, int iCell, double x, double y)
 
 void FEM_DG_IMPLICIT::calcTimeStep()
 {
-
+	for (int i = 0; i < grid.cCount; i++) {
+		cTau[i] = TAU;
+	}
 }
 
 void FEM_DG_IMPLICIT::save(int step)
@@ -862,7 +874,7 @@ void FEM_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double 
 }
 
 
-void FEM_DG_IMPLICIT::consToPar(double fRO, double fRU, double fRV, double fRE, Param par)
+void FEM_DG_IMPLICIT::consToPar(double fRO, double fRU, double fRV, double fRE, Param& par)
 {
 	par.r = fRO;
 	par.u = fRU / fRO;
@@ -976,7 +988,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 	int mSize = BASE_FUNC_COUNT * 4;
 
-	for (int iEdge = 0; iEdge < grid.eCount; iEdge) {
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge& edge = grid.edges[iEdge];
 		Vector&	n = grid.edges[iEdge].n;
 		int c1 = edge.c1;
@@ -1120,13 +1132,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
 
-				fRO2 = getField(FIELD_RO, c2, p);
-				fRU2 = getField(FIELD_RU, c2, p);
-				fRV2 = getField(FIELD_RV, c2, p);
-				fRE2 = getField(FIELD_RE, c2, p);
-				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
-				Material& mat2 = getMaterial(c2);
-				mat2.URS(par2, 0); // p=p(r,e)
+				boundaryCond(iEdge, par1, par2);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1373,11 +1379,12 @@ void FEM_DG_IMPLICIT::run()
 		long timeStart, timeEnd;
 		timeStart = clock();
 
+		step++;
 		if (STEADY) {
 			calcTimeStep();
 		}
 		else {
-			t + TAU;
+			t += TAU;
 		}
 
 		int solverErr = 0;
