@@ -55,6 +55,30 @@ private:
 	void calcMatrFlux();		//!< Вычисляем потоковые величины 
 	void calcRHS();				//!< Вычисляем столбец правых членов
 
+	double** allocMtx4();
+	void freeMtx4(double **mtx4);
+	void multMtx4(double **dst4, double **srcA4, double **srcB4);
+	void clearMtx4(double **mtx4);
+
+
+	void eigenValues(double** dst4, double c, double u, double nx, double v, double ny);
+	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);
+	void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);
+	void calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
+	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
+	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);
+	void _calcA(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
+	void calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H);
+	void calcAx(double **dst4, double c, double GAM, double u, double v, double H);
+	void calcAy(double **dst4, double c, double GAM, double u, double v, double H);
+
+	void consToPar(double fRO, double fRU, double fRV, double fRE, Param par);
+
+	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
+	void boundaryCond(int iEdge, Param& pL, Param& pR);
+
+	void addSmallMatrToBigMatr(double **mB, double **mS, int i, int j);
+
 private:
 	double			TMAX;
 	int				STEP_MAX;
@@ -92,6 +116,8 @@ private:
 	double			***fields;
 
 	double			*tmpArr;
+	double			*tmpArr1;
+	double			*tmpArr2;
 	int				*tmpArrInt;
 
 	//! градиенты.
@@ -127,11 +153,16 @@ private:
 
 	MatrixSolver	*solverMtx;
 
+	double			**matrBig;
+	double			**matrSmall;
+	double			**matrBig2;
+	double			**matrSmall2;
+
 protected:
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
 
-	const static int BASE_FUNC_COUNT = 3;
+	const static int BASE_FUNC_COUNT = 6;
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
 
@@ -139,5 +170,7 @@ protected:
 	const static int FIELD_RU = 1;
 	const static int FIELD_RV = 2;
 	const static int FIELD_RE = 3;
+
+	double getGAM(int iCell) { return 1.4; } // TODO: сделать
 };
 

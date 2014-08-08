@@ -2,6 +2,7 @@
 #include <method.h>
 #include <fvm_tvd.h>
 #include <fvm_tvd_implicit.h>
+#include <fem_dg_implicit.h>
 #include <decomp.h>
 #include "tinyxml.h"
 #include <string.h>
@@ -39,6 +40,10 @@ Method* Solver::initMethod(char* fileName)
 	else if (strcmp("FVM_TVD_IMPLICIT", methodName) == 0)
 	{
 		m = new FVM_TVD_IMPLICIT();
+	}
+	else if (strcmp("FEM_DG_IMPLICIT", methodName) == 0)
+	{
+		m = new FEM_DG_IMPLICIT();
 	}
 	else
 	{

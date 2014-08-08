@@ -381,11 +381,24 @@ void FEM_DG_IMPLICIT::memAlloc()
 		}
 	}
 
+	tmpArr = new double[n];
+	tmpArr1 = new double[n];
+	tmpArr2 = new double[n];
+
 	fields = new double**[4];
 	fields[FIELD_RO] = ro;
 	fields[FIELD_RU] = ru;
 	fields[FIELD_RV] = rv;
 	fields[FIELD_RE] = re;
+
+	matrSmall = new double*[BASE_FUNC_COUNT];
+	for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+		matrSmall[i] = new double[BASE_FUNC_COUNT];
+	}
+	matrBig = new double*[BASE_FUNC_COUNT*4];
+	for (int i = 0; i < BASE_FUNC_COUNT*4; i++) {
+		matrSmall[i] = new double[BASE_FUNC_COUNT*4];
+	}
 }
 
 
@@ -692,24 +705,662 @@ void FEM_DG_IMPLICIT::incCFL()
 	}
 }
 
-void FEM_DG_IMPLICIT::calcIntegral()
+double **FEM_DG_IMPLICIT::allocMtx4()
 {
+	double		**tempMtx4 = new double*[4];
+	for (int i = 0; i < 4; ++i) tempMtx4[i] = new double[4];
+	return tempMtx4;
+}
+void   FEM_DG_IMPLICIT::freeMtx4(double **mtx4)
+{
+	for (int i = 0; i < 4; ++i)
+		delete[] mtx4[i];
+	delete[] mtx4;
+}
+void FEM_DG_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
+{
+	double sum;
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			sum = 0;
+			for (int k = 0; k < 4; ++k)
+				sum += srcA4[i][k] * srcB4[k][j];
+			dst4[i][j] = sum;
+		}
+	}
+}
+void FEM_DG_IMPLICIT::clearMtx4(double **mtx4)
+{
+	for (int i = 0; i < 4; ++i)
+	for (int j = 0; j < 4; ++j)
+		mtx4[i][j] = 0;
+}
 
+
+void FEM_DG_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
+{
+	clearMtx4(dst4);
+	double qn = u*nx + v*ny;
+	dst4[0][0] = qn - c;
+	dst4[1][1] = qn;
+	dst4[2][2] = qn + c;
+	dst4[3][3] = qn;
+}
+void FEM_DG_IMPLICIT::rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H)
+{
+	double qn = u*nx + v*ny;
+	double q2 = u*u + v*v;
+	double lx = -ny;
+	double ly = nx;
+	double ql = u*lx + v*ly;
+	dst4[0][0] = 1.0;			dst4[0][1] = 1.0;		dst4[0][2] = 1.0;			dst4[0][3] = 0.0;
+	dst4[1][0] = u - c*nx;	dst4[1][1] = u;		dst4[1][2] = u + c*nx;	dst4[1][3] = lx;
+	dst4[2][0] = v - c*ny;	dst4[2][1] = v;		dst4[2][2] = v + c*ny;	dst4[2][3] = ly;
+	dst4[3][0] = H - qn*c;	dst4[3][1] = q2 / 2;	dst4[3][2] = H + qn*c;	dst4[3][3] = ql;
+}
+void FEM_DG_IMPLICIT::leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny)
+{
+	double qn = u*nx + v*ny;
+	double q2 = u*u + v*v;
+	double lx = -ny;
+	double ly = nx;
+	double ql = u*lx + v*ly;
+	double g1 = GAM - 1.0;
+	double c2 = c*c;
+	dst4[0][0] = 0.5*(0.5*q2*g1 / c2 + qn / c);	dst4[0][1] = -0.5*(g1*u / c2 + nx / c);	dst4[0][2] = -0.5*(g1*v / c2 + ny / c);	dst4[0][3] = 0.5*g1 / c2;
+	dst4[1][0] = 1 - 0.5*q2*g1 / c2;			dst4[1][1] = g1*u / c2;				dst4[1][2] = g1*v / c2;				dst4[1][3] = -g1 / c2;
+	dst4[2][0] = 0.5*(0.5*q2*g1 / c2 - qn / c);	dst4[2][1] = -0.5*(g1*u / c2 - nx / c);	dst4[2][2] = -0.5*(g1*v / c2 - ny / c);	dst4[2][3] = 0.5*g1 / c2;
+	dst4[3][0] = -ql;						dst4[3][1] = lx;					dst4[3][2] = ly;					dst4[3][3] = 0;
+}
+
+void FEM_DG_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+	double		**tempMtx4 = allocMtx4();
+
+	//egnVal4 +.
+	for (int i = 0; i < 4; ++i)
+	for (int j = 0; j < 4; ++j)
+		dst4[i][j] = egnVal4[i][j] > 0 ? egnVal4[i][j] : 0;
+
+	multMtx4(tempMtx4, rightEgnVecl4, dst4);
+	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	freeMtx4(tempMtx4);
+}
+void FEM_DG_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+	double		**tempMtx4 = allocMtx4();
+
+	//egnVal4 -.
+	for (int i = 0; i < 4; ++i)
+	for (int j = 0; j < 4; ++j)
+		dst4[i][j] = egnVal4[i][j] < 0 ? egnVal4[i][j] : 0;
+
+	multMtx4(tempMtx4, rightEgnVecl4, dst4);
+	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	freeMtx4(tempMtx4);
+}
+
+void FEM_DG_IMPLICIT::_calcA(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+	double		**tempMtx4 = allocMtx4();
+
+	multMtx4(tempMtx4, rightEgnVecl4, egnVal4);
+	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	freeMtx4(tempMtx4);
+}
+
+void FEM_DG_IMPLICIT::calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H)
+{
+	double **rightEgnVecl4 = allocMtx4();
+	double **egnVal4 = allocMtx4();
+	double **leftEgnVecl4 = allocMtx4();
+
+	eigenValues(egnVal4, c, u, nx, v, ny);
+	rightEigenVector(rightEgnVecl4, c, u, nx, v, ny, H);
+	leftEigenVector(leftEgnVecl4, c, GAM, u, nx, v, ny);
+	_calcA(dst4, rightEgnVecl4, egnVal4, leftEgnVecl4);
+
+
+	freeMtx4(rightEgnVecl4);
+	freeMtx4(egnVal4);
+	freeMtx4(leftEgnVecl4);
+}
+
+void FEM_DG_IMPLICIT::calcAx(double **dst4, double c, double GAM, double u, double v, double H)
+{
+	calcA(dst4, c, GAM, u, 1.0, v, 0.0, H);
+}
+
+void FEM_DG_IMPLICIT::calcAy(double **dst4, double c, double GAM, double u, double v, double H)
+{
+	calcA(dst4, c, GAM, u, 0.0, v, 1.0, H);
+}
+
+void FEM_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
+{
+	double WI, UN, UT;
+	//double unl = pL.u*n.x+pL.v*n.y;
+	//double unr = pR.u*n.x+pR.v*n.y;
+	//double utl = pL.u*n.y-pL.v*n.x;
+	//double utr = pR.u*n.y-pR.v*n.x;
+	//rim_orig(average.r, average.e, average.p, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+	//	
+	//double UI = UN*n.x+UT*n.y;
+	//double VI = UN*n.y-UT*n.x;
+
+	//average.u = UI;
+	//average.v = VI;
+
+	roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
+		pL.r, pL.p, pL.u, pL.v, 0.0,
+		pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
+
+	average.cz = sqrt(GAM*average.p / average.r);
+	average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
+}
+
+
+void FEM_DG_IMPLICIT::consToPar(double fRO, double fRU, double fRV, double fRE, Param par)
+{
+	par.r = fRO;
+	par.u = fRU / fRO;
+	par.v = fRV / fRO;
+	par.E = fRE / fRO;
+	par.e = par.E - par.U2()*0.5;
 }
 
 void FEM_DG_IMPLICIT::calcMatrWithTau()
 {
+	int bSz = BASE_FUNC_COUNT * 4;
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+		for (int i = 0; i < bSz; i++) {
+			for (int j = 0; j < bSz; j++) {
+				matrBig[i][j] = 0.0;
+			}
+		}
+
+
+		for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+			for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+				matrSmall[i][j] = matrA[iCell][i][j] / cTau[iCell];
+			}
+		}
+
+		for (int ii = 0; ii < 3; ii++) {
+			addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
+		}
+
+		solverMtx->addMatrElement(iCell, iCell, matrBig);
+
+	}
+}
+
+void FEM_DG_IMPLICIT::calcIntegral()
+{
+	double fRO, fRU, fRV, fRE;
+	double FR, FU, FV, FE;
+	double **mx = allocMtx4();
+	double **my = allocMtx4();
+
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		
+		for (int i = 0; i < 4 * BASE_FUNC_COUNT; i++) {
+			for (int j = 0; j < 4 * BASE_FUNC_COUNT; j++) {
+				matrBig[i][j] = 0.0;
+			}
+		}
+		
+		for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+			Point& p = cellGP[iCell][iGP];
+			double w = cellGW[iCell][iGP];
+			fRO = getField(FIELD_RO, iCell, p);
+			fRU = getField(FIELD_RU, iCell, p);
+			fRV = getField(FIELD_RV, iCell, p);
+			fRE = getField(FIELD_RE, iCell, p);
+			Param par;
+			consToPar(fRO, fRU, fRV, fRE, par);
+			Material& mat = getMaterial(iCell);
+			mat.URS(par, 0); // p=p(r,e)
+			double H = par.E + par.p / par.r;
+			calcA(mx, par.cz, getGAM(iCell), par.u, 1.0, par.v, 0.0, H);
+			calcA(my, par.cz, getGAM(iCell), par.u, 0.0, par.v, 1.0, H);
+
+			for (int i = 0; i < 4; i++) {
+				for (int j = 0; j < 4; j++) {
+					for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+						for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+							matrSmall[ii][jj] =  mx[i][j] * getDfDx(jj, iCell, p);
+							matrSmall[ii][jj] += my[i][j] * getDfDy(jj, iCell, p);
+							matrSmall[ii][jj] *= getF(ii, iCell, p);
+							matrSmall[ii][jj] *= w;
+						}
+					}
+					addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+				}
+			}
+
+		}
+
+		for (int i = 0; i < 4*BASE_FUNC_COUNT; i++) {
+			for (int j = 0; j < 4 * BASE_FUNC_COUNT; j++) {
+				matrBig[i][j] *= cellJ[iCell];
+			}
+		}
+
+		solverMtx->addMatrElement(iCell, iCell, matrBig);
+	}
+
+	freeMtx4(mx);
+	freeMtx4(my);
 
 }
 
 void FEM_DG_IMPLICIT::calcMatrFlux()
 {
+	double **eigenMtx4, **rEigenVector4, **lEigenVector4;
+	double **Amtx4P, **Amtx4M, **mtx4;
+	
+	mtx4 = allocMtx4();
+	eigenMtx4 = allocMtx4();
+	rEigenVector4 = allocMtx4();
+	lEigenVector4 = allocMtx4();
+	Amtx4P = allocMtx4();
+	Amtx4M = allocMtx4();
 
+
+	double fRO1, fRU1, fRV1, fRE1, fRO2, fRU2, fRV2, fRE2;
+	Param par1, par2;
+
+	int mSize = BASE_FUNC_COUNT * 4;
+
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge) {
+		Edge& edge = grid.edges[iEdge];
+		Vector&	n = grid.edges[iEdge].n;
+		int c1 = edge.c1;
+		int c2 = edge.c2;
+		if (c2 >= 0) {
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j] = 0.0;
+				}
+			}
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+				Point& p = edgeGP[iEdge][iGP];
+				double w = edgeGW[iEdge][iGP];
+				fRO1 = getField(FIELD_RO, c1, p);
+				fRU1 = getField(FIELD_RU, c1, p);
+				fRV1 = getField(FIELD_RV, c1, p);
+				fRE1 = getField(FIELD_RE, c1, p);
+				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+				Material& mat1 = getMaterial(c1);
+				mat1.URS(par1, 0); // p=p(r,e)
+				
+				fRO2 = getField(FIELD_RO, c2, p);
+				fRU2 = getField(FIELD_RU, c2, p);
+				fRV2 = getField(FIELD_RV, c2, p);
+				fRE2 = getField(FIELD_RE, c2, p);
+				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+				Material& mat2 = getMaterial(c2);
+				mat2.URS(par2, 0); // p=p(r,e)
+
+				Param average;
+				calcRoeAverage(average, par1, par2, getGAM(c1), n);
+				double H = average.E + average.p / average.r;
+
+				eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+				rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+				for (int i = 0; i < 4; i++) {
+					for (int j = 0; j < 4; j++) {
+						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c2, p) * getF(jj, c1, p) * w;
+							}
+						}
+						addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
+						addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+					}
+				}
+
+			}
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j]  *= edgeJ[iEdge];
+					matrBig2[i][j] *= edgeJ[iEdge];
+				}
+			}
+
+			solverMtx->addMatrElement(c1, c1, matrBig);
+			solverMtx->addMatrElement(c1, c2, matrBig2);
+
+
+
+
+
+
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j] = 0.0;
+				}
+			}
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+				Point& p = edgeGP[iEdge][iGP];
+				double w = edgeGW[iEdge][iGP];
+				fRO1 = getField(FIELD_RO, c1, p);
+				fRU1 = getField(FIELD_RU, c1, p);
+				fRV1 = getField(FIELD_RV, c1, p);
+				fRE1 = getField(FIELD_RE, c1, p);
+				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+				Material& mat1 = getMaterial(c1);
+				mat1.URS(par1, 0); // p=p(r,e)
+
+				fRO2 = getField(FIELD_RO, c2, p);
+				fRU2 = getField(FIELD_RU, c2, p);
+				fRV2 = getField(FIELD_RV, c2, p);
+				fRE2 = getField(FIELD_RE, c2, p);
+				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+				Material& mat2 = getMaterial(c2);
+				mat2.URS(par2, 0); // p=p(r,e)
+
+				Param average;
+				calcRoeAverage(average, par1, par2, getGAM(c1), n);
+				double H = average.E + average.p / average.r;
+
+				eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
+				rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
+				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, -n.x, average.v, -n.y);
+				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+				for (int i = 0; i < 4; i++) {
+					for (int j = 0; j < 4; j++) {
+						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+								matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c2, p) * getF(jj, c2, p) * w;
+								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c1, p) * getF(jj, c2, p) * w;
+							}
+						}
+						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+						addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+					}
+				}
+
+			}
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j] *= edgeJ[iEdge];
+					matrBig2[i][j] *= edgeJ[iEdge];
+				}
+			}
+
+			solverMtx->addMatrElement(c2, c2, matrBig);
+			solverMtx->addMatrElement(c2, c1, matrBig2);
+
+		}
+		else {
+
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j] = 0.0;
+				}
+			}
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+				Point& p = edgeGP[iEdge][iGP];
+				double w = edgeGW[iEdge][iGP];
+				fRO1 = getField(FIELD_RO, c1, p);
+				fRU1 = getField(FIELD_RU, c1, p);
+				fRV1 = getField(FIELD_RV, c1, p);
+				fRE1 = getField(FIELD_RE, c1, p);
+				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+				Material& mat1 = getMaterial(c1);
+				mat1.URS(par1, 0); // p=p(r,e)
+
+				fRO2 = getField(FIELD_RO, c2, p);
+				fRU2 = getField(FIELD_RU, c2, p);
+				fRV2 = getField(FIELD_RV, c2, p);
+				fRE2 = getField(FIELD_RE, c2, p);
+				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+				Material& mat2 = getMaterial(c2);
+				mat2.URS(par2, 0); // p=p(r,e)
+
+				Param average;
+				calcRoeAverage(average, par1, par2, getGAM(c1), n);
+				double H = average.E + average.p / average.r;
+
+				eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+				rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+				for (int i = 0; i < 4; i++) {
+					for (int j = 0; j < 4; j++) {
+						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+								matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+							}
+						}
+						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+					}
+				}
+
+			}
+			for (int i = 0; i < mSize; i++) {
+				for (int j = 0; j < mSize; j++) {
+					matrBig[i][j] *= edgeJ[iEdge];
+				}
+			}
+
+			solverMtx->addMatrElement(c1, c1, matrBig);
+
+		}
+	}
+	freeMtx4(eigenMtx4);
+	freeMtx4(rEigenVector4);
+	freeMtx4(lEigenVector4);
+	freeMtx4(Amtx4P);
+	freeMtx4(Amtx4M);
+	freeMtx4(mtx4);
 }
 
 void FEM_DG_IMPLICIT::calcRHS()
 {
+	/* volume integral */
 
+	const int arrSize = BASE_FUNC_COUNT * 4;
+
+
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		memset(tmpArr, 0, sizeof(double)*arrSize);
+		for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+			double sRO = 0.0;
+			double sRU = 0.0;
+			double sRV = 0.0;
+			double sRE = 0.0;
+			for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+				Point& p = cellGP[iCell][iGP];
+				double w = cellGW[iCell][iGP];
+
+				double fRO = getField(FIELD_RO, iCell, p);
+				double fRU = getField(FIELD_RU, iCell, p);
+				double fRV = getField(FIELD_RV, iCell, p);
+				double fRE = getField(FIELD_RE, iCell, p);
+				Param par;
+				consToPar(fRO, fRU, fRV, fRE, par);
+				Material& mat = getMaterial(iCell);
+				mat.URS(par, 0); // p=p(r,e)
+
+				double FR = par.r*par.u;
+				double FU = FR*par.u + par.p;
+				double FV = FR*par.v;
+				double FE = (fRE + par.p)*par.u;
+
+				double GR = par.r*par.v;
+				double GU = GR*par.u;
+				double GV = GR*par.v + par.p;
+				double GE = (fRE + par.p)*par.v;
+
+				double dFdx = getDfDx(iBF, iCell, p);
+				double dFdy = getDfDx(iBF, iCell, p);
+
+				sRO += w*(FR*dFdx + GR*dFdy);
+				sRU += w*(FU*dFdx + GU*dFdy);
+				sRV += w*(FV*dFdx + GV*dFdy);
+				sRE += w*(FE*dFdx + GE*dFdy);
+			}
+			sRO *= cellJ[iCell];
+			sRU *= cellJ[iCell];
+			sRV *= cellJ[iCell];
+			sRE *= cellJ[iCell];
+			
+			int shift = 0;
+			tmpArr[shift + iBF] = sRO; shift += BASE_FUNC_COUNT;
+			tmpArr[shift + iBF] = sRU; shift += BASE_FUNC_COUNT;
+			tmpArr[shift + iBF] = sRV; shift += BASE_FUNC_COUNT;
+			tmpArr[shift + iBF] = sRE; //shift += BASE_FUNC_COUNT;
+		}
+
+		solverMtx->addRightElement(iCell, tmpArr);
+	}
+
+	/* surf integral */
+
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+		memset(tmpArr1, 0, sizeof(double)*arrSize);
+		memset(tmpArr2, 0, sizeof(double)*arrSize);
+
+		int c1 = grid.edges[iEdge].c1;
+		int c2 = grid.edges[iEdge].c2;
+		if (c2 >= 0) {
+			for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+				double sRO1 = 0.0;
+				double sRU1 = 0.0;
+				double sRV1 = 0.0;
+				double sRE1 = 0.0;
+				double sRO2 = 0.0;
+				double sRU2 = 0.0;
+				double sRV2 = 0.0;
+				double sRE2 = 0.0;
+				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+					double fRO, fRU, fRV, fRE;
+					double FR, FU, FV, FE;
+
+					Point& p = edgeGP[iEdge][iGP];
+					double w = edgeGW[iEdge][iGP];
+
+					fRO = getField(FIELD_RO, c1, p);
+					fRU = getField(FIELD_RU, c1, p);
+					fRV = getField(FIELD_RV, c1, p);
+					fRE = getField(FIELD_RE, c1, p);
+					Param par1;
+					consToPar(fRO, fRU, fRV, fRE, par1);
+					Material& mat1 = getMaterial(c1);
+					mat1.URS(par1, 0); // p=p(r,e)
+
+					fRO = getField(FIELD_RO, c2, p);
+					fRU = getField(FIELD_RU, c2, p);
+					fRV = getField(FIELD_RV, c2, p);
+					fRE = getField(FIELD_RE, c2, p);
+					Param par2;
+					consToPar(fRO, fRU, fRV, fRE, par2);
+					Material& mat2 = getMaterial(c2);
+					mat2.URS(par2, 0); // p=p(r,e)
+
+					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
+					
+					double cGP1 = w * getF(iBF, c1, p);
+					double cGP2 = w * getF(iBF, c2, p);
+
+					sRO1 += FR*cGP1;
+					sRU1 += FU*cGP1;
+					sRV1 += FV*cGP1;
+					sRE1 += FE*cGP1;
+
+					sRO2 += FR*cGP2;
+					sRU2 += FU*cGP2;
+					sRV2 += FV*cGP2;
+					sRE2 += FE*cGP2;
+				}
+
+				sRO1 *= edgeJ[iEdge];
+				sRU1 *= edgeJ[iEdge];
+				sRV1 *= edgeJ[iEdge];
+				sRE1 *= edgeJ[iEdge];
+
+				int shift = 0;
+				tmpArr1[shift + iBF] = -sRO1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRU1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRV1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRE1; //shift += BASE_FUNC_COUNT;
+
+				sRO2 *= edgeJ[iEdge];
+				sRU2 *= edgeJ[iEdge];
+				sRV2 *= edgeJ[iEdge];
+				sRE2 *= edgeJ[iEdge];
+
+				shift = 0;
+				tmpArr2[shift + iBF] = sRO2; shift += BASE_FUNC_COUNT;
+				tmpArr2[shift + iBF] = sRU2; shift += BASE_FUNC_COUNT;
+				tmpArr2[shift + iBF] = sRV2; shift += BASE_FUNC_COUNT;
+				tmpArr2[shift + iBF] = sRE2; //shift += BASE_FUNC_COUNT;
+			}
+			solverMtx->addRightElement(c1, tmpArr1);
+			solverMtx->addRightElement(c2, tmpArr2);
+		}
+		else {
+			for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+				double sRO1 = 0.0;
+				double sRU1 = 0.0;
+				double sRV1 = 0.0;
+				double sRE1 = 0.0;
+				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+					double fRO, fRU, fRV, fRE;
+					double FR, FU, FV, FE;
+
+					Point& p = edgeGP[iEdge][iGP];
+					double w = edgeGW[iEdge][iGP];
+
+					fRO = getField(FIELD_RO, c1, p);
+					fRU = getField(FIELD_RU, c1, p);
+					fRV = getField(FIELD_RV, c1, p);
+					fRE = getField(FIELD_RE, c1, p);
+					Param par1;
+					consToPar(fRO, fRU, fRV, fRE, par1);
+					Material& mat = getMaterial(c1);
+					mat.URS(par1, 0); // p=p(r,e)
+					
+					Param par2;
+					boundaryCond(iEdge, par1, par2);
+
+					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
+
+					double cGP1 = w * getF(iBF, c1, p);
+
+					sRO1 += FR*cGP1;
+					sRU1 += FU*cGP1;
+					sRV1 += FV*cGP1;
+					sRE1 += FE*cGP1;
+
+				}
+
+				sRO1 *= edgeJ[iEdge];
+				sRU1 *= edgeJ[iEdge];
+				sRV1 *= edgeJ[iEdge];
+				sRE1 *= edgeJ[iEdge];
+
+				int shift = 0;
+				tmpArr1[shift + iBF] = -sRO1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRU1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRV1; shift += BASE_FUNC_COUNT;
+				tmpArr1[shift + iBF] = -sRE1; //shift += BASE_FUNC_COUNT;
+
+			}
+			solverMtx->addRightElement(c1, tmpArr1);
+		}
+	}
 }
 
 
@@ -806,6 +1457,110 @@ void FEM_DG_IMPLICIT::run()
 	}
 }
 
+void FEM_DG_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
+{
+	if (FLUX == FLUX_GODUNOV) {	// GODUNOV FLUX
+		double RI, EI, PI, UI, VI, WI, UN, UT;
+		//double unl = pL.u*n.x+pL.v*n.y;
+		//double unr = pR.u*n.x+pR.v*n.y;
+		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+
+		double unl = pL.u*n.x + pL.v*n.y;
+		double unr = pR.u*n.x + pR.v*n.y;
+		double utl = pL.u*n.y - pL.v*n.x;
+		double utr = pR.u*n.y - pR.v*n.x;
+		rim_orig(RI, EI, PI, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+
+		UI = UN*n.x + UT*n.y;
+		VI = UN*n.y - UT*n.x;
+
+		fr = RI*UN;
+		fu = fr*UI + PI*n.x;
+		fv = fr*VI + PI*n.y;
+		fe = (RI*(EI + 0.5*(UI*UI + VI*VI)) + PI)*UN;
+	}
+	if (FLUX == FLUX_LAX) {	// LAX-FRIEDRIX FLUX
+		double unl = pL.u*n.x + pL.v*n.y;
+		double unr = pR.u*n.x + pR.v*n.y;
+		double rol, rul, rvl, rel, ror, rur, rvr, rer;
+		double alpha = _max_(fabs(unl) + sqrt(GAM*pL.p / pL.r), fabs(unr) + sqrt(GAM*pR.p / pR.r));
+		//pL.getToCons(rol, rul, rvl, rel);
+		//pR.getToCons(ror, rur, rvr, rer);
+		rol = pL.r;
+		rul = pL.r*pL.u;
+		rvl = pL.r*pL.v;
+		rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+		ror = pR.r;
+		rur = pR.r*pR.u;
+		rvr = pR.r*pR.v;
+		rer = pR.p / (GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
+		double frl = rol*unl;
+		double frr = ror*unr;
+		fr = 0.5*(frr + frl - alpha*(ror - rol));
+		fu = 0.5*(frr*pR.u + frl*pL.u + (pR.p + pL.p)*n.x - alpha*(rur - rul));
+		fv = 0.5*(frr*pR.v + frl*pL.v + (pR.p + pL.p)*n.y - alpha*(rvr - rvl));
+		fe = 0.5*((rer + pR.p)*unr + (rel + pL.p)*unl - alpha*(rer - rel));
+	}
+}
+
+void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
+{
+	int iBound = -1;
+	for (int i = 0; i < bCount; i++)
+	{
+		if (grid.edges[iEdge].type == boundaries[i].edgeType)
+		{
+			iBound = i;
+			break;
+		}
+	}
+	if (iBound < 0)
+	{
+		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+		EXIT(1);
+	}
+	Boundary& b = boundaries[iBound];
+	int c1 = grid.edges[iEdge].c1;
+	Material& m = getMaterial(c1);
+	switch (b.type)
+	{
+	case Boundary::BOUND_INLET:
+		pR.T = b.par[0];		//!< температура
+		pR.p = b.par[1];		//!< давление
+		pR.u = b.par[2];		//!< первая компонента вектора скорости
+		pR.v = b.par[3];		//!< вторая компонента вектора скорости
+
+		m.URS(pR, 2);
+		m.URS(pR, 1);
+		break;
+
+	case Boundary::BOUND_OUTLET:
+		pR = pL;
+		break;
+
+	case Boundary::BOUND_WALL:
+		pR = pL;
+		double Un = pL.u*grid.edges[iEdge].n.x + pL.v*grid.edges[iEdge].n.y;
+		Vector V;
+		V.x = grid.edges[iEdge].n.x*Un*2.0;
+		V.y = grid.edges[iEdge].n.y*Un*2.0;
+		pR.u = pL.u - V.x;
+		pR.v = pL.v - V.y;
+		break;
+	}
+}
+
+void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int j)
+{
+
+	int ii = i * 4;
+	int jj = j * 4;
+	for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
+		for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
+			mB[ii + i1][jj + j1] = mB[ii + i1][jj + j1] + mS[i1][j1];
+		}
+	}
+}
 
 void FEM_DG_IMPLICIT::done()
 {

@@ -132,6 +132,7 @@ struct Param
 	double T;		//!< температура
 	double ML;		//!< динамическая вязкость
 	
+	inline double U2() { return  u*u + v*v; }
 };
 
 /**
