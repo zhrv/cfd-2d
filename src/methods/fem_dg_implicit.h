@@ -162,7 +162,7 @@ protected:
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
 
-	const static int BASE_FUNC_COUNT = 6;
+	const static int BASE_FUNC_COUNT = 3;
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
 

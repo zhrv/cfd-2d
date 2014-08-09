@@ -29,7 +29,7 @@ public:
 
 	virtual int solve(double eps, int& maxIter) = 0;
 
-	void printToFile(const char* fileName);
+	virtual void printToFile(const char* fileName);
 
 	CSRMatrix	*a;
 	int			 blockDim;
@@ -76,6 +76,8 @@ public:
 	virtual void addMatrElement(int i, int j, double** matrDim);
 	virtual void addRightElement(int i, double* vectDim);
 	virtual void createMatrElement(int i, int j);
+
+	virtual void printToFile(const char* fileName);
 protected:
 	void initMatrVectors();
 

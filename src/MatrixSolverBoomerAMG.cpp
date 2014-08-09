@@ -149,6 +149,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 	HYPRE_IJVectorGetObject(bb, (void **)&par_bb);
 	HYPRE_IJVectorGetObject(xx, (void **)&par_xx);
 
+	//printToFile("matr.txt");
 
 
 
@@ -399,4 +400,34 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 
 
 	return MatrixSolver::RESULT_OK;
+}
+
+
+void SolverHYPREBoomerAMG::printToFile(const char* fileName)
+{
+	int n = local_size;
+	int nc = 1;
+	double * x = new double[n];
+	int * cols = new int[n];
+	FILE * fp = fopen(fileName, "w");
+	for (int i = 0; i < n; i++) {
+		cols[i] = ilower + i;
+	}
+	 
+	for (int row = 0; row < n; row++) {
+		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, &row, x);
+		for (int i = 0; i < nc; i++) {
+			fprintf(fp, "%25.16e  ", x[i]);
+		}
+		fprintf(fp, "\n");
+	}
+	fprintf(fp, "\n\n=============================================================================================\n\n\n");
+	HYPRE_IJVectorGetValues(xx, local_size, cols, x);
+	for (int i = 0; i < n; i++) {
+		fprintf(fp, "%25.16e  ", x[i]);
+	}
+	
+	fclose(fp);
+	delete[] x;
+	delete[] cols;
 }

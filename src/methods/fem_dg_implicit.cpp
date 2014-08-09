@@ -178,70 +178,70 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	// для ячеек
 	for (int i = 0; i < grid.cCount; i++) {
 
-		double a = 1.0 / 3.0;
-		double b = 1.0 / 5.0;
-		double c = 3.0 / 5.0;
+		//double a = 1.0 / 3.0;
+		//double b = 1.0 / 5.0;
+		//double c = 3.0 / 5.0;
+		//double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+		//double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+		//double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+		//double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+		//double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+		//double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+		//double a1 = x1 - x3;
+		//double a2 = y1 - y3;
+		//double b1 = x2 - x3;
+		//double b2 = y2 - y3;
+		//double c1 = x3;
+		//double c2 = y3;
+
+		//cellGW[i][0] = -27.0 / 48.0;
+		//cellGP[i][0].x = a1*a + b1*a + c1;
+		//cellGP[i][0].y = a2*a + b2*a + c2;
+
+		//cellGW[i][1] = 25.0 / 48.0;
+		//cellGP[i][1].x = a1*c + b1*b + c1;
+		//cellGP[i][1].y = a2*c + b2*b + c2;
+
+		//cellGW[i][2] = 25.0 / 48.0;
+		//cellGP[i][2].x = a1*b + b1*c + c1;
+		//cellGP[i][2].y = a2*b + b2*c + c2;
+
+		//cellGW[i][3] = 25.0 / 48.0;
+		//cellGP[i][3].x = a1*b + b1*b + c1;
+		//cellGP[i][3].y = a2*b + b2*b + c2;
+
+
+		//cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
+
+
+		double a = 1.0/6.0;
+		double b = 2.0/3.0;
 		double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
 		double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
 		double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
 		double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
 		double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
 		double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
-		double a1 = x1 - x3;
-		double a2 = y1 - y3;
-		double b1 = x2 - x3;
-		double b2 = y2 - y3;
+		double a1 = x1-x3;
+		double a2 = y1-y3;
+		double b1 = x2-x3;
+		double b2 = y2-y3;
 		double c1 = x3;
 		double c2 = y3;
 
-		cellGW[i][0] = -27.0 / 48.0;
-		cellGP[i][0].x = a1*a + b1*a + c1;
-		cellGP[i][0].y = a2*a + b2*a + c2;
+		cellGW[i][0] = 1.0/6.0; 
+		cellGP[i][0].x = a1*a+b1*a+c1;
+		cellGP[i][0].y = a2*a+b2*a+c2;
 
-		cellGW[i][1] = 25.0 / 48.0;
-		cellGP[i][1].x = a1*c + b1*b + c1;
-		cellGP[i][1].y = a2*c + b2*b + c2;
+		cellGW[i][1] = 1.0 / 6.0;
+		cellGP[i][1].x = a1*a+b1*b+c1;
+		cellGP[i][1].y = a2*a+b2*b+c2;
 
-		cellGW[i][2] = 25.0 / 48.0;
-		cellGP[i][2].x = a1*b + b1*c + c1;
-		cellGP[i][2].y = a2*b + b2*c + c2;
+		cellGW[i][2] = 1.0 / 6.0;
+		cellGP[i][2].x = a1*b+b1*a+c1;
+		cellGP[i][2].y = a2*b+b2*a+c2;
 
-		cellGW[i][3] = 25.0 / 48.0;
-		cellGP[i][3].x = a1*b + b1*b + c1;
-		cellGP[i][3].y = a2*b + b2*b + c2;
-
-
-		cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
-
-
-		//double a = 1.0/6.0;
-		//double b = 2.0/3.0;
-		//double x1 = nodes[cellNodes[iCell][0]].x;
-		//double y1 = nodes[cellNodes[iCell][0]].y;
-		//double x2 = nodes[cellNodes[iCell][1]].x;
-		//double y2 = nodes[cellNodes[iCell][1]].y;
-		//double x3 = nodes[cellNodes[iCell][2]].x;
-		//double y3 = nodes[cellNodes[iCell][2]].y;
-		//double a1 = x1-x3;
-		//double a2 = y1-y3;
-		//double b1 = x2-x3;
-		//double b2 = y2-y3;
-		//double c1 = x3;
-		//double c2 = y3;
-
-		//cellWGP[0] = 1.0/6.0; 
-		//cellGP[iCell][0].x = a1*a+b1*a+c1;
-		//cellGP[iCell][0].y = a2*a+b2*a+c2;
-
-		//cellWGP[1] = 1.0/6.0; 
-		//cellGP[iCell][1].x = a1*a+b1*b+c1;
-		//cellGP[iCell][1].y = a2*a+b2*b+c2;
-
-		//cellWGP[2] = 1.0/6.0; 
-		//cellGP[iCell][2].x = a1*b+b1*a+c1;
-		//cellGP[iCell][2].y = a2*b+b2*a+c2;
-
-		//cellJ[iCell] = a1*b2-a2*b1;
+		cellJ[i] = a1*b2-a2*b1;
 
 
 		//double a = 0.5;
@@ -276,28 +276,46 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	// для ребер
 	for (int i = 0; i < grid.eCount; i++) {
-		double gp1 = -3.0 / 5.0;
-		double gp2 = 0.0;
-		double gp3 = 3.0 / 5.0;
+		//double gp1 = -3.0 / 5.0;
+		//double gp2 = 0.0;
+		//double gp3 = 3.0 / 5.0;
+		//double x1 = grid.nodes[grid.edges[i].n1].x;
+		//double y1 = grid.nodes[grid.edges[i].n1].y;
+		//double x2 = grid.nodes[grid.edges[i].n2].x;
+		//double y2 = grid.nodes[grid.edges[i].n2].y;
+
+		//edgeGW[i][0] = 5.0 / 9.0;
+		//edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
+		//edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
+
+		//edgeGW[i][1] = 8.0 / 9.0;
+		//edgeGP[i][1].x = (x1 + x2) / 2.0;
+		//edgeGP[i][1].y = (y1 + y2) / 2.0;
+
+		//edgeGW[i][2] = 5.0 / 9.0;
+		//edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
+		//edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
+
+		//edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+
+
+
+		double gp1 = -1.0/sqrt(3.0);
+		double gp2 =  1.0/sqrt(3.0);
 		double x1 = grid.nodes[grid.edges[i].n1].x;
 		double y1 = grid.nodes[grid.edges[i].n1].y;
 		double x2 = grid.nodes[grid.edges[i].n2].x;
 		double y2 = grid.nodes[grid.edges[i].n2].y;
-
-		edgeGW[i][0] = 5.0 / 9.0;
-		edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
-		edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
-
-		edgeGW[i][1] = 8.0 / 9.0;
-		edgeGP[i][1].x = (x1 + x2) / 2.0;
-		edgeGP[i][1].y = (y1 + y2) / 2.0;
-
-		edgeGW[i][2] = 5.0 / 9.0;
-		edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
-		edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
-
-		edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
-
+		
+		edgeGW[i][0] = 1.0;
+		edgeGP[i][0].x = (x1+x2)/2.0+gp1*(x2-x1)/2.0;
+		edgeGP[i][0].y = (y1+y2)/2.0+gp1*(y2-y1)/2.0;
+		
+		edgeGW[i][1] = 1.0;
+		edgeGP[i][1].x = (x1+x2)/2.0+gp2*(x2-x1)/2.0;
+		edgeGP[i][1].y = (y1+y2)/2.0+gp2*(y2-y1)/2.0;
+		
+		edgeJ[i] = sqrt(POW_2(x2-x1)+POW_2(y2-y1))*0.5;
 	}
 
 	// вычисляем матрицу масс
@@ -317,7 +335,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 				A[i][j] *= cellJ[iCell];
 			}
 		}
-
+		int zhrv = 0;
 		//inverseMatr(A, invA, N);
 	}
 
@@ -333,8 +351,9 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	calcTimeStep();
 
+	//solverMtx = new SolverZeidel();
 	solverMtx = new SolverHYPREBoomerAMG();
-	solverMtx->init(grid.cCount, 4*BASE_FUNC_COUNT);
+	solverMtx->init(grid.cCount, 4 * BASE_FUNC_COUNT);
 
 	save(0);
 }
@@ -901,7 +920,7 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 			}
 		}
 
-		for (int ii = 0; ii < 3; ii++) {
+		for (int ii = 0; ii < 4; ii++) {
 			addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
 		}
 
@@ -997,6 +1016,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 			for (int i = 0; i < mSize; i++) {
 				for (int j = 0; j < mSize; j++) {
 					matrBig[i][j] = 0.0;
+					matrBig2[i][j] = 0.0;
 				}
 			}
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
@@ -1059,6 +1079,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 			for (int i = 0; i < mSize; i++) {
 				for (int j = 0; j < mSize; j++) {
 					matrBig[i][j] = 0.0;
+					matrBig2[i][j] = 0.0;
 				}
 			}
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
@@ -1401,7 +1422,7 @@ void FEM_DG_IMPLICIT::run()
 
 
 		/* Решаем СЛАУ */
-		int maxIter = 20;
+		int maxIter = 100;
 		const double eps = 1.0e-7;
 
 		solverErr = solverMtx->solve(eps, maxIter);
@@ -1560,8 +1581,8 @@ void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int j)
 {
 
-	int ii = i * 4;
-	int jj = j * 4;
+	int ii = i * BASE_FUNC_COUNT;
+	int jj = j * BASE_FUNC_COUNT;
 	for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
 		for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
 			mB[ii + i1][jj + j1] = mB[ii + i1][jj + j1] + mS[i1][j1];
