@@ -175,7 +175,47 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	memAlloc();
 
-	// вычисляем узлы и коэффициенты квадратур
+	calcGaussPar();
+
+	calcMassMatr();
+
+
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Region & reg = getRegion(i);
+		convertParToCons(i, reg.par);
+	}
+
+	calcTimeStep();
+	log("TAU_MIN = %25.16e\n", TAU_MIN);
+
+	//solverMtx = new SolverZeidel();
+	solverMtx = new SolverHYPREBoomerAMG();
+	solverMtx->init(grid.cCount, MATR_DIM);
+
+	save(0);
+}
+
+void FEM_DG_IMPLICIT::calcMassMatr()
+{
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		double **	A = matrA[iCell];
+		for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+			for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+				A[i][j] = 0.0;
+				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+					A[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
+						                          * getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
+				}
+				A[i][j] *= cellJ[iCell];
+			}
+		}
+	}
+}
+
+void FEM_DG_IMPLICIT::calcGaussPar()
+{
+	
 	// для ячеек
 	if (GP_CELL_COUNT == 4) {
 		for (int i = 0; i < grid.cCount; i++) {
@@ -218,38 +258,40 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 	else if (GP_CELL_COUNT == 3) {
 		for (int i = 0; i < grid.cCount; i++) {
-			double a = 1.0/6.0;
-			double b = 2.0/3.0;
+			double a = 1.0 / 6.0;
+			double b = 2.0 / 3.0;
 			double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
 			double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
 			double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
 			double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
 			double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
 			double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
-			double a1 = x1-x3;
-			double a2 = y1-y3;
-			double b1 = x2-x3;
-			double b2 = y2-y3;
+			double a1 = x1 - x3;
+			double a2 = y1 - y3;
+			double b1 = x2 - x3;
+			double b2 = y2 - y3;
 			double c1 = x3;
 			double c2 = y3;
 
-			cellGW[i][0] = 1.0/6.0; 
-			cellGP[i][0].x = a1*a+b1*a+c1;
-			cellGP[i][0].y = a2*a+b2*a+c2;
+			cellGW[i][0] = 1.0 / 6.0;
+			cellGP[i][0].x = a1*a + b1*a + c1;
+			cellGP[i][0].y = a2*a + b2*a + c2;
 
 			cellGW[i][1] = 1.0 / 6.0;
-			cellGP[i][1].x = a1*a+b1*b+c1;
-			cellGP[i][1].y = a2*a+b2*b+c2;
+			cellGP[i][1].x = a1*a + b1*b + c1;
+			cellGP[i][1].y = a2*a + b2*b + c2;
 
 			cellGW[i][2] = 1.0 / 6.0;
-			cellGP[i][2].x = a1*b+b1*a+c1;
-			cellGP[i][2].y = a2*b+b2*a+c2;
+			cellGP[i][2].x = a1*b + b1*a + c1;
+			cellGP[i][2].y = a2*b + b2*a + c2;
 
-			cellJ[i] = a1*b2-a2*b1;
+			cellJ[i] = a1*b2 - a2*b1;
 
 
 		}
 	}
+
+
 	// для ребер
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
@@ -279,63 +321,25 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 	else if (GP_EDGE_COUNT == 2) {
 		for (int i = 0; i < grid.eCount; i++) {
-			double gp1 = -1.0/sqrt(3.0);
-			double gp2 =  1.0/sqrt(3.0);
+			double gp1 = -1.0 / sqrt(3.0);
+			double gp2 = 1.0 / sqrt(3.0);
 			double x1 = grid.nodes[grid.edges[i].n1].x;
 			double y1 = grid.nodes[grid.edges[i].n1].y;
 			double x2 = grid.nodes[grid.edges[i].n2].x;
 			double y2 = grid.nodes[grid.edges[i].n2].y;
-			
+
 			edgeGW[i][0] = 1.0;
-			edgeGP[i][0].x = (x1+x2)/2.0+gp1*(x2-x1)/2.0;
-			edgeGP[i][0].y = (y1+y2)/2.0+gp1*(y2-y1)/2.0;
-			
+			edgeGP[i][0].x = (x1 + x2) / 2.0 + gp1*(x2 - x1) / 2.0;
+			edgeGP[i][0].y = (y1 + y2) / 2.0 + gp1*(y2 - y1) / 2.0;
+
 			edgeGW[i][1] = 1.0;
-			edgeGP[i][1].x = (x1+x2)/2.0+gp2*(x2-x1)/2.0;
-			edgeGP[i][1].y = (y1+y2)/2.0+gp2*(y2-y1)/2.0;
-			
-			edgeJ[i] = sqrt(POW_2(x2-x1)+POW_2(y2-y1))*0.5;
+			edgeGP[i][1].x = (x1 + x2) / 2.0 + gp2*(x2 - x1) / 2.0;
+			edgeGP[i][1].y = (y1 + y2) / 2.0 + gp2*(y2 - y1) / 2.0;
+
+			edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
 		}
 	}
-
-	// вычисляем матрицу масс
-	for (int iCell = 0; iCell < grid.cCount; iCell++) {
-		double **	A		= matrA[iCell];
-		double **	invA	= matrInvA[iCell];
-		int			N		= BASE_FUNC_COUNT;
-		for (int i = 0; i < N; i++)
-		{
-			for (int j = 0; j < N; j++)
-			{
-				A[i][j] = 0.0;
-				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++)
-				{
-					A[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)*getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
-				}
-				A[i][j] *= cellJ[iCell];
-			}
-		}
-		int zhrv = 0;
-		//inverseMatr(A, invA, N);
-	}
-
-
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		Region & reg = getRegion(i);
-		convertParToCons(i, reg.par);
-	}
-
-	calcTimeStep();
-	log("TAU_MIN = %25.16e\n", TAU_MIN);
-
-	///solverMtx = new SolverZeidel();
-	solverMtx = new SolverHYPREBoomerAMG();
-	solverMtx->init(grid.cCount, MATR_DIM);
-
-	save(0);
 }
-
 
 double** allocMtx(int N)
 {
@@ -535,6 +539,19 @@ double FEM_DG_IMPLICIT::getField(int fldId, int iCell, Point p)
 	return getField(fldId, iCell, p.x, p.y);
 }
 
+void FEM_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y)
+{
+	fRO = getField(FIELD_RO, iCell, x, y);
+	fRU = getField(FIELD_RU, iCell, x, y);
+	fRV = getField(FIELD_RV, iCell, x, y);
+	fRE = getField(FIELD_RE, iCell, x, y);
+}
+
+void FEM_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p)
+{
+	getFields(fRO, fRU, fRV, fRE, iCell, p.x, p.y);
+}
+
 double FEM_DG_IMPLICIT::getF(int id, int iCell, Point p)
 {
 	return getF(id, iCell, p.x, p.y);
@@ -542,24 +559,28 @@ double FEM_DG_IMPLICIT::getF(int id, int iCell, Point p)
 
 double FEM_DG_IMPLICIT::getF(int id, int iCell, double x, double y)
 {
+	Point &c = grid.cells[iCell].c;
+	double &hx = grid.cells[iCell].HX;
+	double &hy = grid.cells[iCell].HY;
+
 	switch (id) {
 	case 0:
 		return 1.0;
 		break;
 	case 1:
-		return (x - grid.cells[iCell].c.x) / grid.cells[iCell].HX;
+		return (x - c.x) / hx;
 		break;
 	case 2:
-		return (y - grid.cells[iCell].c.y) / grid.cells[iCell].HY;
+		return (y - c.y) / hy;
 		break;
 	case 3:
-		return (x - grid.cells[iCell].c.x)*(x - grid.cells[iCell].c.x) / grid.cells[iCell].HX / grid.cells[iCell].HX;
+		return (x - c.x)*(x - c.x) / hx / hx;
 		break;
 	case 4:
-		return (y - grid.cells[iCell].c.y)*(y - grid.cells[iCell].c.y) / grid.cells[iCell].HY / grid.cells[iCell].HY;
+		return (y - c.y)*(y - c.y) / hy / hy;
 		break;
 	case 5:
-		return (x - grid.cells[iCell].c.x)*(y - grid.cells[iCell].c.y) / grid.cells[iCell].HX / grid.cells[iCell].HY;
+		return (x - c.x)*(y - c.y) / hx / hy;
 		break;
 	default:
 		return 0.0;
@@ -574,24 +595,28 @@ double FEM_DG_IMPLICIT::getDfDx(int id, int iCell, Point p)
 
 double FEM_DG_IMPLICIT::getDfDx(int id, int iCell, double x, double y)
 {
+	Point &c = grid.cells[iCell].c;
+	double &hx = grid.cells[iCell].HX;
+	double &hy = grid.cells[iCell].HY;
+
 	switch (id) {
 	case 0:
 		return 0.0;
 		break;
 	case 1:
-		return 1.0 / grid.cells[iCell].HX;
+		return 1.0 / hx;
 		break;
 	case 2:
 		return 0.0;
 		break;
 	case 3:
-		return 2.0*(x - grid.cells[iCell].c.x) / grid.cells[iCell].HX / grid.cells[iCell].HX;
+		return 2.0*(x - c.x) / hx / hx;
 		break;
 	case 4:
 		return 0.0;
 		break;
 	case 5:
-		return (y - grid.cells[iCell].c.y) / grid.cells[iCell].HX / grid.cells[iCell].HY;
+		return (y - c.y) / hx / hy;
 		break;
 	default:
 		return 0.0;
@@ -606,6 +631,10 @@ double FEM_DG_IMPLICIT::getDfDy(int id, int iCell, Point p)
 
 double FEM_DG_IMPLICIT::getDfDy(int id, int iCell, double x, double y)
 {
+	Point &c = grid.cells[iCell].c;
+	double &hx = grid.cells[iCell].HX;
+	double &hy = grid.cells[iCell].HY;
+
 	switch (id) {
 	case 0:
 		return 0.0;
@@ -614,16 +643,16 @@ double FEM_DG_IMPLICIT::getDfDy(int id, int iCell, double x, double y)
 		return 0.0;
 		break;
 	case 2:
-		return 1.0 / grid.cells[iCell].HY;
+		return 1.0 / hy;
 		break;
 	case 3:
 		return 0.0;
 		break;
 	case 4:
-		return 2.0*(y - grid.cells[iCell].c.y) / grid.cells[iCell].HY / grid.cells[iCell].HY;
+		return 2.0*(y - c.y) / hy / hy;
 		break;
 	case 5:
-		return (x - grid.cells[iCell].c.x) / grid.cells[iCell].HX / grid.cells[iCell].HY;
+		return (x - c.x) / hx / hy;
 		break;
 	default:
 		return 0.0;
@@ -933,6 +962,7 @@ void FEM_DG_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **egn
 
 	multMtx4(tempMtx4, rightEgnVecl4, dst4);
 	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	//multMtxToVal(dst4, 0.5, 4);
 	freeMtx4(tempMtx4);
 }
 void FEM_DG_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
@@ -946,6 +976,7 @@ void FEM_DG_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egn
 
 	multMtx4(tempMtx4, rightEgnVecl4, dst4);
 	multMtx4(dst4, tempMtx4, leftEgnVecl4);
+	//multMtxToVal(dst4, 0.5, 4);
 	freeMtx4(tempMtx4);
 }
 
@@ -1102,10 +1133,7 @@ void FEM_DG_IMPLICIT::calcIntegral()
 		for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
 			Point& p = cellGP[iCell][iGP];
 			double w = cellGW[iCell][iGP];
-			fRO = getField(FIELD_RO, iCell, p);
-			fRU = getField(FIELD_RU, iCell, p);
-			fRV = getField(FIELD_RV, iCell, p);
-			fRE = getField(FIELD_RE, iCell, p);
+			getFields(fRO, fRU, fRV, fRE, iCell, p);
 			Param par;
 			consToPar(fRO, fRU, fRV, fRE, par);
 			Material& mat = getMaterial(iCell);
@@ -1171,18 +1199,12 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 				Point& p = edgeGP[iEdge][iGP];
 				double w = edgeGW[iEdge][iGP];
-				fRO1 = getField(FIELD_RO, c1, p);
-				fRU1 = getField(FIELD_RU, c1, p);
-				fRV1 = getField(FIELD_RV, c1, p);
-				fRE1 = getField(FIELD_RE, c1, p);
+				getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
 				
-				fRO2 = getField(FIELD_RO, c2, p);
-				fRU2 = getField(FIELD_RU, c2, p);
-				fRV2 = getField(FIELD_RV, c2, p);
-				fRE2 = getField(FIELD_RE, c2, p);
+				getFields(fRO2, fRU2, fRV2, fRE2, c2, p); 
 				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
 				Material& mat2 = getMaterial(c2);
 				mat2.URS(par2, 0); // p=p(r,e)
@@ -1219,8 +1241,48 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 
 			
-			multMtxToVal(matrBig,  -1.0, MATR_DIM);
-			multMtxToVal(matrBig2, -1.0, MATR_DIM);
+			fillMtx(matrBig, 0.0, MATR_DIM);
+			fillMtx(matrBig2, 0.0, MATR_DIM);
+
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+				Point& p = edgeGP[iEdge][iGP];
+				double w = edgeGW[iEdge][iGP];
+				getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+				Material& mat1 = getMaterial(c1);
+				mat1.URS(par1, 0); // p=p(r,e)
+
+				getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+				Material& mat2 = getMaterial(c2);
+				mat2.URS(par2, 0); // p=p(r,e)
+
+				Param average;
+				calcRoeAverage(average, par1, par2, getGAM(c1), n);
+				double H = average.E + average.p / average.r;
+
+				eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
+				rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
+				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, -n.x, average.v, -n.y);
+				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+				for (int i = 0; i < FIELD_COUNT; i++) {
+					for (int j = 0; j < FIELD_COUNT; j++) {
+						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c2, p) * getF(jj, c2, p) * w;
+								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c1, p) * getF(jj, c2, p) * w;
+							}
+						}
+						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+						addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+					}
+				}
+
+			}
+
+			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
+			multMtxToVal(matrBig2, edgeJ[iEdge], MATR_DIM);
 
 			solverMtx->addMatrElement(c2, c2, matrBig);
 			solverMtx->addMatrElement(c2, c1, matrBig2);
@@ -1233,10 +1295,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 				Point& p = edgeGP[iEdge][iGP];
 				double w = edgeGW[iEdge][iGP];
-				fRO1 = getField(FIELD_RO, c1, p);
-				fRU1 = getField(FIELD_RU, c1, p);
-				fRV1 = getField(FIELD_RV, c1, p);
-				fRE1 = getField(FIELD_RE, c1, p);
+				getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
@@ -1294,11 +1353,8 @@ void FEM_DG_IMPLICIT::calcRHS()
 			for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
 				Point& p = cellGP[iCell][iGP];
 				double w = cellGW[iCell][iGP];
-
-				double fRO = getField(FIELD_RO, iCell, p);
-				double fRU = getField(FIELD_RU, iCell, p);
-				double fRV = getField(FIELD_RV, iCell, p);
-				double fRE = getField(FIELD_RE, iCell, p);
+				double fRO, fRU, fRV, fRE;
+				getFields(fRO, fRU, fRV, fRE, iCell, p);
 				Param par;
 				consToPar(fRO, fRU, fRV, fRE, par);
 				Material& mat = getMaterial(iCell);
@@ -1362,19 +1418,13 @@ void FEM_DG_IMPLICIT::calcRHS()
 					Point& p = edgeGP[iEdge][iGP];
 					double w = edgeGW[iEdge][iGP];
 
-					fRO = getField(FIELD_RO, c1, p);
-					fRU = getField(FIELD_RU, c1, p);
-					fRV = getField(FIELD_RV, c1, p);
-					fRE = getField(FIELD_RE, c1, p);
+					getFields(fRO, fRU, fRV, fRE, c1, p);
 					Param par1;
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat1 = getMaterial(c1);
 					mat1.URS(par1, 0); // p=p(r,e)
 
-					fRO = getField(FIELD_RO, c2, p);
-					fRU = getField(FIELD_RU, c2, p);
-					fRV = getField(FIELD_RV, c2, p);
-					fRE = getField(FIELD_RE, c2, p);
+					getFields(fRO, fRU, fRV, fRE, c2, p);
 					Param par2;
 					consToPar(fRO, fRU, fRV, fRE, par2);
 					Material& mat2 = getMaterial(c2);
@@ -1434,10 +1484,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 					Point& p = edgeGP[iEdge][iGP];
 					double w = edgeGW[iEdge][iGP];
 
-					fRO = getField(FIELD_RO, c1, p);
-					fRU = getField(FIELD_RU, c1, p);
-					fRV = getField(FIELD_RV, c1, p);
-					fRE = getField(FIELD_RE, c1, p);
+					getFields(fRO, fRU, fRV, fRE, c1, p);
 					Param par1;
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat = getMaterial(c1);
@@ -1523,7 +1570,7 @@ void FEM_DG_IMPLICIT::run()
 
 
 		/* Решаем СЛАУ */
-		int maxIter = 100;
+		int maxIter = 50;
 		const double eps = 1.0e-3;
 
 		solverErr = solverMtx->solve(eps, maxIter);

@@ -17,6 +17,9 @@ private:
 	void memAlloc();
 	void memFree();
 
+	void calcMassMatr(); //!< вычисл€ем матрицу масс
+	void calcGaussPar(); //!< вычисл€ем узлы и коэффициенты квадратур
+
 	void calcTimeStep();
 	
 	Region & getRegionByCellType(int type);
@@ -24,21 +27,23 @@ private:
 	Region   &	getRegion(int iCell);
 	Material &	getMaterial(int iCell);
 
-	void convertParToCons(int iCell, Param & par); //!< ѕреобразование примитивных переменных в консервативные
+	inline void convertParToCons(int iCell, Param & par); //!< ѕреобразование примитивных переменных в консервативные
 
-	void convertConsToPar(int iCell, Param & par); //!< ѕреобразование консервативных переменных в примитивные
+	inline void convertConsToPar(int iCell, Param & par); //!< ѕреобразование консервативных переменных в примитивные
 
-	double getField(int fld, int iCell, Point p);
-	double getField(int fld, int iCell, double x, double y);
+	inline double getField(int fld, int iCell, Point p);
+	inline double getField(int fld, int iCell, double x, double y);
+	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
+	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
-	double getF(int id, int iCell, Point p);
-	double getF(int id, int iCell, double x, double y);
+	inline double getF(int id, int iCell, Point p);
+	inline double getF(int id, int iCell, double x, double y);
 
-	double getDfDx(int id, int iCell, Point p);
-	double getDfDx(int id, int iCell, double x, double y);
+	inline double getDfDx(int id, int iCell, Point p);
+	inline double getDfDx(int id, int iCell, double x, double y);
 
-	double getDfDy(int id, int iCell, Point p);
-	double getDfDy(int id, int iCell, double x, double y);
+	inline double getDfDy(int id, int iCell, Point p);
+	inline double getDfDy(int id, int iCell, double x, double y);
 
 	void save(int step);
 
@@ -165,8 +170,8 @@ protected:
 	const static int FLUX_LAX = 1;
 
 	const static int BASE_FUNC_COUNT = 3;
-	const static int GP_CELL_COUNT = 3;
-	const static int GP_EDGE_COUNT = 2;
+	const static int GP_CELL_COUNT = 4;
+	const static int GP_EDGE_COUNT = 3;
 
 	const static int FIELD_COUNT = 4;
 	const static int FIELD_RO = 0;

@@ -168,7 +168,6 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 	/* AMG */
 	if (solver_id == 0)
 	{
-		int num_iterations;
 		double final_res_norm;
 
 		/* Create solver */
