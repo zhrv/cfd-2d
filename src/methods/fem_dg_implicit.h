@@ -59,7 +59,8 @@ private:
 	void freeMtx4(double **mtx4);
 	void multMtx4(double **dst4, double **srcA4, double **srcB4);
 	void clearMtx4(double **mtx4);
-
+	void multMtxToVal(double **dst, double x, int N);
+	void fillMtx(double** dst, double x, int N);
 
 	void eigenValues(double** dst4, double c, double u, double nx, double v, double ny);
 	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);
@@ -71,7 +72,8 @@ private:
 	void calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H);
 	void calcAx(double **dst4, double c, double GAM, double u, double v, double H);
 	void calcAy(double **dst4, double c, double GAM, double u, double v, double H);
-
+	void calcAx_(double **dst4, Param par, double GAM);
+	void calcAy_(double **dst4, Param par, double GAM);
 	void consToPar(double fRO, double fRU, double fRV, double fRE, Param& par);
 
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
@@ -166,10 +168,13 @@ protected:
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
 
+	const static int FIELD_COUNT = 4;
 	const static int FIELD_RO = 0;
 	const static int FIELD_RU = 1;
 	const static int FIELD_RV = 2;
 	const static int FIELD_RE = 3;
+
+	const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
 
 	double getGAM(int iCell) { return 1.4; } // TODO: сделать
 };

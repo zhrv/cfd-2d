@@ -149,7 +149,17 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 	HYPRE_IJVectorGetObject(bb, (void **)&par_bb);
 	HYPRE_IJVectorGetObject(xx, (void **)&par_xx);
 
-	//printToFile("matr.txt");
+	////printToFile("matr.txt");
+	//{
+	//	int *rows = (int*)calloc(local_size, sizeof(int));
+	//	for (int i = 0; i < local_size; i++)
+	//		rows[i] = ilower + i;
+
+	//	/* get the local solution */
+	//	HYPRE_IJVectorGetValues(bb, local_size, rows, x);
+
+	//	delete[] rows;
+	//}
 
 
 
@@ -166,7 +176,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 
 		/* Set some parameters (See Reference Manual for more parameters) */
 		HYPRE_BoomerAMGSetMaxIter(solver, maxIter);
-		HYPRE_BoomerAMGSetPrintLevel(solver, 3);  /* print solve info + parameters */
+		HYPRE_BoomerAMGSetPrintLevel(solver, 2);  /* print solve info + parameters */
 		HYPRE_BoomerAMGSetCoarsenType(solver, 6); /* Falgout coarsening */
 		HYPRE_BoomerAMGSetRelaxType(solver, 3);   /* G-S/Jacobi hybrid relaxation */
 		HYPRE_BoomerAMGSetNumSweeps(solver, 1);   /* Sweeeps on each level */

@@ -85,7 +85,7 @@ int SolverZeidel::solve(double eps, int& maxIter)
 	double	err = 1.0;
 	int		step = 0;
 	double	tmp;
-	//memset(x, 0, sizeof(double)*a->n);
+	memset(x, 0, sizeof(double)*a->n);
 	while(err > eps && step < maxIter)
 	{
 		step++;
@@ -120,6 +120,7 @@ int SolverZeidel::solve(double eps, int& maxIter)
 			err += fabs(tmp-b[i]);
 		}
 		int qqqqq = 0; // ZHRV_WARN
+		printf("SEIDEL SOLVER: step = %5d\terr = %16.8e\n", step, err);
 	}
 	if (step >= maxIter)
 	{

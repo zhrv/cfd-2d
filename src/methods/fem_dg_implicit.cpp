@@ -2,6 +2,7 @@
 #include "tinyxml.h"
 #include "global.h"
 #include <ctime>
+#include <cfloat>
 
 #define POW_2(x) ((x)*(x))
 
@@ -176,146 +177,125 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	// вычисл€ем узлы и коэффициенты квадратур
 	// дл€ €чеек
-	for (int i = 0; i < grid.cCount; i++) {
+	if (GP_CELL_COUNT == 4) {
+		for (int i = 0; i < grid.cCount; i++) {
 
-		//double a = 1.0 / 3.0;
-		//double b = 1.0 / 5.0;
-		//double c = 3.0 / 5.0;
-		//double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
-		//double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
-		//double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
-		//double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
-		//double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
-		//double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
-		//double a1 = x1 - x3;
-		//double a2 = y1 - y3;
-		//double b1 = x2 - x3;
-		//double b2 = y2 - y3;
-		//double c1 = x3;
-		//double c2 = y3;
+			double a = 1.0 / 3.0;
+			double b = 1.0 / 5.0;
+			double c = 3.0 / 5.0;
+			double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+			double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+			double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+			double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+			double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+			double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+			double a1 = x1 - x3;
+			double a2 = y1 - y3;
+			double b1 = x2 - x3;
+			double b2 = y2 - y3;
+			double c1 = x3;
+			double c2 = y3;
 
-		//cellGW[i][0] = -27.0 / 48.0;
-		//cellGP[i][0].x = a1*a + b1*a + c1;
-		//cellGP[i][0].y = a2*a + b2*a + c2;
+			cellGW[i][0] = -27.0 / 48.0;
+			cellGP[i][0].x = a1*a + b1*a + c1;
+			cellGP[i][0].y = a2*a + b2*a + c2;
 
-		//cellGW[i][1] = 25.0 / 48.0;
-		//cellGP[i][1].x = a1*c + b1*b + c1;
-		//cellGP[i][1].y = a2*c + b2*b + c2;
+			cellGW[i][1] = 25.0 / 48.0;
+			cellGP[i][1].x = a1*c + b1*b + c1;
+			cellGP[i][1].y = a2*c + b2*b + c2;
 
-		//cellGW[i][2] = 25.0 / 48.0;
-		//cellGP[i][2].x = a1*b + b1*c + c1;
-		//cellGP[i][2].y = a2*b + b2*c + c2;
+			cellGW[i][2] = 25.0 / 48.0;
+			cellGP[i][2].x = a1*b + b1*c + c1;
+			cellGP[i][2].y = a2*b + b2*c + c2;
 
-		//cellGW[i][3] = 25.0 / 48.0;
-		//cellGP[i][3].x = a1*b + b1*b + c1;
-		//cellGP[i][3].y = a2*b + b2*b + c2;
+			cellGW[i][3] = 25.0 / 48.0;
+			cellGP[i][3].x = a1*b + b1*b + c1;
+			cellGP[i][3].y = a2*b + b2*b + c2;
 
-
-		//cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
-
-
-		double a = 1.0/6.0;
-		double b = 2.0/3.0;
-		double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
-		double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
-		double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
-		double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
-		double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
-		double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
-		double a1 = x1-x3;
-		double a2 = y1-y3;
-		double b1 = x2-x3;
-		double b2 = y2-y3;
-		double c1 = x3;
-		double c2 = y3;
-
-		cellGW[i][0] = 1.0/6.0; 
-		cellGP[i][0].x = a1*a+b1*a+c1;
-		cellGP[i][0].y = a2*a+b2*a+c2;
-
-		cellGW[i][1] = 1.0 / 6.0;
-		cellGP[i][1].x = a1*a+b1*b+c1;
-		cellGP[i][1].y = a2*a+b2*b+c2;
-
-		cellGW[i][2] = 1.0 / 6.0;
-		cellGP[i][2].x = a1*b+b1*a+c1;
-		cellGP[i][2].y = a2*b+b2*a+c2;
-
-		cellJ[i] = a1*b2-a2*b1;
-
-
-		//double a = 0.5;
-		//double b = 0.0;
-		//double x1 = nodes[cellNodes[iCell][0]].x;
-		//double y1 = nodes[cellNodes[iCell][0]].y;
-		//double x2 = nodes[cellNodes[iCell][1]].x;
-		//double y2 = nodes[cellNodes[iCell][1]].y;
-		//double x3 = nodes[cellNodes[iCell][2]].x;
-		//double y3 = nodes[cellNodes[iCell][2]].y;
-		//double a1 = x1-x3;
-		//double a2 = y1-y3;
-		//double b1 = x2-x3;
-		//double b2 = y2-y3;
-		//double c1 = x3;
-		//double c2 = y3;
-
-		//cellWGP[0] = 1.0/3.0; 
-		//cellGP[iCell][0].x = a1*a+b1*a+c1;
-		//cellGP[iCell][0].y = a2*a+b2*a+c2;
-
-		//cellWGP[1] = 1.0/3.0; 
-		//cellGP[iCell][1].x = a1*a+b1*b+c1;
-		//cellGP[iCell][1].y = a2*a+b2*b+c2;
-
-		//cellWGP[2] = 1.0/3.0; 
-		//cellGP[iCell][2].x = a1*b+b1*a+c1;
-		//cellGP[iCell][2].y = a2*b+b2*a+c2;
-
-		//cellJ[iCell] = (a1*b2-a2*b1)*0.5;
+			cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
+			//cellJ[i] = 0.5*(a1*b2 - a2*b1);
+		}
 	}
+	else if (GP_CELL_COUNT == 3) {
+		for (int i = 0; i < grid.cCount; i++) {
+			double a = 1.0/6.0;
+			double b = 2.0/3.0;
+			double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+			double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+			double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+			double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+			double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+			double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+			double a1 = x1-x3;
+			double a2 = y1-y3;
+			double b1 = x2-x3;
+			double b2 = y2-y3;
+			double c1 = x3;
+			double c2 = y3;
 
+			cellGW[i][0] = 1.0/6.0; 
+			cellGP[i][0].x = a1*a+b1*a+c1;
+			cellGP[i][0].y = a2*a+b2*a+c2;
+
+			cellGW[i][1] = 1.0 / 6.0;
+			cellGP[i][1].x = a1*a+b1*b+c1;
+			cellGP[i][1].y = a2*a+b2*b+c2;
+
+			cellGW[i][2] = 1.0 / 6.0;
+			cellGP[i][2].x = a1*b+b1*a+c1;
+			cellGP[i][2].y = a2*b+b2*a+c2;
+
+			cellJ[i] = a1*b2-a2*b1;
+
+
+		}
+	}
 	// дл€ ребер
-	for (int i = 0; i < grid.eCount; i++) {
-		//double gp1 = -3.0 / 5.0;
-		//double gp2 = 0.0;
-		//double gp3 = 3.0 / 5.0;
-		//double x1 = grid.nodes[grid.edges[i].n1].x;
-		//double y1 = grid.nodes[grid.edges[i].n1].y;
-		//double x2 = grid.nodes[grid.edges[i].n2].x;
-		//double y2 = grid.nodes[grid.edges[i].n2].y;
+	if (GP_EDGE_COUNT == 3) {
+		for (int i = 0; i < grid.eCount; i++) {
+			double gp1 = -3.0 / 5.0;
+			double gp2 = 0.0;
+			double gp3 = 3.0 / 5.0;
+			double x1 = grid.nodes[grid.edges[i].n1].x;
+			double y1 = grid.nodes[grid.edges[i].n1].y;
+			double x2 = grid.nodes[grid.edges[i].n2].x;
+			double y2 = grid.nodes[grid.edges[i].n2].y;
 
-		//edgeGW[i][0] = 5.0 / 9.0;
-		//edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
-		//edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
+			edgeGW[i][0] = 5.0 / 9.0;
+			edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
+			edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
 
-		//edgeGW[i][1] = 8.0 / 9.0;
-		//edgeGP[i][1].x = (x1 + x2) / 2.0;
-		//edgeGP[i][1].y = (y1 + y2) / 2.0;
+			edgeGW[i][1] = 8.0 / 9.0;
+			edgeGP[i][1].x = (x1 + x2) / 2.0;
+			edgeGP[i][1].y = (y1 + y2) / 2.0;
 
-		//edgeGW[i][2] = 5.0 / 9.0;
-		//edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
-		//edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
+			edgeGW[i][2] = 5.0 / 9.0;
+			edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
+			edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
 
-		//edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+			edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
 
-
-
-		double gp1 = -1.0/sqrt(3.0);
-		double gp2 =  1.0/sqrt(3.0);
-		double x1 = grid.nodes[grid.edges[i].n1].x;
-		double y1 = grid.nodes[grid.edges[i].n1].y;
-		double x2 = grid.nodes[grid.edges[i].n2].x;
-		double y2 = grid.nodes[grid.edges[i].n2].y;
-		
-		edgeGW[i][0] = 1.0;
-		edgeGP[i][0].x = (x1+x2)/2.0+gp1*(x2-x1)/2.0;
-		edgeGP[i][0].y = (y1+y2)/2.0+gp1*(y2-y1)/2.0;
-		
-		edgeGW[i][1] = 1.0;
-		edgeGP[i][1].x = (x1+x2)/2.0+gp2*(x2-x1)/2.0;
-		edgeGP[i][1].y = (y1+y2)/2.0+gp2*(y2-y1)/2.0;
-		
-		edgeJ[i] = sqrt(POW_2(x2-x1)+POW_2(y2-y1))*0.5;
+		}
+	}
+	else if (GP_EDGE_COUNT == 2) {
+		for (int i = 0; i < grid.eCount; i++) {
+			double gp1 = -1.0/sqrt(3.0);
+			double gp2 =  1.0/sqrt(3.0);
+			double x1 = grid.nodes[grid.edges[i].n1].x;
+			double y1 = grid.nodes[grid.edges[i].n1].y;
+			double x2 = grid.nodes[grid.edges[i].n2].x;
+			double y2 = grid.nodes[grid.edges[i].n2].y;
+			
+			edgeGW[i][0] = 1.0;
+			edgeGP[i][0].x = (x1+x2)/2.0+gp1*(x2-x1)/2.0;
+			edgeGP[i][0].y = (y1+y2)/2.0+gp1*(y2-y1)/2.0;
+			
+			edgeGW[i][1] = 1.0;
+			edgeGP[i][1].x = (x1+x2)/2.0+gp2*(x2-x1)/2.0;
+			edgeGP[i][1].y = (y1+y2)/2.0+gp2*(y2-y1)/2.0;
+			
+			edgeJ[i] = sqrt(POW_2(x2-x1)+POW_2(y2-y1))*0.5;
+		}
 	}
 
 	// вычисл€ем матрицу масс
@@ -340,9 +320,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 
 
-	tmpArr = new double[grid.cCount];
-	tmpArrInt = new int[grid.cCount];
-
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Region & reg = getRegion(i);
@@ -350,14 +327,32 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 
 	calcTimeStep();
+	log("TAU_MIN = %25.16e\n", TAU_MIN);
 
-	//solverMtx = new SolverZeidel();
+	///solverMtx = new SolverZeidel();
 	solverMtx = new SolverHYPREBoomerAMG();
-	solverMtx->init(grid.cCount, 4 * BASE_FUNC_COUNT);
+	solverMtx->init(grid.cCount, MATR_DIM);
 
 	save(0);
 }
 
+
+double** allocMtx(int N)
+{
+	double **m;
+	m = new double*[N];
+	for (int i = 0; i < N; i++)
+		m[i] = new double[N];
+
+	return m;
+}
+
+void freeMtx(double** m, int N)
+{
+	for (int i = 0; i < N; i++)
+		delete[] m[i];
+	delete[] m;
+}
 
 void FEM_DG_IMPLICIT::memAlloc()
 {
@@ -389,12 +384,9 @@ void FEM_DG_IMPLICIT::memAlloc()
 		cellGP[i] = new Point[GP_CELL_COUNT];
 		cellGW[i] = new double[GP_CELL_COUNT];
 
-		matrA[i]	= new double*[BASE_FUNC_COUNT];
-		matrInvA[i]	= new double*[BASE_FUNC_COUNT];
-		for (int j = 0; j < BASE_FUNC_COUNT; j++) {
-			matrA[i][j] = new double[BASE_FUNC_COUNT];
-			matrInvA[i][j] = new double[BASE_FUNC_COUNT];
-		}
+		matrA[i] = allocMtx(BASE_FUNC_COUNT);
+		matrInvA[i] = allocMtx(BASE_FUNC_COUNT);
+
 	}
 
 	for (int i = 0; i < grid.eCount; i++) {
@@ -405,6 +397,7 @@ void FEM_DG_IMPLICIT::memAlloc()
 	tmpArr = new double[n];
 	tmpArr1 = new double[n];
 	tmpArr2 = new double[n];
+	tmpArrInt = new int[n];
 
 	fields = new double**[4];
 	fields[FIELD_RO] = ro;
@@ -412,20 +405,69 @@ void FEM_DG_IMPLICIT::memAlloc()
 	fields[FIELD_RV] = rv;
 	fields[FIELD_RE] = re;
 
-	matrSmall = new double*[BASE_FUNC_COUNT];
-	matrSmall2 = new double*[BASE_FUNC_COUNT];
-	for (int i = 0; i < BASE_FUNC_COUNT; i++) {
-		matrSmall[i] = new double[BASE_FUNC_COUNT];
-		matrSmall2[i] = new double[BASE_FUNC_COUNT];
-	}
-	matrBig = new double*[BASE_FUNC_COUNT * 4];
-	matrBig2 = new double*[BASE_FUNC_COUNT * 4];
-	for (int i = 0; i < BASE_FUNC_COUNT * 4; i++) {
-		matrBig[i] = new double[BASE_FUNC_COUNT * 4];
-		matrBig2[i] = new double[BASE_FUNC_COUNT * 4];
-	}
+	matrSmall = allocMtx(BASE_FUNC_COUNT);
+	matrSmall2 = allocMtx(BASE_FUNC_COUNT);
+	matrBig = allocMtx(MATR_DIM);
+	matrBig2 = allocMtx(MATR_DIM);
+
 }
 
+void FEM_DG_IMPLICIT::memFree() 
+{
+	int n = grid.cCount; 
+	
+	for (int i = 0; i < n; i++) {
+		delete[] ro[i];
+		delete[] ru[i];
+		delete[] rv[i];
+		delete[] re[i];
+
+		delete[] cellGP[i];
+		delete[] cellGW[i];
+
+		freeMtx(matrA[i], BASE_FUNC_COUNT);
+		freeMtx(matrInvA[i], BASE_FUNC_COUNT);
+	}
+	delete[] cTau;
+
+	delete[] ro;
+	delete[] ru;
+	delete[] rv;
+	delete[] re;
+
+	delete[] cellGP;
+	delete[] cellGW;
+	delete[] cellJ;
+
+	delete[] matrA;
+	delete[] matrInvA;
+
+	for (int i = 0; i < grid.eCount; i++) {
+		delete[] edgeGP[i];
+		delete[] edgeGW[i];
+	}
+	delete[] edgeGW;
+	delete[] edgeJ;
+	delete[] edgeGP;
+
+	delete[] tmpArr;
+	delete[] tmpArr1;
+	delete[] tmpArr2;
+
+	delete[] fields;
+
+	freeMtx(matrSmall, BASE_FUNC_COUNT);
+	freeMtx(matrSmall2, BASE_FUNC_COUNT);
+	freeMtx(matrBig, MATR_DIM);
+	freeMtx(matrBig2, MATR_DIM);
+
+	delete[] tmpArr;
+	delete[] tmpArr1;
+	delete[] tmpArr2;
+	delete[] tmpArrInt;
+
+
+}
 
 Region & FEM_DG_IMPLICIT::getRegionByCellType(int type)
 {
@@ -591,9 +633,20 @@ double FEM_DG_IMPLICIT::getDfDy(int id, int iCell, double x, double y)
 
 void FEM_DG_IMPLICIT::calcTimeStep()
 {
-	for (int i = 0; i < grid.cCount; i++) {
-		cTau[i] = TAU;
+	double tauMin = 1.0e+20;
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		if (STEADY) {
+			Param p;
+			convertConsToPar(iCell, p);
+			double tmp = grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
+			cTau[iCell] = _min_(CFL*tmp, TAU);
+			if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
+		} else {
+			cTau[iCell] = TAU;
+		}
 	}
+	if (STEADY)	TAU_MIN = tauMin;
 }
 
 void FEM_DG_IMPLICIT::save(int step)
@@ -714,7 +767,49 @@ int FEM_DG_IMPLICIT::getLimitedCellsCount() {
 
 void FEM_DG_IMPLICIT::remediateLimCells()
 {
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		if (cellIsLim(iCell))
+		{
+			// пересчитываем по сосед€м			
+			double sRO = 0.0;
+			double sRU = 0.0;
+			double sRV = 0.0;
+			double sRE = 0.0;
+			double S = 0.0;
+			for (int i = 0; i < grid.cells[iCell].eCount; i++)
+			{
+				int		iEdge = grid.cells[iCell].edgesInd[i];
+				int		j = grid.edges[iEdge].c2;
+				if (j == iCell)	{
+					//std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+					j = grid.edges[iEdge].c1;
+				}
+				if (j >= 0) {
+					double  s = grid.cells[j].S;
+					S += s;
+					sRO += getField(FIELD_RO, j, grid.cells[j].c) * s;
+					sRU += getField(FIELD_RO, j, grid.cells[j].c) * s;
+					sRV += getField(FIELD_RO, j, grid.cells[j].c) * s;
+					sRE += getField(FIELD_RO, j, grid.cells[j].c) * s;
+				}
+			}
+			if (S >= TAU*TAU) {
+				memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+				memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+				memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+				memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
 
+				ro[iCell][0] = sRO / S;
+				ru[iCell][0] = sRU / S;
+				rv[iCell][0] = sRV / S;
+				re[iCell][0] = sRE / S;
+			}
+			// после 0x20 итераций пробуем вернуть €чейку в счет
+			grid.cells[iCell].flag += 0x010000;
+			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+		}
+	}
 }
 
 
@@ -769,6 +864,27 @@ void FEM_DG_IMPLICIT::clearMtx4(double **mtx4)
 		mtx4[i][j] = 0;
 }
 
+void FEM_DG_IMPLICIT::multMtxToVal(double **dst, double x, int N)
+{
+	for (int i = 0; i < N; ++i)
+	{
+		for (int j = 0; j < N; ++j)
+		{
+			dst[i][j] *= x;
+		}
+	}
+}
+
+void FEM_DG_IMPLICIT::fillMtx(double** dst, double x, int N)
+{
+	for (int i = 0; i < N; ++i)
+	{
+		for (int j = 0; j < N; ++j)
+		{
+			dst[i][j] = x;
+		}
+	}
+}
 
 void FEM_DG_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
 {
@@ -869,6 +985,54 @@ void FEM_DG_IMPLICIT::calcAy(double **dst4, double c, double GAM, double u, doub
 	calcA(dst4, c, GAM, u, 0.0, v, 1.0, H);
 }
 
+void FEM_DG_IMPLICIT::calcAx_(double **dst4, Param par, double GAM)
+{
+	double AGAM = GAM - 1.0;
+	dst4[0][0] = 0.0;
+	dst4[0][1] = 1.0;
+	dst4[0][2] = 0.0;
+	dst4[0][3] = 0.0;
+
+	dst4[1][0] = -POW_2(par.u) + 0.5*par.U2()*AGAM;
+	dst4[1][1] = 2.0*par.u - par.u*AGAM;
+	dst4[1][2] = -par.v*AGAM;
+	dst4[1][3] = AGAM;
+
+	dst4[2][0] = -par.u*par.v;
+	dst4[2][1] = par.v;
+	dst4[2][2] = par.u;
+	dst4[2][3] = 0.0;
+
+	dst4[3][0] = par.U2()*par.u*AGAM - par.E*par.u*GAM;
+	dst4[3][1] = -POW_2(par.u)*AGAM + par.E*GAM - 0.5*par.U2()*AGAM;
+	dst4[3][2] = par.u*par.v*AGAM;
+	dst4[3][3] = par.u*GAM;
+}
+
+void FEM_DG_IMPLICIT::calcAy_(double **dst4, Param par, double GAM)
+{
+	double AGAM = GAM - 1.0;
+	dst4[0][0] = 0.0;
+	dst4[0][1] = 0.0;
+	dst4[0][2] = 1.0;
+	dst4[0][3] = 0.0;
+
+	dst4[1][0] = -par.u*par.v;
+	dst4[1][1] = par.v;
+	dst4[1][2] = par.u;
+	dst4[1][3] = 0.0;
+
+	dst4[2][0] = -POW_2(par.u) + (par.r*par.E + 0.5*par.U2())*AGAM;
+	dst4[2][1] = 2.0*par.u + (par.r*par.E - par.u)*AGAM;
+	dst4[2][2] = -par.v*AGAM;
+	dst4[2][3] = AGAM;
+
+	dst4[3][0] = par.U2()*par.u*AGAM - par.E*par.u*GAM;
+	dst4[3][1] = -POW_2(par.u)*AGAM + par.E*GAM - 0.5*par.U2()*AGAM;
+	dst4[3][2] = par.u*par.v*AGAM;
+	dst4[3][3] = par.u*GAM;
+}
+
 void FEM_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
 	double WI, UN, UT;
@@ -904,15 +1068,10 @@ void FEM_DG_IMPLICIT::consToPar(double fRO, double fRU, double fRV, double fRE, 
 
 void FEM_DG_IMPLICIT::calcMatrWithTau()
 {
-	int bSz = BASE_FUNC_COUNT * 4;
 	for (int iCell = 0; iCell < grid.cCount; iCell++) {
 
-		for (int i = 0; i < bSz; i++) {
-			for (int j = 0; j < bSz; j++) {
-				matrBig[i][j] = 0.0;
-			}
-		}
-
+		fillMtx(matrBig, 0.0, MATR_DIM);
+		
 
 		for (int i = 0; i < BASE_FUNC_COUNT; i++) {
 			for (int j = 0; j < BASE_FUNC_COUNT; j++) {
@@ -920,7 +1079,7 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 			}
 		}
 
-		for (int ii = 0; ii < 4; ii++) {
+		for (int ii = 0; ii < FIELD_COUNT; ii++) {
 			addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
 		}
 
@@ -938,11 +1097,7 @@ void FEM_DG_IMPLICIT::calcIntegral()
 
 	for (int iCell = 0; iCell < grid.cCount; iCell++) {
 		
-		for (int i = 0; i < 4 * BASE_FUNC_COUNT; i++) {
-			for (int j = 0; j < 4 * BASE_FUNC_COUNT; j++) {
-				matrBig[i][j] = 0.0;
-			}
-		}
+		fillMtx(matrBig, 0.0, MATR_DIM);
 		
 		for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
 			Point& p = cellGP[iCell][iGP];
@@ -958,13 +1113,13 @@ void FEM_DG_IMPLICIT::calcIntegral()
 			double H = par.E + par.p / par.r;
 			calcA(mx, par.cz, getGAM(iCell), par.u, 1.0, par.v, 0.0, H);
 			calcA(my, par.cz, getGAM(iCell), par.u, 0.0, par.v, 1.0, H);
-
-			for (int i = 0; i < 4; i++) {
-				for (int j = 0; j < 4; j++) {
+			//calcAx_(my, par, getGAM(iCell));
+			for (int i = 0; i < FIELD_COUNT; i++) {
+				for (int j = 0; j < FIELD_COUNT; j++) {
 					for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 						for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-							matrSmall[ii][jj] =  mx[i][j] * getDfDx(jj, iCell, p);
-							matrSmall[ii][jj] += my[i][j] * getDfDy(jj, iCell, p);
+							matrSmall[ii][jj] = -mx[i][j] * getDfDx(jj, iCell, p);
+							matrSmall[ii][jj] -= my[i][j] * getDfDy(jj, iCell, p);
 							matrSmall[ii][jj] *= getF(ii, iCell, p);
 							matrSmall[ii][jj] *= w;
 						}
@@ -974,13 +1129,9 @@ void FEM_DG_IMPLICIT::calcIntegral()
 			}
 
 		}
-
-		for (int i = 0; i < 4*BASE_FUNC_COUNT; i++) {
-			for (int j = 0; j < 4 * BASE_FUNC_COUNT; j++) {
-				matrBig[i][j] *= cellJ[iCell];
-			}
-		}
-
+		
+		multMtxToVal(matrBig, cellJ[iCell], MATR_DIM);
+		
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
 	}
 
@@ -1005,7 +1156,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 	double fRO1, fRU1, fRV1, fRE1, fRO2, fRU2, fRV2, fRE2;
 	Param par1, par2;
 
-	int mSize = BASE_FUNC_COUNT * 4;
+	//int mSize = BASE_FUNC_COUNT * 4;
 
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge& edge = grid.edges[iEdge];
@@ -1013,12 +1164,10 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 		int c1 = edge.c1;
 		int c2 = edge.c2;
 		if (c2 >= 0) {
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j] = 0.0;
-					matrBig2[i][j] = 0.0;
-				}
-			}
+			
+			fillMtx(matrBig, 0.0, MATR_DIM); 
+			fillMtx(matrBig2, 0.0, MATR_DIM); 
+			
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 				Point& p = edgeGP[iEdge][iGP];
 				double w = edgeGW[iEdge][iGP];
@@ -1047,8 +1196,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
 				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
 				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
-				for (int i = 0; i < 4; i++) {
-					for (int j = 0; j < 4; j++) {
+				for (int i = 0; i < FIELD_COUNT; i++) {
+					for (int j = 0; j < FIELD_COUNT; j++) {
 						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
 								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
@@ -1061,75 +1210,17 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				}
 
 			}
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j]  *= edgeJ[iEdge];
-					matrBig2[i][j] *= edgeJ[iEdge];
-				}
-			}
+			
+			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
+			multMtxToVal(matrBig2, edgeJ[iEdge], MATR_DIM);
 
 			solverMtx->addMatrElement(c1, c1, matrBig);
 			solverMtx->addMatrElement(c1, c2, matrBig2);
 
 
-
-
-
-
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j] = 0.0;
-					matrBig2[i][j] = 0.0;
-				}
-			}
-			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-				Point& p = edgeGP[iEdge][iGP];
-				double w = edgeGW[iEdge][iGP];
-				fRO1 = getField(FIELD_RO, c1, p);
-				fRU1 = getField(FIELD_RU, c1, p);
-				fRV1 = getField(FIELD_RV, c1, p);
-				fRE1 = getField(FIELD_RE, c1, p);
-				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
-				Material& mat1 = getMaterial(c1);
-				mat1.URS(par1, 0); // p=p(r,e)
-
-				fRO2 = getField(FIELD_RO, c2, p);
-				fRU2 = getField(FIELD_RU, c2, p);
-				fRV2 = getField(FIELD_RV, c2, p);
-				fRE2 = getField(FIELD_RE, c2, p);
-				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
-				Material& mat2 = getMaterial(c2);
-				mat2.URS(par2, 0); // p=p(r,e)
-
-				Param average;
-				calcRoeAverage(average, par1, par2, getGAM(c1), n);
-				double H = average.E + average.p / average.r;
-
-				eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
-				rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
-				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, -n.x, average.v, -n.y);
-				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
-				calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
-				for (int i = 0; i < 4; i++) {
-					for (int j = 0; j < 4; j++) {
-						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
-							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-								matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c2, p) * getF(jj, c2, p) * w;
-								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c1, p) * getF(jj, c2, p) * w;
-							}
-						}
-						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
-						addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
-					}
-				}
-
-			}
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j] *= edgeJ[iEdge];
-					matrBig2[i][j] *= edgeJ[iEdge];
-				}
-			}
+			
+			multMtxToVal(matrBig,  -1.0, MATR_DIM);
+			multMtxToVal(matrBig2, -1.0, MATR_DIM);
 
 			solverMtx->addMatrElement(c2, c2, matrBig);
 			solverMtx->addMatrElement(c2, c1, matrBig2);
@@ -1137,11 +1228,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 		}
 		else {
 
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j] = 0.0;
-				}
-			}
+			fillMtx(matrBig, 0.0, MATR_DIM);
+
 			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 				Point& p = edgeGP[iEdge][iGP];
 				double w = edgeGW[iEdge][iGP];
@@ -1163,8 +1251,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
 				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
 				calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
-				for (int i = 0; i < 4; i++) {
-					for (int j = 0; j < 4; j++) {
+				for (int i = 0; i < FIELD_COUNT; i++) {
+					for (int j = 0; j < FIELD_COUNT; j++) {
 						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
 								matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
@@ -1175,11 +1263,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				}
 
 			}
-			for (int i = 0; i < mSize; i++) {
-				for (int j = 0; j < mSize; j++) {
-					matrBig[i][j] *= edgeJ[iEdge];
-				}
-			}
+			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
 
 			solverMtx->addMatrElement(c1, c1, matrBig);
 
@@ -1197,11 +1281,11 @@ void FEM_DG_IMPLICIT::calcRHS()
 {
 	/* volume integral */
 
-	const int arrSize = BASE_FUNC_COUNT * 4;
+	//const int arrSize = BASE_FUNC_COUNT * 4;
 
 
 	for (int iCell = 0; iCell < grid.cCount; iCell++) {
-		memset(tmpArr, 0, sizeof(double)*arrSize);
+		memset(tmpArr, 0, sizeof(double)*MATR_DIM);
 		for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
 			double sRO = 0.0;
 			double sRU = 0.0;
@@ -1230,13 +1314,13 @@ void FEM_DG_IMPLICIT::calcRHS()
 				double GV = GR*par.v + par.p;
 				double GE = (fRE + par.p)*par.v;
 
-				double dFdx = getDfDx(iBF, iCell, p);
-				double dFdy = getDfDx(iBF, iCell, p);
+				double dFdx = getDfDx(iBF, iCell, p) * w;
+				double dFdy = getDfDy(iBF, iCell, p) * w;
 
-				sRO += w*(FR*dFdx + GR*dFdy);
-				sRU += w*(FU*dFdx + GU*dFdy);
-				sRV += w*(FV*dFdx + GV*dFdy);
-				sRE += w*(FE*dFdx + GE*dFdy);
+				sRO += (FR*dFdx + GR*dFdy);
+				sRU += (FU*dFdx + GU*dFdy);
+				sRV += (FV*dFdx + GV*dFdy);
+				sRE += (FE*dFdx + GE*dFdy);
 			}
 			sRO *= cellJ[iCell];
 			sRU *= cellJ[iCell];
@@ -1256,8 +1340,8 @@ void FEM_DG_IMPLICIT::calcRHS()
 	/* surf integral */
 
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-		memset(tmpArr1, 0, sizeof(double)*arrSize);
-		memset(tmpArr2, 0, sizeof(double)*arrSize);
+		memset(tmpArr1, 0, sizeof(double)*MATR_DIM);
+		memset(tmpArr2, 0, sizeof(double)*MATR_DIM);
 
 		int c1 = grid.edges[iEdge].c1;
 		int c2 = grid.edges[iEdge].c2;
@@ -1271,7 +1355,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				double sRU2 = 0.0;
 				double sRV2 = 0.0;
 				double sRE2 = 0.0;
-				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+				for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 					double fRO, fRU, fRV, fRE;
 					double FR, FU, FV, FE;
 
@@ -1343,7 +1427,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				double sRU1 = 0.0;
 				double sRV1 = 0.0;
 				double sRE1 = 0.0;
-				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+				for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
 					double fRO, fRU, fRV, fRE;
 					double FR, FU, FV, FE;
 
@@ -1394,6 +1478,23 @@ void FEM_DG_IMPLICIT::calcRHS()
 void FEM_DG_IMPLICIT::run()
 {
 	double __GAM = 1.4;
+	// инициализируем портрет матрицы
+	log("Matrix structure initialization:\n");
+	CSRMatrix::DELTA = 65536;
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+		int		c1 = grid.edges[iEdge].c1;
+		int		c2 = grid.edges[iEdge].c2;
+		solverMtx->createMatrElement(c1, c1);
+		if (c2 >= 0){
+			solverMtx->createMatrElement(c1, c2);
+			solverMtx->createMatrElement(c2, c2);
+			solverMtx->createMatrElement(c2, c1);
+		}
+		if (iEdge % 100 == 0) {
+			log("\tfor edge: %d\n", iEdge);
+		}
+	}
+	log("\tcomplete...\n");
 	double t = 0.0;
 	int step = 0;
 	while (t < TMAX && step < STEP_MAX) {
@@ -1423,7 +1524,7 @@ void FEM_DG_IMPLICIT::run()
 
 		/* –ешаем —Ћј” */
 		int maxIter = 100;
-		const double eps = 1.0e-7;
+		const double eps = 1.0e-3;
 
 		solverErr = solverMtx->solve(eps, maxIter);
 
@@ -1433,13 +1534,15 @@ void FEM_DG_IMPLICIT::run()
 
 			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
 			{
+				Cell &cell = grid.cells[cellIndex];
+
 				//if (cellIsLim(cellIndex))	continue;
-				for (int iFld = 0; iFld < 4; iFld++) {
+				for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
 					for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
 						fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
 					}
 				}
-
+				
 				Param par;
 				convertConsToPar(cellIndex, par);
 				if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
@@ -1449,6 +1552,43 @@ void FEM_DG_IMPLICIT::run()
 				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
 				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
 				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+				
+				double fRO, fRU, fRV, fRE;
+				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+
+					fRO = getField(FIELD_RO, cellIndex, cellGP[cellIndex][iGP]);
+					fRU = getField(FIELD_RU, cellIndex, cellGP[cellIndex][iGP]);
+					fRV = getField(FIELD_RV, cellIndex, cellGP[cellIndex][iGP]);
+					fRE = getField(FIELD_RE, cellIndex, cellGP[cellIndex][iGP]);
+					consToPar(fRO, fRU, fRV, fRE, par);
+					if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+					if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+					if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+					if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+					if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+					if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+					if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+				}
+
+				for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
+					int edgInd = cell.edgesInd[iEdge];
+					for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+						fRO = getField(FIELD_RO, cellIndex, edgeGP[edgInd][iGP]);
+						fRU = getField(FIELD_RU, cellIndex, edgeGP[edgInd][iGP]);
+						fRV = getField(FIELD_RV, cellIndex, edgeGP[edgInd][iGP]);
+						fRE = getField(FIELD_RE, cellIndex, edgeGP[edgInd][iGP]);
+						consToPar(fRO, fRU, fRV, fRE, par);
+						if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+						if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+						if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+						if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+						if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+						if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+						if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+					}
+				}
+
+
 			}
 			remediateLimCells();
 			int limCells = getLimitedCellsCount();
@@ -1585,7 +1725,7 @@ void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int
 	int jj = j * BASE_FUNC_COUNT;
 	for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
 		for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
-			mB[ii + i1][jj + j1] = mB[ii + i1][jj + j1] + mS[i1][j1];
+			mB[ii + i1][jj + j1] += mS[i1][j1];
 		}
 	}
 }
