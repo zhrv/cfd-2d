@@ -35,6 +35,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	int steadyVal = 1;
 	node0 = task->FirstChild("control");
 	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
+	node0->FirstChild("SIGMA")->ToElement()->Attribute("value", &SIGMA);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
 	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
@@ -63,6 +64,19 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("step")->ToElement()->Attribute("value", &stepCFL);
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
+
+	//if (BASE_FUNC_COUNT == 3) {
+	//	CFL /= (2.0*1.0+1.0);
+	//}
+	//else if (BASE_FUNC_COUNT == 6) {
+	//	CFL /= (2.0*2.0 + 1.0);
+	//}
+
+	// параметры решателя
+	node0 = task->FirstChild("solver");
+	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
+	node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
+
 
 	// сглаживание невязок
 	int smUsing = 1;
@@ -186,7 +200,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	calcTimeStep();
+	//calcTimeStep();
 	log("TAU_MIN = %25.16e\n", TAU_MIN);
 
 	//solverMtx = new SolverZeidel();
@@ -252,8 +266,11 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 			cellGP[i][3].x = a1*b + b1*b + c1;
 			cellGP[i][3].y = a2*b + b2*b + c2;
 
-			cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
-			//cellJ[i] = 0.5*(a1*b2 - a2*b1);
+			//cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
+			cellJ[i] = 0.5*(a1*b2 - a2*b1);
+			if (cellJ[i] <= 0) {
+				int zhrv = 0;
+			}
 		}
 	}
 	else if (GP_CELL_COUNT == 3) {
@@ -401,6 +418,7 @@ void FEM_DG_IMPLICIT::memAlloc()
 	tmpArr = new double[n];
 	tmpArr1 = new double[n];
 	tmpArr2 = new double[n];
+	tmpCFL = new double[n];
 	tmpArrInt = new int[n];
 
 	fields = new double**[4];
@@ -457,6 +475,7 @@ void FEM_DG_IMPLICIT::memFree()
 	delete[] tmpArr;
 	delete[] tmpArr1;
 	delete[] tmpArr2;
+	delete[] tmpCFL;
 
 	delete[] fields;
 
@@ -668,7 +687,7 @@ void FEM_DG_IMPLICIT::calcTimeStep()
 		if (STEADY) {
 			Param p;
 			convertConsToPar(iCell, p);
-			double tmp = grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
+			double tmp = 0.5*grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
 			cTau[iCell] = _min_(CFL*tmp, TAU);
 			if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
 		} else {
@@ -844,11 +863,12 @@ void FEM_DG_IMPLICIT::remediateLimCells()
 
 void FEM_DG_IMPLICIT::decCFL()
 {
-	if (CFL > 0.1) {
+	if (CFL > 0.01) {
 		CFL *= 0.75;
-		if (CFL < 0.1) CFL = 0.1;
-		log(" CFL Number has been decreased : %f \n", CFL);
+		if (CFL < 0.01) CFL = 0.01;
+		log(" CFL Number has been decreased : %25.25e \n", CFL);
 	}
+	//log(" <<< CFL Number has been decreased : %25.25e \n", CFL);
 }
 
 void FEM_DG_IMPLICIT::incCFL()
@@ -856,7 +876,7 @@ void FEM_DG_IMPLICIT::incCFL()
 	if (CFL < maxCFL) {
 		CFL *= scaleCFL;
 		if (CFL > maxCFL) CFL = maxCFL;
-		log(" CFL Number has been increased : %f \n", CFL);
+		log(" CFL Number has been increased : %25.25e \n", CFL);
 	}
 }
 
@@ -1113,6 +1133,9 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 		for (int ii = 0; ii < FIELD_COUNT; ii++) {
 			addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
 		}
+		//for (int ii = 0; ii < FIELD_COUNT; ii++) {
+		//	addSmallMatrToBigMatr(matrBig, matrA[iCell], ii, ii);
+		//}
 
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
 
@@ -1158,7 +1181,7 @@ void FEM_DG_IMPLICIT::calcIntegral()
 
 		}
 		
-		multMtxToVal(matrBig, cellJ[iCell], MATR_DIM);
+		multMtxToVal(matrBig, cellJ[iCell] * SIGMA, MATR_DIM);
 		
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
 	}
@@ -1191,6 +1214,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 		Vector&	n = grid.edges[iEdge].n;
 		int c1 = edge.c1;
 		int c2 = edge.c2;
+		
 		if (c2 >= 0) {
 			
 			fillMtx(matrBig, 0.0, MATR_DIM); 
@@ -1211,8 +1235,9 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
-				double H = average.E + average.p / average.r;
 
+
+				double H = average.E + average.p / average.r;
 				eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
 				rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
 				leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
@@ -1233,8 +1258,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 			}
 			
-			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
-			multMtxToVal(matrBig2, edgeJ[iEdge], MATR_DIM);
+			multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+			multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
 
 			solverMtx->addMatrElement(c1, c1, matrBig);
 			solverMtx->addMatrElement(c1, c2, matrBig2);
@@ -1281,8 +1306,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 			}
 
-			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
-			multMtxToVal(matrBig2, edgeJ[iEdge], MATR_DIM);
+			multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+			multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
 
 			solverMtx->addMatrElement(c2, c2, matrBig);
 			solverMtx->addMatrElement(c2, c1, matrBig2);
@@ -1304,6 +1329,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
+
 				double H = average.E + average.p / average.r;
 
 				eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
@@ -1322,7 +1348,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				}
 
 			}
-			multMtxToVal(matrBig, edgeJ[iEdge], MATR_DIM);
+			multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
 
 			solverMtx->addMatrElement(c1, c1, matrBig);
 
@@ -1395,6 +1421,8 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 	/* surf integral */
 
+	memset(tmpCFL, 0, grid.cCount*sizeof(double));
+	
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		memset(tmpArr1, 0, sizeof(double)*MATR_DIM);
 		memset(tmpArr2, 0, sizeof(double)*MATR_DIM);
@@ -1432,6 +1460,17 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 					
+					// вычисляем спектральный радиус для вычисления шага по времени
+					if (STEADY) {
+						double u1 = sqrt(par1.U2()) + par1.cz;
+						double u2 = sqrt(par2.U2()) + par2.cz;
+						double lambda = _max_(u1, u2);
+						lambda *= w;
+						lambda *= edgeJ[iEdge];
+						tmpCFL[c1] += lambda;
+						tmpCFL[c2] += lambda;
+					}
+
 					double cGP1 = w * getF(iBF, c1, p);
 					double cGP2 = w * getF(iBF, c2, p);
 
@@ -1468,6 +1507,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				tmpArr2[shift + iBF] = sRV2; shift += BASE_FUNC_COUNT;
 				tmpArr2[shift + iBF] = sRE2; //shift += BASE_FUNC_COUNT;
 			}
+			
 			solverMtx->addRightElement(c1, tmpArr1);
 			solverMtx->addRightElement(c2, tmpArr2);
 		}
@@ -1495,6 +1535,16 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 
+					// вычисляем спектральный радиус для вычисления шага по времени
+					if (STEADY) {
+						double u1 = sqrt(par1.u*par1.u + par1.v*par1.v) + par1.cz;
+						double u2 = sqrt(par2.u*par2.u + par2.v*par2.v) + par2.cz;
+						double lambda = _max_(u1, u2);
+						lambda *= w;
+						lambda *= edgeJ[iEdge];
+						tmpCFL[c1] += lambda;
+					}
+
 					double cGP1 = w * getF(iBF, c1, p);
 
 					sRO1 += FR*cGP1;
@@ -1516,6 +1566,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				tmpArr1[shift + iBF] = -sRE1; //shift += BASE_FUNC_COUNT;
 
 			}
+
 			solverMtx->addRightElement(c1, tmpArr1);
 		}
 	}
@@ -1542,13 +1593,15 @@ void FEM_DG_IMPLICIT::run()
 		}
 	}
 	log("\tcomplete...\n");
+	int solverErr = 0;
 	double t = 0.0;
 	int step = 0;
 	while (t < TMAX && step < STEP_MAX) {
 		long timeStart, timeEnd;
 		timeStart = clock();
 
-		step++;
+		if (!solverErr) step++;
+		
 		if (STEADY) {
 			calcTimeStep();
 		}
@@ -1556,22 +1609,35 @@ void FEM_DG_IMPLICIT::run()
 			t += TAU;
 		}
 
-		int solverErr = 0;
+		solverErr = 0;
 		solverMtx->zero();
 
+		/* Заполняем правую часть */
+		calcRHS();
+
+		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
+		if (STEADY) {
+			double minTau = DBL_MAX;
+			for (int iCell = 0; iCell < grid.cCount; iCell++)
+			{
+				//Param p;
+				//convertConsToPar(iCell, p);
+				cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
+				if (cTau[iCell] < minTau) minTau = cTau[iCell];
+			}
+			//log("MIN_TAU = %25.15e\n", minTau); 
+		}
+
 		/* Заполняем элементы матрицы */
-		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
 		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
+		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
 		calcMatrFlux();			// Вычисляем потоковые величины 
 
 
-		/* Заполняем правую часть */
-		calcRHS();				// Вычисляем столбец правых членов
-
 
 		/* Решаем СЛАУ */
-		int maxIter = 50;
-		const double eps = 1.0e-3;
+		int maxIter = SOLVER_ITER;
+		double eps = SOLVER_EPS;
 
 		solverErr = solverMtx->solve(eps, maxIter);
 
@@ -1662,8 +1728,14 @@ void FEM_DG_IMPLICIT::run()
 			if (STEADY && (step % stepCFL == 0)) incCFL();
 		}
 		else {
+			if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
+				log("Solver error: residual condition not considered.\n");
+			}
+			if (solverErr & MatrixSolver::RESULT_ERR_MAX_ITER) {
+				log("Solver error: max iterations done.\n");
+			}
 			if (STEADY) {
-				//decCFL();
+				decCFL();
 			}
 			else {
 				solverErr = 0;

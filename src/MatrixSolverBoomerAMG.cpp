@@ -5,18 +5,15 @@
 #include "HYPRE.h"
 #include "HYPRE_parcsr_ls.h"
 
+SolverHYPREBoomerAMG::SolverHYPREBoomerAMG()
+{
+	solver_id = 61;
+}
 
 void SolverHYPREBoomerAMG::initMatrVectors()
 {
-	/* Create the matrix.
-	Note that this is a square matrix, so we indicate the row partition
-	size twice (since number of rows = number of cols) */
 	HYPRE_IJMatrixCreate(MPI_COMM_WORLD, ilower, iupper, ilower, iupper, &A);
-
-	/* Choose a parallel csr format storage (see the User's Manual) */
 	HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
-
-	/* Initialize before setting coefficients */
 	HYPRE_IJMatrixInitialize(A);
 
 	/* Create the rhs and solution */
@@ -105,7 +102,8 @@ void SolverHYPREBoomerAMG::addMatrElement(int i, int j, double** matrDim)
 
 }
 
-void SolverHYPREBoomerAMG::createMatrElement(int i, int j) {
+void SolverHYPREBoomerAMG::createMatrElement(int i, int j) 
+{
 }
 
 void SolverHYPREBoomerAMG::addRightElement(int i, double* vectDim)
@@ -119,6 +117,7 @@ void SolverHYPREBoomerAMG::addRightElement(int i, double* vectDim)
 
 int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 {
+	int result = MatrixSolver::RESULT_OK;
 	/* Set the solution to zero */
 	{
 		int    *rows;
@@ -149,15 +148,28 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 	HYPRE_IJVectorGetObject(bb, (void **)&par_bb);
 	HYPRE_IJVectorGetObject(xx, (void **)&par_xx);
 
-	////printToFile("matr.txt");
+	//printToFile("matr.txt");
 	//{
+	//	FILE *fp = fopen("matr.txt", "w");
 	//	int *rows = (int*)calloc(local_size, sizeof(int));
 	//	for (int i = 0; i < local_size; i++)
 	//		rows[i] = ilower + i;
 
-	//	/* get the local solution */
+	//	for (int i = 0; i < local_size; i++) {
+	//		HYPRE_IJMatrixGetValues(A, 1, &local_size, &i, rows, x);
+	//		for (int j = 0; j < local_size; j++) {
+	//			fprintf(fp, "%16.8e ", x[j]);
+	//		}
+	//		fprintf(fp, "\n");
+	//	}
+	//	
+	//	
 	//	HYPRE_IJVectorGetValues(bb, local_size, rows, x);
-
+	//	for (int i = 0; i < local_size; i++) {
+	//		fprintf(fp, "%16.8e\n", x[i]);
+	//	}
+	//	
+	//	fclose(fp);
 	//	delete[] rows;
 	//}
 
@@ -187,8 +199,15 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		HYPRE_BoomerAMGSolve(solver, parcsr_A, par_bb, par_xx);
 
 		/* Run info - needed logging turned on */
+		int initMaxIter = maxIter;
 		HYPRE_BoomerAMGGetNumIterations(solver, &maxIter);
 		HYPRE_BoomerAMGGetFinalRelativeResidualNorm(solver, &final_res_norm);
+		if (initMaxIter <= maxIter) {
+			result |= MatrixSolver::RESULT_ERR_MAX_ITER;
+		}
+		if (final_res_norm >= eps || !isfinite(final_res_norm)) {
+			result |= MatrixSolver::RESULT_ERR_CONVERG;
+		}
 		//if (myid == 0)
 		/*{
 		log("\n");
@@ -212,7 +231,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		HYPRE_PCGSetMaxIter(solver, maxIter); /* max iterations */
 		HYPRE_PCGSetTol(solver, eps); /* conv. tolerance */
 		HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
-		HYPRE_PCGSetPrintLevel(solver, 1); /* prints out the iteration info */
+		HYPRE_PCGSetPrintLevel(solver, 0); /* prints out the iteration info */
 		HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
 		/* Now setup and solve! */
@@ -220,15 +239,23 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		HYPRE_ParCSRPCGSolve(solver, parcsr_A, par_bb, par_xx);
 
 		/* Run info - needed logging turned on */
+		int initMaxIter = maxIter;
 		HYPRE_PCGGetNumIterations(solver, &maxIter);
 		HYPRE_PCGGetFinalRelativeResidualNorm(solver, &final_res_norm);
-		//if (myid == 0)
-		{
-			log("\n");
-			log("Iterations = %d\n", maxIter);
-			log("Final Relative Residual Norm = %e\n", final_res_norm);
-			log("\n");
+		if (initMaxIter <= maxIter) {
+			result |= MatrixSolver::RESULT_ERR_MAX_ITER;
 		}
+		if (final_res_norm >= eps || !isfinite(final_res_norm)) {
+			result |= MatrixSolver::RESULT_ERR_CONVERG;
+			log("HYPRE PCG solver errror: Final Relative Residual Norm = %e; Config Error = %e\n", final_res_norm, eps);
+		}
+		//if (myid == 0)
+		//{
+		//	log("\n");
+		//	log("Iterations = %d\n", maxIter);
+		//	log("Final Relative Residual Norm = %e\n", final_res_norm);
+		//	log("\n");
+		//}
 
 		/* Destroy solver */
 		HYPRE_ParCSRPCGDestroy(solver);
@@ -267,15 +294,23 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		HYPRE_ParCSRPCGSolve(solver, parcsr_A, par_bb, par_xx);
 
 		/* Run info - needed logging turned on */
+		int initMaxIter = maxIter;
 		HYPRE_PCGGetNumIterations(solver, &maxIter);
 		HYPRE_PCGGetFinalRelativeResidualNorm(solver, &final_res_norm);
-		//if (myid == 0)
-		{
-			printf("\n");
-			printf("Iterations = %d\n", maxIter);
-			printf("Final Relative Residual Norm = %e\n", final_res_norm);
-			printf("\n");
+		if (initMaxIter <= maxIter) {
+			result |= MatrixSolver::RESULT_ERR_MAX_ITER;
 		}
+		if (final_res_norm >= eps || !isfinite(final_res_norm)) {
+			result |= MatrixSolver::RESULT_ERR_CONVERG;
+			log("HYPRE PCG solver errror: Final Relative Residual Norm = %e; Config Error = %e\n", final_res_norm, eps);
+		}
+		//if (myid == 0)
+		//{
+		//	printf("\n");
+		//	printf("Iterations = %d\n", maxIter);
+		//	printf("Final Relative Residual Norm = %e\n", final_res_norm);
+		//	printf("\n");
+		//}
 
 		/* Destroy solver and preconditioner */
 		HYPRE_ParCSRPCGDestroy(solver);
@@ -350,7 +385,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		/* Set some parameters (See Reference Manual for more parameters) */
 		HYPRE_FlexGMRESSetKDim(solver, restart);
 		HYPRE_FlexGMRESSetMaxIter(solver, maxIter); /* max iterations */
-		HYPRE_FlexGMRESSetTol(solver, 1e-7); /* conv. tolerance */
+		HYPRE_FlexGMRESSetTol(solver, eps); /* conv. tolerance */
 		HYPRE_FlexGMRESSetPrintLevel(solver, 2); /* print solve info */
 		HYPRE_FlexGMRESSetLogging(solver, 1); /* needed to get run info later */
 
@@ -396,7 +431,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 		printf("Invalid solver id specified.\n");
 	}
 
-	{
+	if (result == MatrixSolver::RESULT_OK) {
 		int *rows = (int*)calloc(local_size, sizeof(int));
 		for (int i = 0; i < local_size; i++)
 			rows[i] = ilower + i;
@@ -408,7 +443,7 @@ int SolverHYPREBoomerAMG::solve(double eps, int& maxIter)
 	}
 
 
-	return MatrixSolver::RESULT_OK;
+	return result;
 }
 
 

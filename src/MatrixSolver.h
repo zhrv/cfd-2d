@@ -12,8 +12,9 @@ class MatrixSolver
 public:
 
 	static const int RESULT_OK					= 0x0000;
-	static const int RESULT_ERR_ZERO_DIAG = 0x0001;
-	static const int RESULT_ERR_MAX_ITER = 0x0002;
+	static const int RESULT_ERR_ZERO_DIAG		= 0x0001;
+	static const int RESULT_ERR_MAX_ITER		= 0x0002;
+	static const int RESULT_ERR_CONVERG			= 0x0004;
 
 	virtual ~MatrixSolver();
 
@@ -63,6 +64,7 @@ public:
 class SolverHYPREBoomerAMG : public MatrixSolver
 {
 public:
+	SolverHYPREBoomerAMG();
 	virtual ~SolverHYPREBoomerAMG();
 
 	virtual int solve(double eps, int& maxIter);

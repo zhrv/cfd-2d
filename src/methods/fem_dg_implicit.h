@@ -106,6 +106,10 @@ private:
 	double			SMOOTHING_PAR;
 	int				FLUX;
 
+	double			SIGMA;
+
+	double			SOLVER_EPS		= 1.e-7;
+	int				SOLVER_ITER		= 50;
 
 	int				matCount;
 	int				regCount;
@@ -165,13 +169,17 @@ private:
 	double			**matrBig2;
 	double			**matrSmall2;
 
+	double			*tmpCFL;
+	double			pCFL;
+
 protected:
+
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
 
 	const static int BASE_FUNC_COUNT = 3;
-	const static int GP_CELL_COUNT = 4;
-	const static int GP_EDGE_COUNT = 3;
+	const static int GP_CELL_COUNT = 3;
+	const static int GP_EDGE_COUNT = 2;
 
 	const static int FIELD_COUNT = 4;
 	const static int FIELD_RO = 0;
