@@ -1,6 +1,7 @@
 #pragma once
 #include "method.h"
 #include "MatrixSolver.h"
+#include "LimiterDG.h"
 
 
 class FEM_DG_IMPLICIT :	public Method
@@ -12,6 +13,9 @@ public:
 	void init(char * xmlFileName);
 	void run();
 	void done();
+
+	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
+	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
 private:
 	void memAlloc();
@@ -33,8 +37,6 @@ private:
 
 	inline double getField(int fld, int iCell, Point p);
 	inline double getField(int fld, int iCell, double x, double y);
-	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
-	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
 	inline double getF(int id, int iCell, Point p);
 	inline double getF(int id, int iCell, double x, double y);
@@ -171,6 +173,8 @@ private:
 
 	double			*tmpCFL;
 	double			pCFL;
+
+	LimiterDG		*limiter = NULL;
 
 protected:
 

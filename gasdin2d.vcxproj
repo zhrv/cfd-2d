@@ -163,6 +163,8 @@
     <ClCompile Include="src\methods\fem_rkdg.cpp" />
     <ClCompile Include="src\methods\fvm_tvd.cpp" />
     <ClCompile Include="src\methods\fvm_tvd_implicit.cpp" />
+    <ClCompile Include="src\methods\LimiterDG.cpp" />
+    <ClCompile Include="src\methods\LimiterDGCockburn.cpp" />
     <ClCompile Include="src\methods\method.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
     <ClCompile Include="src\tinyxml\tinystr.cpp" />
@@ -181,6 +183,8 @@
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
     <ClInclude Include="src\methods\fvm_tvd_implicit.h" />
+    <ClInclude Include="src\methods\LimiterDG.h" />
+    <ClInclude Include="src\methods\LimiterDGCockburn.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />
     <ClInclude Include="src\tinyxml\tinystr.h" />

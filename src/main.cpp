@@ -7,7 +7,7 @@
 
 int main(int argc, char** argv)
 {
-	_controlfp(~(_MCW_EM & (~_EM_INEXACT) & (~_EM_UNDERFLOW)), _MCW_EM);
+	//_controlfp(~(_MCW_EM & (~_EM_INEXACT) & (~_EM_UNDERFLOW)), _MCW_EM);
 	int myid, num_procs;
 
 	/* Initialize MPI */

@@ -3,6 +3,7 @@
 #include "global.h"
 #include <ctime>
 #include <cfloat>
+#include "LimiterDGCockburn.h"
 
 #define POW_2(x) ((x)*(x))
 
@@ -206,6 +207,8 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	//solverMtx = new SolverZeidel();
 	solverMtx = new SolverHYPREBoomerAMG();
 	solverMtx->init(grid.cCount, MATR_DIM);
+
+	limiter =  new LimiterDGCockburn(this, &grid, ro, ru, rv, re, BASE_FUNC_COUNT);
 
 	save(0);
 }
@@ -1655,7 +1658,17 @@ void FEM_DG_IMPLICIT::run()
 						fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
 					}
 				}
-				
+			}
+			
+			
+			if (limiter != NULL) {
+				limiter->run();
+			}
+
+			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+			{
+				Cell &cell = grid.cells[cellIndex];
+
 				Param par;
 				convertConsToPar(cellIndex, par);
 				if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
@@ -1665,7 +1678,7 @@ void FEM_DG_IMPLICIT::run()
 				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
 				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
 				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
-				
+
 				double fRO, fRU, fRV, fRE;
 				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
 
@@ -1704,6 +1717,7 @@ void FEM_DG_IMPLICIT::run()
 
 			}
 			remediateLimCells();
+
 			int limCells = getLimitedCellsCount();
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
 
