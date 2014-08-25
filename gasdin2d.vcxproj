@@ -101,7 +101,10 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <FunctionLevelLinking>
+      </FunctionLevelLinking>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -155,8 +158,6 @@
     <ClCompile Include="src\global.cpp" />
     <ClCompile Include="src\grid.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\MatrixSolver.cpp" />
-    <ClCompile Include="src\MatrixSolverBoomerAMG.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_dg_implicit.cpp" />
@@ -165,8 +166,15 @@
     <ClCompile Include="src\methods\fvm_tvd_implicit.cpp" />
     <ClCompile Include="src\methods\LimiterDG.cpp" />
     <ClCompile Include="src\methods\LimiterDGCockburn.cpp" />
-    <ClCompile Include="src\methods\method.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
+    <ClCompile Include="src\methods\solvers\MatrixSolver.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypreCustomSeidel.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypreFlexGmres.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypre.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypreBoomerAmg.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypreGmres.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHyprePcg.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverZeidel.cpp" />
     <ClCompile Include="src\tinyxml\tinystr.cpp" />
     <ClCompile Include="src\tinyxml\tinyxml.cpp" />
     <ClCompile Include="src\tinyxml\tinyxmlerror.cpp" />
@@ -176,7 +184,6 @@
     <ClInclude Include="src\CSR.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\grid.h" />
-    <ClInclude Include="src\MatrixSolver.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_dg_implicit.h" />
@@ -187,6 +194,14 @@
     <ClInclude Include="src\methods\LimiterDGCockburn.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />
+    <ClInclude Include="src\methods\solvers\MatrixSolver.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypreCustomSeidel.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypreFlexGmres.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypre.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypreBoomerAmg.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypreGmres.h" />
+    <ClInclude Include="src\methods\solvers\SolverHyprePcg.h" />
+    <ClInclude Include="src\methods\solvers\SolverZeidel.h" />
     <ClInclude Include="src\tinyxml\tinystr.h" />
     <ClInclude Include="src\tinyxml\tinyxml.h" />
   </ItemGroup>

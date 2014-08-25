@@ -3,6 +3,7 @@
 #include <string>
 #include <time.h>
 #include "global.h"
+#include "MatrixSolver.h"
 
 const char* FLUX_NAMES[2] = {
 		"GODUNOV",
@@ -481,7 +482,7 @@ void FVM_TVD_IMPLICIT::run()
 	double					t = 0.0;
 	unsigned int			step = 0;
 
-	MatrixSolver			*solverMtx = new SolverHYPREBoomerAMG();
+	MatrixSolver			*solverMtx = MatrixSolver::create("HYPRE_GMRES");
 	double					**eigenMtx4, **rEigenVector4, **lEigenVector4;
 	double					**Amtx4P, **Amtx4M;
 	double					**right4, **mtx4;

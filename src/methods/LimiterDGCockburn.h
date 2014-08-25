@@ -17,7 +17,7 @@ private:
 	void choiseDirection(int& nn1, int& nn2, double& a1, double& a2, int n0, int n1, int n2, int n3, Point pm, int m);
 	void getMatrLR(double** L, double** R, double u, double v, double c);
 	double triSquare(Point p0, Point p1, Point p2);
-
+	void calcLimiter_II();
 private:
 	Grid *grid;
 	int cellsCount;
@@ -50,7 +50,7 @@ private:
 	double **fRVlim;
 	double **fRElim;
 
-	const double LIMITER_ALFA = 1.0;
+	const double LIMITER_ALFA = 1.9;
 
 	const double GAM = 1.4;
 	const double AGAM = GAM - 1.0;

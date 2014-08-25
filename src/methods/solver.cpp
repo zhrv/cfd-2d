@@ -29,7 +29,7 @@ Method* Solver::initMethod(char* fileName)
 	//char methodName[50];
 	const char * methodName = task->ToElement()->Attribute("method");
 
-	if (strcmp("Decomp", methodName) == 0)
+	if (strcmp("DECOMP", methodName) == 0)
 	{
 		m = new Decomp();
 	}

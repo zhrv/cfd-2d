@@ -78,7 +78,7 @@ void LimiterDGCockburn::initLimiterParameters()
 		matrL[i] = new double[4];
 		matrR[i] = new double[4];
 	}
-
+	
 	// находим угол и коэффициенты разложения
 	for (int iCell = 0; iCell < cellsCount; iCell++)
 	{
@@ -90,14 +90,15 @@ void LimiterDGCockburn::initLimiterParameters()
 			int iEdge = __getEdgeByCells(iCell, grid->cells[iCell].neigh[m]);
 			limPm[iCell][m].x = grid->edges[iEdge].c->x; 
 			limPm[iCell][m].y = grid->edges[iEdge].c->y;
-			limLm[iCell][m].x = grid->edges[iEdge].c->x - grid->edges[iEdge].c->x;
-			limLm[iCell][m].y = grid->edges[iEdge].c->y - grid->edges[iEdge].c->y;
+			limLm[iCell][m].x = grid->edges[iEdge].c->x - grid->cells[iCell].c.x;
+			limLm[iCell][m].y = grid->edges[iEdge].c->y - grid->cells[iCell].c.y;
 			double tmp = sqrt(limLm[iCell][m].x*limLm[iCell][m].x + limLm[iCell][m].y*limLm[iCell][m].y);
 			limLmN[iCell][m].x = limLm[iCell][m].x / tmp;
 			limLmN[iCell][m].y = limLm[iCell][m].y / tmp;
 			choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limPm[iCell][m], m);
 			if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log("ERROR!!!\n");
 		}
+		int zhrv = 0;
 	}
 }
 
@@ -366,6 +367,9 @@ void LimiterDGCockburn::run()
 		memcpy(fRV[i], fRVlim[i], funcCount*sizeof(double));
 		memcpy(fRE[i], fRElim[i], funcCount*sizeof(double));
 	}
+
+
+	calcLimiter_II();
 }
 
 /*!
@@ -393,9 +397,9 @@ void LimiterDGCockburn::choiseDirection(int& nn1, int& nn2, double& a1, double& 
 		nn2 = nn[(m + 1) % 3];
 		if (nn1 >= 0 && nn2 >= 0)
 		{
-			double D = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
-			double D1 = (pm.x - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (pm.y - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
-			double D2 = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(pm.y - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(pm.x - grid->cells[n0].c.x);
+			double D  = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
+			double D1 = (pm.x                 - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (pm.y                 - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
+			double D2 = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(pm.y                 - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(pm.x                 - grid->cells[n0].c.x);
 
 			a1 = D1 / D;
 			a2 = D2 / D;
@@ -451,5 +455,180 @@ int LimiterDGCockburn::__getEdgeByCells(int c1, int c2)
 	}
 }
 
+
+void LimiterDGCockburn::calcLimiter_II()
+{
+	double xtt[9], ytt[9], t[3];
+	double Rcur1, RUcur1, RVcur1, Ecur1;
+	double Rcur2, RUcur2, RVcur2, Ecur2;
+	double Rcur3, RUcur3, RVcur3, Ecur3;
+	double sR, sRU, sRV, sE;
+	double Pmin, Amin, Amax, Acur, fcur, fmax, ffcur, ffmax;
+	int pointP;
+	double gamma = GAM;
+
+
+
+	for (int k = 0; k < cellsCount; k++)
+	{
+		double x1 = grid->getNode(grid->cells[k].nodesInd[0]).x; //nodes[cellNodes[k][0]].x;//xi1(int(point1(k)))
+		double x2 = grid->getNode(grid->cells[k].nodesInd[1]).x;//xi1(int(point2(k)))
+		double x3 = grid->getNode(grid->cells[k].nodesInd[2]).x;//xi1(int(point3(k)))
+
+		double y1 = grid->getNode(grid->cells[k].nodesInd[0]).y;//yi1(int(point1(k)))
+		double y2 = grid->getNode(grid->cells[k].nodesInd[1]).y;//yi1(int(point2(k)))
+		double y3 = grid->getNode(grid->cells[k].nodesInd[2]).y;//yi1(int(point3(k)))
+
+		double xc = (x1 + x2 + x3) / 3.;
+		double yc = (y1 + y2 + y3) / 3.;
+
+		//dx = fdx(k)
+		//dy = fdy(k)
+
+		method->getFields(Rcur1, RUcur1, RVcur1, Ecur1, k, x1, y1);
+		method->getFields(Rcur2, RUcur2, RVcur2, Ecur2, k, x2, y2);
+		method->getFields(Rcur3, RUcur3, RVcur3, Ecur3, k, x3, y3);
+
+		if ((Ecur1 - (RUcur1*RUcur1 + RVcur1*RVcur1) / (2.*Rcur1) > 0.) && (Ecur2 - (RUcur2*RUcur2 + RVcur2*RVcur2) / (2.*Rcur2) > 0.) && (Ecur3 - (RUcur3*RUcur3 + RVcur3*RVcur3) / (2.*Rcur3) > 0.)){
+			goto lbl_Lim_1;
+
+		}
+		else{
+			t[0] = -sqrt(3.0 / 5.0);   //!-0.7745966
+			t[1] = 0.;
+			t[2] = -t[0];
+
+			double feps = 1.e-13;
+
+			for (int i = 0; i < 3; i++) {
+				xtt[i] = (x2 - x1)*(t[i] + 1) / 2. + x1;
+				ytt[i] = (y2 - y1)*(t[i] + 1) / 2. + y1;
+			}
+			for (int i = 3; i < 6; i++) {
+				xtt[i] = (x3 - x2)*(t[i - 3] + 1) / 2. + x2;
+				ytt[i] = (y3 - y2)*(t[i - 3] + 1) / 2. + y2;
+			}
+
+			for (int i = 6; i < 9; i++) {
+
+				xtt[i] = (x1 - x3)*(t[i - 6] + 1) / 2. + x3;
+				ytt[i] = (y1 - y3)*(t[i - 6] + 1) / 2. + y3;
+			}
+
+			double fRcur, Rmin;
+			for (int j = 0; j < 9; j++)
+			{
+				fRcur = fRO[k][0] + fRO[k][1] * method->getF(1, k, xtt[j], ytt[j]) + fRO[k][2] * method->getF(2, k, xtt[j], ytt[j]);
+				if (j == 0)
+				{
+					Rmin = fRcur;
+				}
+				else
+				{
+					if (fRcur <= Rmin) Rmin = fRcur;
+				}
+			}
+
+
+			double alfR = (fRO[k][0] == Rmin) ? 1.0 : MIN((fRO[k][0] - feps) / (fRO[k][0] - Rmin), 1.);
+			for (int i = 1; i < funcCount; i++) fRO[k][i] *= alfR;
+
+
+			for (int j = 0; j < 9; j++)
+			{
+				double sR, sRU, sRV, sE;
+				method->getFields(sR, sRU, sRV, sE, k, xtt[j], ytt[j]);
+
+				double sep = sE / sR - ((sRU*sRU) / (sR*sR) + (sRV*sRV) / (sR*sR)) / 2.;
+
+				double P = (gamma - 1.)*sR*sep;
+
+
+
+
+
+
+
+				if (j == 0){
+					Pmin = P;
+					pointP = j;
+				}
+				else{
+					if (P <= Pmin){
+						Pmin = P;
+						pointP = j;
+					}
+				}
+			}
+
+
+			if (Pmin >= feps){
+				goto lbl_Lim_1;
+			}
+			else {
+				Amin = 0.;
+				Amax = 1.;
+				Acur = (Amax - Amin) / 2. + Amin;
+
+				sR = 0.;
+				sRU = 0.;
+				sRV = 0.;
+				sE = 0.;
+
+
+				for (int i = 1; i < funcCount; i++)
+				{
+					sR = sR + fRO[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//R(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+					sRU = sRU + fRU[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//RU(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+					sRV = sRV + fRV[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//RV(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+					sE = sE + fRE[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//E(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+				}
+
+				fcur = fRE[k][0] + Acur*sE - ((fRU[k][0] + Acur*sRU)*(fRU[k][0] + Acur*sRU) + (fRV[k][0] + Acur*sRV)*(fRV[k][0] + Acur*sRV)) / (2.*(fRO[k][0] + Acur*sR));
+				fmax = fRE[k][0] + Amax*sE - ((fRU[k][0] + Amax*sRU)*(fRU[k][0] + Amax*sRU) + (fRV[k][0] + Amax*sRV)*(fRV[k][0] + Amax*sRV)) / (2.*(fRO[k][0] + Amax*sR));
+				ffmax = (gamma - 1.)*fmax - feps;
+				ffcur = (gamma - 1.)*fcur - feps;
+
+				double tfl = 0.;
+
+				while (abs(ffmax)>feps) {
+					if (tfl>10) goto lbl_Lim_2;
+					if (ffmax*ffcur>0.)
+						Amax = Acur;
+					else
+						Amin = Acur;
+					Acur = (Amax - Amin) / 2. + Amin;
+					for (int i = 1; i < funcCount; i++)
+					{
+						sR = sR + fRO[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//R(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+						sRU = sRU + fRU[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//RU(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+						sRV = sRV + fRV[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//RV(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+						sE = sE + fRE[k][i] * method->getF(i, k, xtt[pointP], ytt[pointP]);//E(k,i)*fiI(i,xtt(pointP),xc,ytt(pointP),yc,dx,dy)
+					}
+
+					fcur = fRE[k][0] + Acur*sE - ((fRU[k][0] + Acur*sRU)*(fRU[k][0] + Acur*sRU) + (fRV[k][0] + Acur*sRV)*(fRV[k][0] + Acur*sRV)) / (2.*(fRO[k][0] + Acur*sR));
+					fmax = fRE[k][0] + Amax*sE - ((fRU[k][0] + Amax*sRU)*(fRU[k][0] + Amax*sRU) + (fRV[k][0] + Amax*sRV)*(fRV[k][0] + Amax*sRV)) / (2.*(fRO[k][0] + Amax*sR));
+					ffmax = (gamma - 1.)*fmax - feps;
+					ffcur = (gamma - 1.)*fcur - feps;
+
+
+					tfl = tfl + 1;
+				}
+
+
+			lbl_Lim_2:
+				for (int i = 1; i< funcCount; i++)
+				{
+					fRO[k][i] *= Acur;
+					fRU[k][i] *= Acur;
+					fRV[k][i] *= Acur;
+					fRE[k][i] *= Acur;
+				}
+			}
+		}
+	lbl_Lim_1:;
+	}
+
+}
 
 

@@ -17,6 +17,12 @@ public:
 	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
 	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
+	inline double getField(int fld, int iCell, Point p);
+	inline double getField(int fld, int iCell, double x, double y);
+
+	inline double getF(int id, int iCell, Point p);
+	inline double getF(int id, int iCell, double x, double y);
+
 private:
 	void memAlloc();
 	void memFree();
@@ -35,11 +41,6 @@ private:
 
 	inline void convertConsToPar(int iCell, Param & par); //!< Преобразование консервативных переменных в примитивные
 
-	inline double getField(int fld, int iCell, Point p);
-	inline double getField(int fld, int iCell, double x, double y);
-
-	inline double getF(int id, int iCell, Point p);
-	inline double getF(int id, int iCell, double x, double y);
 
 	inline double getDfDx(int id, int iCell, Point p);
 	inline double getDfDx(int id, int iCell, double x, double y);
@@ -176,6 +177,16 @@ private:
 
 	LimiterDG		*limiter = NULL;
 
+	// параметры обезразмеривания
+	double			L_		= 1.0;
+	double			U_		= 1.0;
+	double			R_		= 1.0;
+	double			P_		= 1.0;
+	double			T_		= 1.0;
+	double			E_		= 1.0;
+	double			CV_		= 1.0;
+	double			TIME_	= 1.0;
+
 protected:
 
 	const static int FLUX_GODUNOV = 0;
@@ -193,6 +204,6 @@ protected:
 
 	const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
 
-	double getGAM(int iCell) { return 1.4; } // TODO: сделать
+	inline double getGAM(int iCell) { Material &mat = getMaterial(iCell); return mat.getGamma(); } // TODO: сделать
 };
 

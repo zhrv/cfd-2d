@@ -4,6 +4,7 @@
 #include <ctime>
 #include <cfloat>
 #include "LimiterDGCockburn.h"
+#include "MatrixSolver.h"
 
 #define POW_2(x) ((x)*(x))
 
@@ -73,10 +74,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	//	CFL /= (2.0*2.0 + 1.0);
 	//}
 
-	// параметры решателя
-	node0 = task->FirstChild("solver");
-	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
-	node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
 
 
 	// сглаживание невязок
@@ -115,6 +112,10 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 
 	// чтение параметров о РЕГИОНАХ
+	double maxP = 0.0;
+	double maxR = 0.0;
+	double maxT = 0.0;
+
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -137,7 +138,41 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		mat.URS(reg.par, 1);	// e=e(p,r)
 
 		regNode = regNode->NextSibling("region");
+
+		if (reg.par.p > maxP) maxP = reg.par.p;
+		if (reg.par.r > maxR) maxR = reg.par.r;
+		if (reg.par.T > maxT) maxT = reg.par.T;
 	}
+
+	// параметры обезразмеривания
+	L_ = 1.0;
+	R_ = maxR;					// характерная плотность = начальная плотность
+	P_ = maxP;					// характерное давление = начальное давление 
+	T_ = maxT;					// характерная температура = начальная температура
+	U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
+	E_ = POW_2(U_);			// характерная энергия  = U_**2
+	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+	TIME_ = L_ / U_;			// характерное время
+
+
+	// Обезразмеривание всех параметров
+	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+	TAU /= TIME_;
+	TMAX /= TIME_;
+	for (int i = 0; i < regCount; i++) {
+		Region &reg = regions[i];
+		Param &par = reg.par;
+		par.p /= P_;
+		par.u /= U_;
+		par.v /= U_;
+		par.T /= T_;
+
+		Material& mat = materials[reg.matId];
+		mat.URS(reg.par, 2);	// r=r(p,T)
+		mat.URS(reg.par, 1);	// e=e(p,r)
+	}
+
+
 
 	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
 	node0 = task->FirstChild("boundaries");
@@ -170,10 +205,10 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 			b.type = Boundary::BOUND_INLET;
 
 			node1 = bNode->FirstChild("parameters");
-			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]);
-			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]);
-			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]);
-			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]);
+			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
+			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
+			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
+			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
 		}
 		else {
 			log("ERROR: unsupported boundary condition type '%s'", str);
@@ -184,9 +219,34 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 
 
+	
+	
+	
 	node0 = task->FirstChild("mesh");
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
+
+
+	// параметры решателя
+	node0 = task->FirstChild("solver");
+	const char * solverName = node0->ToElement()->Attribute("type");
+	//solverMtx = new SolverZeidel();
+	solverMtx = MatrixSolver::create(solverName);
+	solverMtx->init(grid.cCount, MATR_DIM);
+	log("Solver type: %s.\n", solverMtx->getName());
+
+
+	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
+	node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
+	if (strstr(solverName, "HYPRE") != NULL) {
+		node1 = node0->FirstChild("hypre");
+
+		int tmp = 0;
+		node1->FirstChild("printLevel")->ToElement()->Attribute("value", &tmp);
+		solverMtx->setParameter("PRINT_LEVEL", tmp);
+		node1->FirstChild("krylovDim")->ToElement()->Attribute("value", &tmp);
+		solverMtx->setParameter("KRYLOV_DIM", tmp);
+	}
 
 	memAlloc();
 
@@ -201,15 +261,11 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		convertParToCons(i, reg.par);
 	}
 
-	//calcTimeStep();
-	log("TAU_MIN = %25.16e\n", TAU_MIN);
-
-	//solverMtx = new SolverZeidel();
-	solverMtx = new SolverHYPREBoomerAMG();
-	solverMtx->init(grid.cCount, MATR_DIM);
+	calcTimeStep();
+	//log("TAU_MIN = %25.16e\n", TAU_MIN);
 
 	limiter =  new LimiterDGCockburn(this, &grid, ro, ru, rv, re, BASE_FUNC_COUNT);
-
+	
 	save(0);
 }
 
@@ -714,7 +770,7 @@ void FEM_DG_IMPLICIT::save(int step)
 	fprintf(fp, "POINTS %d float\n", grid.nCount);
 	for (int i = 0; i < grid.nCount; i++)
 	{
-		fprintf(fp, "%f %f %f  ", grid.nodes[i].x, grid.nodes[i].y, 0.0);
+		fprintf(fp, "%f %f %f  ", grid.nodes[i].x*L_, grid.nodes[i].y*L_, 0.0);
 		if (i + 1 % 8 == 0) fprintf(fp, "\n");
 	}
 	fprintf(fp, "\n");
@@ -734,7 +790,7 @@ void FEM_DG_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.r);
+		fprintf(fp, "%25.16f ", p.r*R_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -743,7 +799,7 @@ void FEM_DG_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.p);
+		fprintf(fp, "%25.16f ", p.p*P_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -752,7 +808,9 @@ void FEM_DG_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.T);
+		Material &mat = getMaterial(i);
+		mat.URS(p, 1);
+		fprintf(fp, "%25.16f ", p.T*T_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -770,7 +828,7 @@ void FEM_DG_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f %25.16f %25.16f ", p.u, p.v, 0.0);
+		fprintf(fp, "%25.16f %25.16f %25.16f ", p.u*U_, p.v*U_, 0.0);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -779,7 +837,7 @@ void FEM_DG_IMPLICIT::save(int step)
 	{
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.E);
+		fprintf(fp, "%25.16f ", p.E*E_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -792,14 +850,14 @@ void FEM_DG_IMPLICIT::save(int step)
 		Param p;
 		convertConsToPar(i, p);
 		double M2 = (p.u*p.u + p.v*p.v) / (p.cz*p.cz);
-		fprintf(fp, "%25.16e ", p.p*::pow(1.0 + 0.5*M2*agam, gam / agam));
+		fprintf(fp, "%25.16e ", p.p*::pow(1.0 + 0.5*M2*agam, gam / agam)*P_);
 		if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
 	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
 	for (int i = 0; i < grid.cCount; i++)
 	{
-		fprintf(fp, "%25.16f ", cTau[i]);
+		fprintf(fp, "%25.16f ", cTau[i]*TIME_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
@@ -1578,24 +1636,27 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 void FEM_DG_IMPLICIT::run()
 {
-	double __GAM = 1.4;
-	// инициализируем портрет матрицы
-	log("Matrix structure initialization:\n");
-	CSRMatrix::DELTA = 65536;
-	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-		int		c1 = grid.edges[iEdge].c1;
-		int		c2 = grid.edges[iEdge].c2;
-		solverMtx->createMatrElement(c1, c1);
-		if (c2 >= 0){
-			solverMtx->createMatrElement(c1, c2);
-			solverMtx->createMatrElement(c2, c2);
-			solverMtx->createMatrElement(c2, c1);
-		}
-		if (iEdge % 100 == 0) {
-			log("\tfor edge: %d\n", iEdge);
-		}
-	}
-	log("\tcomplete...\n");
+	//double __GAM = 1.4;
+	
+	//// инициализируем портрет матрицы
+	//log("Matrix structure initialization:\n");
+	//CSRMatrix::DELTA = 65536;
+	//for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+	//	int		c1 = grid.edges[iEdge].c1;
+	//	int		c2 = grid.edges[iEdge].c2;
+	//	solverMtx->createMatrElement(c1, c1);
+	//	if (c2 >= 0){
+	//		solverMtx->createMatrElement(c1, c2);
+	//		solverMtx->createMatrElement(c2, c2);
+	//		solverMtx->createMatrElement(c2, c1);
+	//	}
+	//	if (iEdge % 100 == 0) {
+	//		log("\tfor edge: %d\n", iEdge);
+	//	}
+	//}
+	//solverMtx->initCSR();
+	//log("\tcomplete...\n");
+
 	int solverErr = 0;
 	double t = 0.0;
 	int step = 0;
@@ -1612,6 +1673,7 @@ void FEM_DG_IMPLICIT::run()
 			t += TAU;
 		}
 
+		long tmStart = clock();
 		solverErr = 0;
 		solverMtx->zero();
 
@@ -1677,7 +1739,7 @@ void FEM_DG_IMPLICIT::run()
 				if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
 				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
 				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
 
 				double fRO, fRU, fRV, fRE;
 				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
@@ -1693,7 +1755,7 @@ void FEM_DG_IMPLICIT::run()
 					if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
 					if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
 					if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-					if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+					if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
 				}
 
 				for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
@@ -1710,7 +1772,7 @@ void FEM_DG_IMPLICIT::run()
 						if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
 						if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
 						if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-						if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((__GAM - 1)*par.r); convertParToCons(cellIndex, par); }
+						if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
 					}
 				}
 
@@ -1732,10 +1794,10 @@ void FEM_DG_IMPLICIT::run()
 				//calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d \ttime: %d ms\n", step, t, maxIter, limCells, timeEnd - timeStart);
+					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d \ttime: %6d ms\n", step, t, maxIter, limCells, timeEnd - timeStart);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
+					log("step: %6d  max iter: %5d\tlim: %4d ttime: %6d ms\n", step, maxIter, limCells, timeEnd - timeStart);
 				}
 			}
 

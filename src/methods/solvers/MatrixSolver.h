@@ -16,6 +16,9 @@ public:
 	static const int RESULT_ERR_MAX_ITER		= 0x0002;
 	static const int RESULT_ERR_CONVERG			= 0x0004;
 
+	static MatrixSolver* create(const char* solverName);
+	
+	
 	virtual ~MatrixSolver();
 
 	virtual void init(int cellsCount, int blockDimension);
@@ -27,8 +30,13 @@ public:
 	virtual void addMatrElement(int i, int j, double** matrDim);
 	virtual void addRightElement(int i, double* vectDim);
 	virtual void createMatrElement(int i, int j);
+	virtual void initCSR();
 
 	virtual int solve(double eps, int& maxIter) = 0;
+	virtual char* getName() = 0;
+
+	virtual void setParameter(const char* name, int val) {}
+	virtual void setParameter(const char* name, double val) {}
 
 	virtual void printToFile(const char* fileName);
 
@@ -36,11 +44,6 @@ public:
 	int			 blockDim;
 	double		*b;
 	double		*x;
-};
-
-class SolverZeidel: public MatrixSolver 
-{
-	virtual int solve(double eps, int& maxIter);
 };
 
 class SolverJacobi: public MatrixSolver
@@ -58,42 +61,6 @@ public:
 	virtual int	solve(double eps, int& maxIter);
 	double			*tempX;
 	bool			tempXAlloc;
-};
-
-
-class SolverHYPREBoomerAMG : public MatrixSolver
-{
-public:
-	SolverHYPREBoomerAMG();
-	virtual ~SolverHYPREBoomerAMG();
-
-	virtual int solve(double eps, int& maxIter);
-
-	virtual void init(int cellsCount, int blockDimension);
-
-	virtual void zero();
-
-	virtual void setMatrElement(int i, int j, double** matrDim);
-	virtual void setRightElement(int i, double* vectDim);
-	virtual void addMatrElement(int i, int j, double** matrDim);
-	virtual void addRightElement(int i, double* vectDim);
-	virtual void createMatrElement(int i, int j);
-
-	virtual void printToFile(const char* fileName);
-protected:
-	void initMatrVectors();
-
-protected:
-	int solver_id = 0;
-	int* cols;
-	HYPRE_Solver solver, precond;
-	HYPRE_Int ilower, iupper, local_size;
-	HYPRE_IJMatrix A;
-	HYPRE_ParCSRMatrix parcsr_A;
-	HYPRE_IJVector bb;
-	HYPRE_ParVector par_bb;
-	HYPRE_IJVector xx;
-	HYPRE_ParVector par_xx;
 };
 
 

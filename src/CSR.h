@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+#include <map>
+
+typedef std::map<int, double> Row;
 
 struct CSRMatrix
 {
@@ -16,6 +19,8 @@ struct CSRMatrix
 	double	get(int i, int j);
 	void	add(int i, int j, double aa);
 	void	printToFile(const char *fileName);
+	void	init(int i, int j);
+	void	assemble();
 
 	double *a;
 	int	   *ia;
@@ -25,6 +30,8 @@ struct CSRMatrix
 	int     n;
 
 	static int DELTA;
+
+	Row		*rows;
 };
 
 #endif

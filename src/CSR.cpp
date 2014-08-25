@@ -1,6 +1,6 @@
 #include "CSR.h"
 
-int CSRMatrix::DELTA = 1024;
+int CSRMatrix::DELTA = 65536;
 
 CSRMatrix::CSRMatrix(int N)
 {
@@ -11,6 +11,7 @@ CSRMatrix::CSRMatrix(int N)
 	ja = 0;
 	ia = (int*)malloc(sizeof(int)*(n+1));
 	memset(ia, 0L, sizeof(int)*(n+1));
+	rows = new Row[n];
 }
 
 CSRMatrix::~CSRMatrix()
@@ -26,15 +27,39 @@ CSRMatrix::~CSRMatrix()
 	ja = 0;
 }
 
+void CSRMatrix::init(int i, int j)
+{
+	rows[i][j] = 0.0;
+}
+
+void CSRMatrix::assemble()
+{
+	na = 0;
+	for (int i = 0; i < n; i++) {
+		na += rows[i].size();
+	}
+	ia = (int*)malloc(sizeof(int)*(n+1));
+	memset(ia, 0L, sizeof(int)*(n+1));
+	a = new double[na];
+	ja = new int[na];
+	int ind = 0;
+	for (int i = 0; i < n; i++) {
+		Row & r = rows[i];
+		ia[i] = ind;
+		for (Row::iterator it = r.begin(); it != r.end(); it++) {
+			ja[ind] = it->first;
+			a[ind] = it->second;
+			ind++;
+		}
+		//r.clear();
+	}
+	ia[n] = ind;
+}
+
+
 void CSRMatrix::zero() 
 {
 	memset(a, 0, sizeof(double)*na);
-	//na = 0;
-	//if (a != 0) free(a);
-	//if (ja != 0) free(ja);
-	//a  = 0;
-	//ja = 0;
-	//memset(ia, 0L, sizeof(int)*(n+1));
 }
 
 void CSRMatrix::set(int i, int j, double aa)

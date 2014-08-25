@@ -3,7 +3,7 @@
 
 FILE * hLog;
 
-
+double Material::gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
 
 
 void Material::URS(Param &par, int flag)

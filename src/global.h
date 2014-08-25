@@ -16,8 +16,8 @@
 
 
 
-//! универсальная газовая постоянная
-const double gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
+// ! универсальная газовая постоянная
+//static double gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
 
 /**
  *	Точка на плоскости
@@ -158,6 +158,8 @@ struct Material
 
 	void URS(Param &par, int flag);
 	inline double getGamma() { return Cp/(Cp-gR/M); }
+
+	static double gR;
 };
 
 struct Boundary
