@@ -172,6 +172,7 @@
     <ClCompile Include="src\methods\solvers\SolverHypreFlexGmres.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHypre.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHypreBoomerAmg.cpp" />
+    <ClCompile Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHypreGmres.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHyprePcg.cpp" />
     <ClCompile Include="src\methods\solvers\SolverZeidel.cpp" />
@@ -186,6 +187,7 @@
     <ClInclude Include="src\grid.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
+    <ClInclude Include="src\methods\FEM_DG.h" />
     <ClInclude Include="src\methods\fem_dg_implicit.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />
@@ -199,6 +201,7 @@
     <ClInclude Include="src\methods\solvers\SolverHypreFlexGmres.h" />
     <ClInclude Include="src\methods\solvers\SolverHypre.h" />
     <ClInclude Include="src\methods\solvers\SolverHypreBoomerAmg.h" />
+    <ClInclude Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.h" />
     <ClInclude Include="src\methods\solvers\SolverHypreGmres.h" />
     <ClInclude Include="src\methods\solvers\SolverHyprePcg.h" />
     <ClInclude Include="src\methods\solvers\SolverZeidel.h" />

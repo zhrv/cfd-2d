@@ -4,6 +4,7 @@
 #include "SolverHyprePcg.h"
 #include "SolverHypreGmres.h"
 #include "SolverHypreFlexGmres.h"
+#include "SolverHypreFlexGmresPrecAMG.h"
 #include "SolverZeidel.h"
 #include "SolverHypreCustomSeidel.h"
 
@@ -21,6 +22,10 @@ MatrixSolver* MatrixSolver::create(const char* solverName)
 	else
 	if (strcmp(solverName, "HYPRE_FlexGMRES") == 0) {
 		return new SolverHypreFlexGmres();
+	}
+	else
+	if (strcmp(solverName, "HYPRE_FlexGMRESPrecAMG") == 0) {
+		return new SolverHypreFlexGmresPrecAMG();
 	}
 	else
 	if (strcmp(solverName, "HYPRE_GMRES") == 0) {

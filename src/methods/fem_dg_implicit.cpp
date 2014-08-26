@@ -3,7 +3,7 @@
 #include "global.h"
 #include <ctime>
 #include <cfloat>
-#include "LimiterDGCockburn.h"
+#include "LimiterDG.h"
 #include "MatrixSolver.h"
 
 #define POW_2(x) ((x)*(x))
@@ -54,6 +54,15 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		FLUX = FLUX_GODUNOV;
 	}
 
+	const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
+	limiter = LimiterDG::create(limiterName, this);
+	if (limiter != NULL) {
+		log("Limiter: %s\n", limiter->getName());
+	}
+	else {
+		log("Without limiter\n");
+	}
+
 	if (steadyVal == 0) {
 		STEADY = false;
 	}
@@ -66,15 +75,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("step")->ToElement()->Attribute("value", &stepCFL);
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
-
-	//if (BASE_FUNC_COUNT == 3) {
-	//	CFL /= (2.0*1.0+1.0);
-	//}
-	//else if (BASE_FUNC_COUNT == 6) {
-	//	CFL /= (2.0*2.0 + 1.0);
-	//}
-
-
 
 	// сглаживание невязок
 	int smUsing = 1;
@@ -235,7 +235,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	solverMtx->init(grid.cCount, MATR_DIM);
 	log("Solver type: %s.\n", solverMtx->getName());
 
-
 	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
 	node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
 	if (strstr(solverName, "HYPRE") != NULL) {
@@ -248,6 +247,8 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		solverMtx->setParameter("KRYLOV_DIM", tmp);
 	}
 
+
+	
 	memAlloc();
 
 	calcGaussPar();
@@ -264,8 +265,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	calcTimeStep();
 	//log("TAU_MIN = %25.16e\n", TAU_MIN);
 
-	limiter =  new LimiterDGCockburn(this, &grid, ro, ru, rv, re, BASE_FUNC_COUNT);
-	
 	save(0);
 }
 

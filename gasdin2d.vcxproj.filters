@@ -68,6 +68,9 @@
     <ClCompile Include="src\methods\solvers\SolverHypreCustomSeidel.cpp">
       <Filter>Solvers\custom</Filter>
     </ClCompile>
+    <ClCompile Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.cpp">
+      <Filter>Solvers\HYPRE</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\global.h" />
@@ -132,6 +135,12 @@
     </ClInclude>
     <ClInclude Include="src\methods\solvers\SolverHypreCustomSeidel.h">
       <Filter>Solvers\custom</Filter>
+    </ClInclude>
+    <ClInclude Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.h">
+      <Filter>Solvers\HYPRE</Filter>
+    </ClInclude>
+    <ClInclude Include="src\methods\FEM_DG.h">
+      <Filter>Methods\FEM</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

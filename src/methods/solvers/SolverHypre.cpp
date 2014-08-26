@@ -25,8 +25,9 @@ void SolverHypre::init(int cellsCount, int blockDimension)
 	iupper = n - 1;
 	local_size = iupper - ilower + 1;
 
-	cols = new int[blockDim];
-	values = new double[n];
+	cols	= new int[blockDim];
+	values	= new double[n];
+	x		= new double[n];
 
 	initMatrVectors();
 

@@ -1,10 +1,10 @@
 #pragma once
-#include "method.h"
+#include "FEM_DG.h"
 #include "MatrixSolver.h"
 #include "LimiterDG.h"
 
 
-class FEM_DG_IMPLICIT :	public Method
+class FEM_DG_IMPLICIT : public FEM_DG
 {
 public:
 	FEM_DG_IMPLICIT();
@@ -121,11 +121,6 @@ private:
 	Region		   *regions;
 	Boundary	   *boundaries;
 
-	//! консервативные переменные на текущем временном слое.
-	double			**ro;
-	double			**ru;
-	double			**rv;
-	double			**re;
 
 	double			***fields;
 
@@ -192,7 +187,6 @@ protected:
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
 
-	const static int BASE_FUNC_COUNT = 3;
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
 

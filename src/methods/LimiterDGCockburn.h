@@ -2,15 +2,15 @@
 
 #include "LimiterDG.h"
 #include "grid.h"
-#include "fem_dg_implicit.h"
+#include "FEM_DG.h"
 
 class LimiterDGCockburn : public LimiterDG
 {
 public:
-	LimiterDGCockburn(FEM_DG_IMPLICIT *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount);
+	LimiterDGCockburn(FEM_DG *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount);
 	virtual ~LimiterDGCockburn();
 	virtual void run();
-
+	virtual const char* getName() { return "Cockburn"; }
 private:
 	void initLimiterParameters();
 	int __getEdgeByCells(int c1, int c2);
@@ -36,7 +36,7 @@ private:
 	double** matrL;
 	double** matrR;
 
-	FEM_DG_IMPLICIT *method;
+	FEM_DG *method;
 
 	int funcCount;
 

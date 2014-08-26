@@ -38,6 +38,24 @@ int SolverHypreBoomerAmg::solve(double eps, int& maxIter)
 	HYPRE_IJVectorGetObject(bb, (void **)&par_bb);
 	HYPRE_IJVectorGetObject(xx, (void **)&par_xx);
 
+	//double	*values;
+	//int		*cols;
+	//int		size = 0;
+	//char	*str = new char[local_size+1];
+	//FILE * fp = fopen("matr.txt", "w");
+	//for (int i = 0; i < local_size; i++) {
+	//	memset(str, ' ', local_size*sizeof(char));
+	//	HYPRE_ParCSRMatrixGetRow(parcsr_A, i, &size, &cols, &values);
+	//	HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, &size, &cols, &values);
+	//	for (int k = 0; k < size; k++) {
+	//		str[cols[k]] = '*';
+	//	}
+	//	str[local_size] = 0;
+	//	fprintf(fp, "%s\n", str);
+	//}
+	//fclose(fp);
+
+
 	/* AMG */
 	{
 		double final_res_norm;
@@ -50,7 +68,7 @@ int SolverHypreBoomerAmg::solve(double eps, int& maxIter)
 		HYPRE_BoomerAMGSetPrintLevel(solver, PRINT_LEVEL);  /* print solve info + parameters */
 		HYPRE_BoomerAMGSetCoarsenType(solver, 6); /* Falgout coarsening */
 		HYPRE_BoomerAMGSetRelaxType(solver, 3);   /* G-S/Jacobi hybrid relaxation */
-		HYPRE_BoomerAMGSetNumSweeps(solver, 1);   /* Sweeeps on each level */
+		HYPRE_BoomerAMGSetNumSweeps(solver, 5);   /* Sweeeps on each level */
 		HYPRE_BoomerAMGSetMaxLevels(solver, 20);  /* maximum number of levels */
 		HYPRE_BoomerAMGSetTol(solver, eps);       /* conv. tolerance */
 
