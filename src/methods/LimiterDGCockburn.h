@@ -6,7 +6,7 @@
 class LimiterDGCockburn : public LimiterDG
 {
 public:
-	LimiterDGCockburn(FEM_DG_IMPLICIT *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount);
+	LimiterDGCockburn(FEM_DG *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount);
 	virtual ~LimiterDGCockburn();
 	virtual void run();
 	virtual const char* getName() { return "Cockburn"; }
@@ -35,7 +35,7 @@ private:
 	double** matrL;
 	double** matrR;
 
-	FEM_DG_IMPLICIT *method;
+	FEM_DG *method;
 
 	int funcCount;
 

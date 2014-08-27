@@ -237,6 +237,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	grid.initFromFiles((char*)fName);
 
+	memAlloc();
 
 	// инициализация лимитера
 	limiter = LimiterDG::create(limiterName, this);
@@ -269,7 +270,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 
 	
-	memAlloc();
 
 	calcGaussPar();
 

@@ -187,6 +187,7 @@
     <ClInclude Include="src\grid.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
+    <ClInclude Include="src\methods\fem_dg.h" />
     <ClInclude Include="src\methods\fem_dg_implicit.h" />
     <ClInclude Include="src\methods\fem_rkdg.h" />
     <ClInclude Include="src\methods\fvm_tvd.h" />

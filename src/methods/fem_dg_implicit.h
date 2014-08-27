@@ -1,9 +1,9 @@
 #pragma once
-#include "Method.h"
+#include "fem_dg.h"
 #include "MatrixSolver.h"
 
 
-class FEM_DG_IMPLICIT : public Method
+class FEM_DG_IMPLICIT : public FEM_DG
 {
 	friend class LimiterDG;
 public:
@@ -11,14 +11,14 @@ public:
 	void run();
 	void done();
 
-	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
-	inline void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
+	virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
+	virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
-	inline double getField(int fld, int iCell, Point p);
-	inline double getField(int fld, int iCell, double x, double y);
+	virtual double getField(int fld, int iCell, Point p);
+	virtual double getField(int fld, int iCell, double x, double y);
 
-	inline double getF(int id, int iCell, Point p);
-	inline double getF(int id, int iCell, double x, double y);
+	virtual double getF(int id, int iCell, Point p);
+	virtual double getF(int id, int iCell, double x, double y);
 
 private:
 	void memAlloc();
@@ -191,7 +191,6 @@ protected:
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
 
-	const static int BASE_FUNC_COUNT = 3;
 
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
