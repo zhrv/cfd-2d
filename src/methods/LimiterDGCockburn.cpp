@@ -3,7 +3,7 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-LimiterDGCockburn::LimiterDGCockburn(FEM_DG *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount)
+LimiterDGCockburn::LimiterDGCockburn(FEM_DG_IMPLICIT *mthd, Grid *grid, double **ro, double **ru, double **rv, double **re, int fCount)
 {
 	this->method = mthd;
 	this->grid = grid;

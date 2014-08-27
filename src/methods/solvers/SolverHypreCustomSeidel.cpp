@@ -36,15 +36,12 @@ int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 	int		*cols;
 	int		size = 0;
 
-	HYPRE_Int rStart, rEnd, cStart, cEnd;
-	HYPRE_ParCSRMatrixGetLocalRange(parcsr_A, &rStart, &rEnd, &cStart, &cEnd);
 
 	while (err > eps && step < maxIter)
 	{
 		step++;
-		for (int i = rStart; i <= rEnd; i++)
+		for (int i = ilower; i <= iupper; i++)
 		{
-			//size = 1000;
 			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, &size, &cols, &values);
 			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, &size, &cols, &values);
 			tmp = 0.0;
@@ -65,11 +62,11 @@ int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 			x[i] = (-tmp + b[i]) / aii;
 		}
 		err = 0.0;
-		for (int i = rStart; i <= rEnd; i++)
+		for (int i = ilower; i <= iupper; i++)
 		{
-			tmp = 0.0;
 			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, &size, &cols, &values);
 			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, &size, &cols, &values);
+			tmp = 0.0;
 			for (int k = 0; k < size; k++) {
 				tmp += values[k] * x[cols[k]];
 			}
@@ -113,9 +110,10 @@ void SolverHypreCustomSeidel::init(int cellsCount, int blockDimension)
 	cols	= new int[blockDim];
 	values	= new double[local_size];
 	x		= new double[local_size];
-	b = new double[local_size];
+	b		= new double[local_size];
 	
 	memset(x, 0, local_size*sizeof(double));
+	memset(b, 0, local_size*sizeof(double));
 
 	HYPRE_IJMatrixCreate(MPI_COMM_WORLD, ilower, iupper, ilower, iupper, &A);
 	HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
@@ -129,6 +127,7 @@ void SolverHypreCustomSeidel::zero() {
 	HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
 	HYPRE_IJMatrixInitialize(A);
 
+	memset(x, 0, local_size*sizeof(double));
 	memset(b, 0, local_size*sizeof(double));
 }
 

@@ -8,15 +8,6 @@
 
 #define POW_2(x) ((x)*(x))
 
-FEM_DG_IMPLICIT::FEM_DG_IMPLICIT()
-{
-}
-
-
-FEM_DG_IMPLICIT::~FEM_DG_IMPLICIT()
-{
-}
-
 
 void FEM_DG_IMPLICIT::init(char * xmlFileName)
 {
@@ -43,6 +34,9 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+
+	const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
+
 	const char * flxStr = node0->FirstChild("FLUX")->ToElement()->Attribute("value");
 	if (strcmp(flxStr, "GODUNOV") == 0) {
 		FLUX = FLUX_GODUNOV;
@@ -52,15 +46,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	}
 	else {
 		FLUX = FLUX_GODUNOV;
-	}
-
-	const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
-	limiter = LimiterDG::create(limiterName, this);
-	if (limiter != NULL) {
-		log("Limiter: %s\n", limiter->getName());
-	}
-	else {
-		log("Without limiter\n");
 	}
 
 	if (steadyVal == 0) {
@@ -115,6 +100,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	double maxP = 0.0;
 	double maxR = 0.0;
 	double maxT = 0.0;
+	double maxU = 0.0;
 
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
@@ -136,13 +122,17 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		Material& mat = materials[reg.matId];
 		mat.URS(reg.par, 2);	// r=r(p,T)
 		mat.URS(reg.par, 1);	// e=e(p,r)
+		reg.par.ML = mat.ML;
 
 		regNode = regNode->NextSibling("region");
 
 		if (reg.par.p > maxP) maxP = reg.par.p;
 		if (reg.par.r > maxR) maxR = reg.par.r;
 		if (reg.par.T > maxT) maxT = reg.par.T;
+		if (reg.par.U2() > maxU) maxU = reg.par.U2();
 	}
+
+	maxU = sqrt(maxU);
 
 	// параметры обезразмеривания
 	L_ = 1.0;
@@ -153,23 +143,44 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	E_ = POW_2(U_);			// характерная энергия  = U_**2
 	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
 	TIME_ = L_ / U_;			// характерное время
+	MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
+	KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
+	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
 
 
 	// Обезразмеривание всех параметров
-	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
 	TAU /= TIME_;
 	TMAX /= TIME_;
+
 	for (int i = 0; i < regCount; i++) {
 		Region &reg = regions[i];
 		Param &par = reg.par;
+
+		Material& mat = materials[reg.matId];
+		mat.URS(reg.par, 2);	// r=r(p,T)
+		mat.URS(reg.par, 1);	// e=e(p,r)
+
 		par.p /= P_;
 		par.u /= U_;
 		par.v /= U_;
 		par.T /= T_;
 
-		Material& mat = materials[reg.matId];
-		mat.URS(reg.par, 2);	// r=r(p,T)
-		mat.URS(reg.par, 1);	// e=e(p,r)
+		par.r /= R_;
+		par.e /= E_;
+		par.cz /= U_;
+		par.ML /= MU_;
+		par.E = par.e + par.U2()*0.5;
+
+		int zhrv = 0;
+	}
+
+	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+	for (int i = 0; i < matCount; i++)
+	{
+		Material & mat = materials[i];
+		mat.Cp /= CV_;
+		mat.K /= KP_;
+		mat.ML /= MU_;
 	}
 
 
@@ -227,7 +238,16 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	grid.initFromFiles((char*)fName);
 
 
-	// параметры решателя
+	// инициализация лимитера
+	limiter = LimiterDG::create(limiterName, this);
+	if (limiter != NULL) {
+		log("Limiter: %s\n", limiter->getName());
+	}
+	else {
+		log("Without limiter\n");
+	}
+
+	// инициализация решателя
 	node0 = task->FirstChild("solver");
 	const char * solverName = node0->ToElement()->Attribute("type");
 	//solverMtx = new SolverZeidel();
@@ -1637,24 +1657,24 @@ void FEM_DG_IMPLICIT::run()
 {
 	//double __GAM = 1.4;
 	
-	//// инициализируем портрет матрицы
-	//log("Matrix structure initialization:\n");
-	//CSRMatrix::DELTA = 65536;
-	//for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-	//	int		c1 = grid.edges[iEdge].c1;
-	//	int		c2 = grid.edges[iEdge].c2;
-	//	solverMtx->createMatrElement(c1, c1);
-	//	if (c2 >= 0){
-	//		solverMtx->createMatrElement(c1, c2);
-	//		solverMtx->createMatrElement(c2, c2);
-	//		solverMtx->createMatrElement(c2, c1);
-	//	}
-	//	if (iEdge % 100 == 0) {
-	//		log("\tfor edge: %d\n", iEdge);
-	//	}
-	//}
-	//solverMtx->initCSR();
-	//log("\tcomplete...\n");
+	// инициализируем портрет матрицы
+	log("Matrix structure initialization:\n");
+	CSRMatrix::DELTA = 65536;
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+		int		c1 = grid.edges[iEdge].c1;
+		int		c2 = grid.edges[iEdge].c2;
+		solverMtx->createMatrElement(c1, c1);
+		if (c2 >= 0){
+			solverMtx->createMatrElement(c1, c2);
+			solverMtx->createMatrElement(c2, c2);
+			solverMtx->createMatrElement(c2, c1);
+		}
+		if (iEdge % 100 == 0) {
+			log("\tfor edge: %d\n", iEdge);
+		}
+	}
+	solverMtx->initCSR();
+	log("\tcomplete...\n");
 
 	int solverErr = 0;
 	double t = 0.0;

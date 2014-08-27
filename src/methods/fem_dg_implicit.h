@@ -1,14 +1,11 @@
 #pragma once
-#include "FEM_DG.h"
+#include "Method.h"
 #include "MatrixSolver.h"
-#include "LimiterDG.h"
 
 
-class FEM_DG_IMPLICIT : public FEM_DG
+class FEM_DG_IMPLICIT : public Method
 {
-public:
-	FEM_DG_IMPLICIT();
-	~FEM_DG_IMPLICIT();
+	friend class LimiterDG;
 public:
 	void init(char * xmlFileName);
 	void run();
@@ -172,6 +169,12 @@ private:
 
 	LimiterDG		*limiter = NULL;
 
+	//! консервативные переменные на текущем временном слое.
+	double			**ro;
+	double			**ru;
+	double			**rv;
+	double			**re;
+
 	// параметры обезразмеривания
 	double			L_		= 1.0;
 	double			U_		= 1.0;
@@ -179,13 +182,16 @@ private:
 	double			P_		= 1.0;
 	double			T_		= 1.0;
 	double			E_		= 1.0;
-	double			CV_		= 1.0;
-	double			TIME_	= 1.0;
+	double			CV_ = 1.0;
+	double			MU_ = 1.0;
+	double			KP_ = 1.0;
+	double			TIME_ = 1.0;
 
 protected:
-
 	const static int FLUX_GODUNOV = 0;
 	const static int FLUX_LAX = 1;
+
+	const static int BASE_FUNC_COUNT = 3;
 
 	const static int GP_CELL_COUNT = 3;
 	const static int GP_EDGE_COUNT = 2;
@@ -198,6 +204,6 @@ protected:
 
 	const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
 
-	inline double getGAM(int iCell) { Material &mat = getMaterial(iCell); return mat.getGamma(); } // TODO: сделать
+	inline double getGAM(int iCell) { return getMaterial(iCell).getGamma(); } // TODO: сделать
 };
 

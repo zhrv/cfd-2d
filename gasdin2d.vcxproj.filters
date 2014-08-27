@@ -139,9 +139,6 @@
     <ClInclude Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.h">
       <Filter>Solvers\HYPRE</Filter>
     </ClInclude>
-    <ClInclude Include="src\methods\FEM_DG.h">
-      <Filter>Methods\FEM</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Solvers">
