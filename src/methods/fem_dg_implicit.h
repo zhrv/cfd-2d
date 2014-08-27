@@ -169,12 +169,6 @@ private:
 
 	LimiterDG		*limiter = NULL;
 
-	//! консервативные переменные на текущем временном слое.
-	double			**ro;
-	double			**ru;
-	double			**rv;
-	double			**re;
-
 	// параметры обезразмеривания
 	double			L_		= 1.0;
 	double			U_		= 1.0;

@@ -1657,24 +1657,24 @@ void FEM_DG_IMPLICIT::run()
 {
 	//double __GAM = 1.4;
 	
-	// инициализируем портрет матрицы
-	log("Matrix structure initialization:\n");
-	CSRMatrix::DELTA = 65536;
-	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-		int		c1 = grid.edges[iEdge].c1;
-		int		c2 = grid.edges[iEdge].c2;
-		solverMtx->createMatrElement(c1, c1);
-		if (c2 >= 0){
-			solverMtx->createMatrElement(c1, c2);
-			solverMtx->createMatrElement(c2, c2);
-			solverMtx->createMatrElement(c2, c1);
-		}
-		if (iEdge % 100 == 0) {
-			log("\tfor edge: %d\n", iEdge);
-		}
-	}
-	solverMtx->initCSR();
-	log("\tcomplete...\n");
+	//// инициализируем портрет матрицы
+	//log("Matrix structure initialization:\n");
+	//CSRMatrix::DELTA = 65536;
+	//for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+	//	int		c1 = grid.edges[iEdge].c1;
+	//	int		c2 = grid.edges[iEdge].c2;
+	//	solverMtx->createMatrElement(c1, c1);
+	//	if (c2 >= 0){
+	//		solverMtx->createMatrElement(c1, c2);
+	//		solverMtx->createMatrElement(c2, c2);
+	//		solverMtx->createMatrElement(c2, c1);
+	//	}
+	//	if (iEdge % 100 == 0) {
+	//		log("\tfor edge: %d\n", iEdge);
+	//	}
+	//}
+	//solverMtx->initCSR();
+	//log("\tcomplete...\n");
 
 	int solverErr = 0;
 	double t = 0.0;
