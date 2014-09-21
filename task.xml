@@ -19,10 +19,10 @@
                 <FILE_OUTPUT_STEP 	value="100" />            <!-- количество итераций, через которые выполняется вывод результатов в файл -->
 		<LOG_OUTPUT_STEP 	value="1" />          <!-- интервал вывода краткой информации в лог-файл -->
                 <FLUX value="GODUNOV" /> <!-- LAX, GODUNOV -->
-                <LIMITER value="Cockburn" />
+                <LIMITER value="Cockburn" /> <!-- Cockburn -->
                 <TURBULENCE_MODEL value="K_EPS" />
 	</control>
-        <solver type="HYPRE_FlexGMRESPrecAMG">    <!-- HYPRE_FlexGMRES, HYPRE_BoomerAMG, HYPRE_PCG -->
+        <solver type="HYPRE_BoomerAMG">    <!-- HYPRE_FlexGMRES, HYPRE_BoomerAMG, HYPRE_PCG, HYPRE_FlexGMRESPrecAMG -->
                 <iterations     value="50" />
                 <epsilon        value="1.0e-3" />
                 <hypre>

@@ -229,9 +229,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		bNode = bNode->NextSibling("boundCond");
 	}
 
-
-	
-	
 	
 	node0 = task->FirstChild("mesh");
 	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
