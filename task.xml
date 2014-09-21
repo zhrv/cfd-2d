@@ -1,35 +1,44 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<task method="FVM_TVD_IMPLICIT">
+<?xml version="1.0" encoding="utf-8"?>
+<task method="FEM_DG_IMPLICIT">             <!-- FEM_DG_IMPLICIT -->
 	<decomp>
-		<processors value="6" />
+		<processors value="4" />
 	</decomp>
 	<control>
-		<STEADY			value="0" />		<!-- 1 если течение стационарное; 0 нестационарное -->	
-		<TAU 			value="0.000001" />	<!-- шаг по времени, используется меньшее значение из этого или из полученного из числа Куранта -->
-		<TMAX 			value="100.0" />	<!-- время, до которго выполняется расчет -->
-		<STEP_MAX		value="1000000" />	<!-- максимальное количество итераций -->
-		<FILE_OUTPUT_STEP 	value="1000" />         <!-- количество итераций, через которые выполняется вывод результатов в файл -->
-		<LOG_OUTPUT_STEP 	value="100" />          <!-- интервал вывода краткой информации в лог-файл -->
-		<FLUX			value="LAX" />
-		<CFL>
-			<start 			value="0.05" />
-			<max			value="15.0" />
-			<scale 			value="1.05" />
-			<step			value="500" />
-			<max_limited_cells	value="10" />
-		</CFL>
+                <STEADY value="1" />
+		<CFL value="3.0"> 			<!-- число Куранта -->
+                  <start value="3.0" />
+                  <scale value="1.2" />
+                  <max value="3.0" />
+                  <step value="10000" />
+                  <max_limited_cells value="3000" />
+                </CFL>
+		<SIGMA                  value="1.0" />
+		<TAU 			value="1.0e-15" />		<!-- шаг по времени, используется меньшее значение из этого или из полученного из числа Куранта -->
+		<TMAX 			value="100.0" />			<!-- время, до которго выполняется расчет -->
+                <STEP_MAX value="1000000" />
+                <FILE_OUTPUT_STEP 	value="100" />            <!-- количество итераций, через которые выполняется вывод результатов в файл -->
+		<LOG_OUTPUT_STEP 	value="1" />          <!-- интервал вывода краткой информации в лог-файл -->
+                <FLUX value="GODUNOV" /> <!-- LAX, GODUNOV -->
+                <LIMITER value="Cockburn" />
+                <TURBULENCE_MODEL value="K_EPS" />
 	</control>
-	<smoothing>
-		<using			value="1" />
-		<coefficient		value="0.001" />
-	</smoothing>
-	<limits>
-		<ro_min			value="0.000001" />
-		<ro_max			value="100.0" />
-		<p_min			value="1.0" />
-		<p_max			value="500000.0" />
-		<u_max			value="10000.0" />
-	</limits>
+        <solver type="HYPRE_FlexGMRESPrecAMG">    <!-- HYPRE_FlexGMRES, HYPRE_BoomerAMG, HYPRE_PCG -->
+                <iterations     value="50" />
+                <epsilon        value="1.0e-3" />
+                <hypre>
+                       <printLevel value="0" />
+                       <krylovDim  value="30" />
+                </hypre>
+        </solver>
+        <smoothing>
+                   <using value="0" />
+                   <coefficient value="0.1" />
+        </smoothing>
+        <limits>
+                <ro min="0.0001" max="10000" />
+                <p min="0.0001" max="1.0e+6" />
+                <u max="2.0e+4" />
+        </limits>
 	<mesh>
 		<filesType value="berkeley_triangle" />
 		<name value="naca0012.1" />                      <!-- имя файлов с данными сетки -->
@@ -40,8 +49,8 @@
 			<parameters>
 				<M  value="0.02898" />  	<!-- молярная масса                          -->
 				<Cp value="1004" /> 		<!-- теплоемкость при постоянном давлении    -->
-				<ML value="0" /> 		<!-- динамическая вязкость                   -->
-				<K  value="0" /> 		<!-- коэффициент теплопроводности            -->
+				<ML value="0" /> 			<!-- динамическая вязкость                   -->
+				<K  value="0" /> 			<!-- коэффициент теплопроводности            -->
 			</parameters>
 		</material>
 	</materials>
@@ -50,9 +59,9 @@
 			<cell type="0" />
 			<material id="0" />
 			<parameters>
-				<Vx value="220.86" /> 		<!-- первая компонента скорости              -->
-				<Vy value="5.74" /> 		<!-- вторая компонента                       -->
-				<T value="248" /> 		<!-- температура                             -->
+				<Vx value="220.86" /> 			<!-- первая компонента скорости              -->
+				<Vy value="5.74" /> 			<!-- вторая компонента                       -->
+				<T value="248" /> 		 	<!-- температура                             -->
 				<P value="46066.16" /> 		<!-- давление                                -->
 			</parameters>
 		</region>
@@ -61,9 +70,9 @@
 		<boundCond edgeType="1">
 			<type>BOUND_INLET</type>
 			<parameters>
-				<Vx value="220.86" /> 		<!-- первая компонента скорости              -->
-				<Vy value="5.74" /> 		<!-- вторая компонента                       -->
-				<T value="248" /> 		<!-- температура                             -->
+				<Vx value="220.86" /> 			<!-- первая компонента скорости              -->
+				<Vy value="5.74" /> 			<!-- вторая компонента                       -->
+				<T value="248" /> 			<!-- температура                             -->
 				<P value="46066.16" /> 		<!-- давление                                -->
 			</parameters>
 		</boundCond>

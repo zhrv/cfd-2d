@@ -1679,6 +1679,7 @@ void FEM_DG_IMPLICIT::run()
 	int solverErr = 0;
 	double t = 0.0;
 	int step = 0;
+	long totalCalcTime = 0;
 	while (t < TMAX && step < STEP_MAX) {
 		long timeStart, timeEnd;
 		timeStart = clock();
@@ -1803,20 +1804,20 @@ void FEM_DG_IMPLICIT::run()
 			if (STEADY && (limCells >= maxLimCells)) decCFL();
 
 			timeEnd = clock();
-
+			totalCalcTime += (timeEnd - timeStart);
 			if (step % FILE_SAVE_STEP == 0)
 			{
 				save(step);
 			}
 			if (step % PRINT_STEP == 0)
 			{
-				//calcLiftForce();
+				calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d \ttime: %6d ms\n", step, t, maxIter, limCells, timeEnd - timeStart);
+					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
 				}
 				else {
-					log("step: %6d  max iter: %5d\tlim: %4d ttime: %6d ms\n", step, maxIter, limCells, timeEnd - timeStart);
+					log("step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
 				}
 			}
 
@@ -1948,4 +1949,26 @@ void FEM_DG_IMPLICIT::done()
 {
 }
 
-
+void FEM_DG_IMPLICIT::calcLiftForce()
+{
+	const double width = 1.0; // предполагаемая ширина профиля по z.
+	Param		 par;
+	Fx = Fy = 0.0;
+	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
+	{
+		if (grid.edges[iEdge].type == Edge::TYPE_WALL)
+		{
+			int			cellIndex = grid.edges[iEdge].c1;
+			double		nx = grid.edges[iEdge].n.x;
+			double		ny = grid.edges[iEdge].n.y;
+			if (cellIndex < 0) {
+				cellIndex = grid.edges[iEdge].c2;
+				nx *= -1.0;
+				ny *= -1.0;
+			}
+			convertConsToPar(cellIndex, par);
+			Fx += par.p*width*grid.edges[iEdge].l*nx;
+			Fy += par.p*width*grid.edges[iEdge].l*ny;
+		}
+	}
+}
