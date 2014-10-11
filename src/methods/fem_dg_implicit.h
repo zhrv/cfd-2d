@@ -60,6 +60,8 @@ private:
 	void calcMatrFlux();		//!< Вычисляем потоковые величины 
 	void calcRHS();				//!< Вычисляем столбец правых членов
 
+	void calcLiftForce();
+
 	double** allocMtx4();
 	void freeMtx4(double **mtx4);
 	void multMtx4(double **dst4, double **srcA4, double **srcB4);

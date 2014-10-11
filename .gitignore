@@ -4,6 +4,7 @@ Test/*
 ipch/*
 Release/*
 Test*/*
+x64*/*
 *.csv
 *.vcxproj.user
 *.edge

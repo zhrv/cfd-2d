@@ -29,10 +29,6 @@ void Material::URS(Param &par, int flag)
 	}
 }
 
-
-
-
-
 void log(char * format, ...)
 {
 	va_list arglist;

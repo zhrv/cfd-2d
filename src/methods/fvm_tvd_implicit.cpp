@@ -705,10 +705,10 @@ void FVM_TVD_IMPLICIT::run()
 				calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d \ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
+					log("step: %d\ttime step: %.16f\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, t, maxIter, limCells, timeEnd-timeStart);
 				}
 				else {
-					log("step: %d\tmax iter: %d\tlim: %d ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
+					log("step: %d\tmax iter: %d\tlim: %d\ttime: %d ms\n", step, maxIter, limCells, timeEnd - timeStart);
 				}
 			}
 

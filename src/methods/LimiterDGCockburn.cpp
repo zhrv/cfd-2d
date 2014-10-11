@@ -78,26 +78,30 @@ void LimiterDGCockburn::initLimiterParameters()
 		matrL[i] = new double[4];
 		matrR[i] = new double[4];
 	}
-	
+
 	// находим угол и коэффициенты разложени€
 	for (int iCell = 0; iCell < cellsCount; iCell++)
 	{
 		int n0 = grid->cells[iCell].neigh[0];
 		int n1 = grid->cells[iCell].neigh[1];
 		int n2 = grid->cells[iCell].neigh[2];
-		if ((n0 < 0) || (n1 < 0) || (n2 < 0)) continue;
 		for (int m = 0; m < 3; m++)
 		{
 			int iEdge = __getEdgeByCells(iCell, grid->cells[iCell].neigh[m]);
-			limPm[iCell][m].x = grid->edges[iEdge].c[0].x; 
-			limPm[iCell][m].y = grid->edges[iEdge].c[0].y;
-			limLm[iCell][m].x = grid->edges[iEdge].c[0].x - grid->cells[iCell].c.x;
-			limLm[iCell][m].y = grid->edges[iEdge].c[0].y - grid->cells[iCell].c.y;
-			double tmp = sqrt(limLm[iCell][m].x*limLm[iCell][m].x + limLm[iCell][m].y*limLm[iCell][m].y);
-			limLmN[iCell][m].x = limLm[iCell][m].x / tmp;
-			limLmN[iCell][m].y = limLm[iCell][m].y / tmp;
-			choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limPm[iCell][m], m);
-			if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log("ERROR!!!\n");
+			if (iEdge != -1) {
+				limPm[iCell][m].x = grid->edges[iEdge].c->x;
+				limPm[iCell][m].y = grid->edges[iEdge].c->y;
+				limLm[iCell][m].x = grid->edges[iEdge].c->x - grid->cells[iCell].c.x;
+				limLm[iCell][m].y = grid->edges[iEdge].c->y - grid->cells[iCell].c.y;
+				double tmp = sqrt(limLm[iCell][m].x*limLm[iCell][m].x + limLm[iCell][m].y*limLm[iCell][m].y);
+				limLmN[iCell][m].x = limLm[iCell][m].x / tmp;
+				limLmN[iCell][m].y = limLm[iCell][m].y / tmp;
+				choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limPm[iCell][m], m);
+				if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log("ERROR!!!\n");
+			}
+			else {
+				log("error: LimiterDGCockburn::initLimiterParameters() __getEdgeByCells return -1");
+			}
 		}
 		int zhrv = 0;
 	}
@@ -453,8 +457,10 @@ int LimiterDGCockburn::__getEdgeByCells(int c1, int c2)
 	{
 		Edge &edge = grid->edges[iEdge];
 		if ((edge.c1 == c1 && edge.c2 == c2) || (edge.c1 == c2 && edge.c2 == c1)) return iEdge;
+		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // если одна из €чеек гранична€.
 	}
-	int zhrv = 0;
+	log("LimiterDGCockburn::__getEdgeByCells(int c1, int c2) : edge index not found");
+	return -1;
 }
 
 
