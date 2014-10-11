@@ -154,10 +154,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\CSR.cpp" />
     <ClCompile Include="src\global.cpp" />
-    <ClCompile Include="src\grid.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\mesh\grid.cpp" />
+    <ClCompile Include="src\mesh\MeshLoader.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_dg_implicit.cpp" />
@@ -167,6 +167,7 @@
     <ClCompile Include="src\methods\LimiterDG.cpp" />
     <ClCompile Include="src\methods\LimiterDGCockburn.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
+    <ClCompile Include="src\methods\solvers\CSR.cpp" />
     <ClCompile Include="src\methods\solvers\MatrixSolver.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHypreCustomSeidel.cpp" />
     <ClCompile Include="src\methods\solvers\SolverHypreFlexGmres.cpp" />
@@ -182,9 +183,9 @@
     <ClCompile Include="src\tinyxml\tinyxmlparser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\CSR.h" />
     <ClInclude Include="src\global.h" />
-    <ClInclude Include="src\grid.h" />
+    <ClInclude Include="src\mesh\grid.h" />
+    <ClInclude Include="src\mesh\MeshLoader.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_dg.h" />
@@ -196,6 +197,7 @@
     <ClInclude Include="src\methods\LimiterDGCockburn.h" />
     <ClInclude Include="src\methods\method.h" />
     <ClInclude Include="src\methods\solver.h" />
+    <ClInclude Include="src\methods\solvers\CSR.h" />
     <ClInclude Include="src\methods\solvers\MatrixSolver.h" />
     <ClInclude Include="src\methods\solvers\SolverHypreCustomSeidel.h" />
     <ClInclude Include="src\methods\solvers\SolverHypreFlexGmres.h" />

@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="src\global.cpp" />
-    <ClCompile Include="src\grid.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\methods\solver.cpp" />
     <ClCompile Include="src\methods\solvers\MatrixSolver.cpp">
@@ -22,9 +21,6 @@
     </ClCompile>
     <ClCompile Include="src\methods\solvers\SolverZeidel.cpp">
       <Filter>Solvers\custom</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CSR.cpp">
-      <Filter>Solvers</Filter>
     </ClCompile>
     <ClCompile Include="src\methods\LimiterDG.cpp">
       <Filter>Limiters</Filter>
@@ -71,10 +67,18 @@
     <ClCompile Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.cpp">
       <Filter>Solvers\HYPRE</Filter>
     </ClCompile>
+    <ClCompile Include="src\mesh\MeshLoader.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="src\methods\solvers\CSR.cpp">
+      <Filter>Solvers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mesh\grid.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\global.h" />
-    <ClInclude Include="src\grid.h" />
     <ClInclude Include="src\methods\solver.h" />
     <ClInclude Include="src\methods\solvers\MatrixSolver.h">
       <Filter>Solvers</Filter>
@@ -93,9 +97,6 @@
     </ClInclude>
     <ClInclude Include="src\methods\solvers\SolverZeidel.h">
       <Filter>Solvers\custom</Filter>
-    </ClInclude>
-    <ClInclude Include="src\CSR.h">
-      <Filter>Solvers</Filter>
     </ClInclude>
     <ClInclude Include="src\methods\LimiterDG.h">
       <Filter>Limiters</Filter>
@@ -142,6 +143,15 @@
     <ClInclude Include="src\methods\fem_dg.h">
       <Filter>Methods\FEM</Filter>
     </ClInclude>
+    <ClInclude Include="src\methods\solvers\CSR.h">
+      <Filter>Solvers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mesh\grid.h">
+      <Filter>Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mesh\MeshLoader.h">
+      <Filter>Mesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Solvers">
@@ -167,6 +177,9 @@
     </Filter>
     <Filter Include="Contrib">
       <UniqueIdentifier>{e56ac28d-381b-4dbf-a7e9-871c9bbea901}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Mesh">
+      <UniqueIdentifier>{9d2d3b1f-f01c-40d8-807a-6b77dca57c0f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

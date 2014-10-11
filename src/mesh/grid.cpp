@@ -222,4 +222,9 @@ void Grid::initFromFiles(char* fName)
 	delete[] cfi;
 
 
+	for (int i = 0; i < eCount; i++) {
+
+	}
+
+
 }
