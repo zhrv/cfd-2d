@@ -1964,8 +1964,8 @@ void FEM_DG_IMPLICIT::calcLiftForce()
 				ny *= -1.0;
 			}
 			convertConsToPar(cellIndex, par);
-			Fx += par.p*width*grid.edges[iEdge].l*nx;
-			Fy += par.p*width*grid.edges[iEdge].l*ny;
+			Fx += par.p*P_*width*grid.edges[iEdge].l*nx;
+			Fy += par.p*P_*width*grid.edges[iEdge].l*ny;
 		}
 	}
 }
