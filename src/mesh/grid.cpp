@@ -54,6 +54,10 @@ void Grid::initFromFiles(char* fName)
 	// читаем данные об ”«Ћј’
 	sprintf(str, "%s.node", fName);
 	fp = fopen(str, "r");
+	if (!fp) {
+		log("Can not open file '%s'\n", str);
+		EXIT(1);
+	}
 	fscanf(fp, "%d %d %d %d", &nCount, &tmp, &tmp, &tmp);
 	nodes = new Point[nCount];
 	for (int i = 0; i < nCount; i++) 
@@ -65,6 +69,10 @@ void Grid::initFromFiles(char* fName)
 	// читаем данные о я„≈… ј’
 	sprintf(str, "%s.ele", fName);
 	fp = fopen(str, "r");
+	if (!fp) {
+		log("Can not open file '%s'\n", str);
+		EXIT(1);
+	}
 	fscanf(fp, "%d %d %d", &cCount, &tmp, &tmp);
 	cells = new Cell[cCount];
 	for (int i = 0; i < cCount; i++) 
@@ -91,6 +99,10 @@ void Grid::initFromFiles(char* fName)
 	// формируем данные о –≈Ѕ–ј’
 	sprintf(str, "%s.neigh", fName);
 	fp = fopen(str, "r");
+	if (!fp) {
+		log("Can not open file '%s'\n", str);
+		EXIT(1);
+	}
 	fscanf(fp, "%d %d", &tmp, &tmp);
 	int** neigh;
 	neigh = new int*[cCount]; 
@@ -187,6 +199,10 @@ void Grid::initFromFiles(char* fName)
 	// чтение данных о граничных гран€х
 	sprintf(str, "%s.poly", fName);
 	fp = fopen(str, "r");
+	if (!fp) {
+		log("Can not open file '%s'\n", str);
+		EXIT(1);
+	}
 	int bndCount;
 	fscanf(fp, "%d %d %d %d", &tmp, &tmp, &tmp, &tmp);
 	fscanf(fp, "%d %d", &bndCount, &tmp);
