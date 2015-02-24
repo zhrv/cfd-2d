@@ -316,7 +316,7 @@ void FVM_TVD::run()
 			fu = 0.0;
 			fv = 0.0;
 			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			for (int iGP = 0; iGP < grid.edges[iEdge].cCount; iGP++) 
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
