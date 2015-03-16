@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 
 #ifdef _WIN32
 	#include <direct.h>
@@ -143,6 +144,7 @@ struct Region
 	int		matId;
 	int		cellType;		//!< тип €чейки
 	Param	par;			//!< параметры региона
+	std::string	name;		//!< им€ региона
 };
 
 struct Material
@@ -173,8 +175,31 @@ struct Boundary
 	static const int BOUND_WALL		= 3;
 };
 
+class Exception
+{
+public:
+	static const int TYPE_BOUND_NOPAR = 101;
+	static const int TYPE_BOUND_UNKNOWN = 102;
+
+	static const int TYPE_MESH_WRONG_NAME = 201;
+	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
+	static const int TYPE_MESH_UNV_NOT_DEFINED_BNT_EDGE = 222;
+
+	static const int FILE_OPENING_ERROR = 301;
+
+	Exception(char* msg, int t) : message(msg), type(t) {}
+	char* getMessage() { return message; }
+	int getType() { return type; }
+
+private:
+	char* message;
+	int type;
+};
+
+
 extern FILE * hLog;
 
+inline double scalar_prod(Vector a, Vector b) { return a.x*b.x + a.y*b.y; }
 
 extern void log(char * format, ...);
 extern void EXIT(int err);

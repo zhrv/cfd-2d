@@ -2,6 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
+#include "bnd_cond.h"
 
 class FVM_TVD: public Method
 {
@@ -60,6 +61,8 @@ protected:
 	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
 
 	void remediateLimCells();
+	Region & getRegionByName(char* name);
+	Region & getRegion(char * name);
 
 private:
 	double TMAX;
@@ -77,7 +80,7 @@ private:
 	int				bCount;
 	Material	*	materials;
 	Region		*	regions;
-	Boundary	*	boundaries;
+	CFDBoundaries	boundaries;
 
 	//! консервативные переменные на текущем временном слое
 	double * ro;			 

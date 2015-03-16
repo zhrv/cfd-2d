@@ -2,6 +2,7 @@
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
+#include "MeshReader.h"
 
 void FVM_TVD::init(char * xmlFileName)
 {
@@ -78,6 +79,8 @@ void FVM_TVD::init(char * xmlFileName)
 		regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
 		regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
 		
+		reg.name = regNode->FirstChild("name")->ToElement()->GetText();
+
 		node1 = regNode->FirstChild("parameters");
 		node1->FirstChild( "Vx" )->ToElement()->Attribute( "value", &reg.par.u );
 		node1->FirstChild( "Vy" )->ToElement()->Attribute( "value", &reg.par.v );
@@ -91,56 +94,86 @@ void FVM_TVD::init(char * xmlFileName)
 		regNode = regNode->NextSibling("region");
 	}
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
-	node0 = task->FirstChild("boundaries");
-	node0->ToElement()->Attribute("count", &bCount);
-	boundaries = new Boundary[bCount];
-	TiXmlNode* bNode = node0->FirstChild("boundCond");
-	for (int i = 0; i < bCount; i++)
-	{
-		Boundary & b = boundaries[i];
-		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
-		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-		if (strcmp(str, "BOUND_WALL") == 0) 
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_WALL;
-		} else
-		if (strcmp(str, "BOUND_OUTLET") == 0) 
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_OUTLET;
-		} else
-		if (strcmp(str, "BOUND_INLET") == 0) 
-		{
-			b.parCount = 4;
-			b.par = new double[4];
-			b.type = Boundary::BOUND_INLET;
 
-			node1 = bNode->FirstChild("parameters");
-			node1->FirstChild( "T"  )->ToElement()->Attribute( "value", &b.par[0] );
-			node1->FirstChild( "P"  )->ToElement()->Attribute( "value", &b.par[1] );
-			node1->FirstChild( "Vx" )->ToElement()->Attribute( "value", &b.par[2] );
-			node1->FirstChild( "Vy" )->ToElement()->Attribute( "value", &b.par[3] );
-		} else {
-			log("ERROR: unsupported boundary condition type '%s'", str);
-			EXIT(1);
+	/* Чтение параметров ГУ */
+	node0 = task->FirstChild("boundaries");
+	TiXmlNode* bNode = node0->FirstChild("boundCond");
+	while (bNode != NULL)
+	{
+		int edgeType;
+		bNode->ToElement()->Attribute("edgeType", &edgeType);
+
+		CFDBoundary * b;
+
+		try {
+			b = CFDBoundary::create(bNode, &grid);
+		}
+		catch (Exception e) {
+			log("ERROR: %s\n", e.getMessage());
+			exit(e.getType());
 		}
 
-		
-		
-		
+		boundaries.push_back(b);
+
 		bNode = bNode->NextSibling("boundCond");
 	}
 
+	bCount = boundaries.size();
 
+	/* Чтение данных сетки. */
 	node0 = task->FirstChild("mesh");
-	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	grid.initFromFiles((char*)fName);
+	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+	mr->read(&grid);
 
-	cTau	= new double[grid.cCount];
+
+	/* Определение ГУ для каждой ячейки. */
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+		Edge & e = grid.edges[iEdge];
+		if (e.type == Edge::TYPE_INNER) {
+			e.bnd = NULL;
+			continue;
+		}
+		if (e.type == Edge::TYPE_NAMED) {
+			int iBound = -1;
+			for (int i = 0; i < bCount; i++)
+			{
+				if (strcmp(e.typeName, boundaries[i]->name) == 0)
+				{
+					iBound = i;
+					break;
+				}
+			}
+			if (iBound < 0)
+			{
+				log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+				EXIT(1);
+			}
+
+			e.bnd = boundaries[iBound];
+		}
+		else {
+			int iBound = -1;
+			for (int i = 0; i < bCount; i++)
+			{
+				if (e.type == boundaries[i]->edgeType)
+				{
+					iBound = i;
+					break;
+				}
+			}
+			if (iBound < 0)
+			{
+				log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+				EXIT(1);
+			}
+
+			e.bnd = boundaries[iBound];
+		}
+	}
+
+	cTau = new double[grid.cCount];
 
 	ro		= new double[grid.cCount];
 	ru		= new double[grid.cCount];
@@ -164,7 +197,8 @@ void FVM_TVD::init(char * xmlFileName)
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
-		Region & reg = getRegion(i);
+		Cell & c = grid.cells[i];
+		Region & reg = getRegion(c.typeName);
 		convertParToCons(i, reg.par);
 	}
 
@@ -204,7 +238,7 @@ void FVM_TVD::calcGrad()
 	memset(gradP, 0, grid.cCount*sizeof(Vector));
 	memset(gradU, 0, grid.cCount*sizeof(Vector));
 	memset(gradV, 0, grid.cCount*sizeof(Vector));
-	return;
+	//return;
 	for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
@@ -316,7 +350,8 @@ void FVM_TVD::run()
 			fu = 0.0;
 			fv = 0.0;
 			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
+			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++)
+			//for (int iGP = 0; iGP < 1; iGP++)
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
@@ -455,13 +490,13 @@ void FVM_TVD::remediateLimCells()
 			{
 				int iEdge = grid.cells[iCell].edgesInd[i];
 				int j = grid.edges[iEdge].c2;
-				int s = grid.cells[j].S;
-				S += s;
 				if (j >= 0) {
-					sRO += ro[j]*s;
-					sRU += ru[j]*s;
-					sRV += rv[j]*s;
-					sRE += re[j]*s;
+					double s = grid.cells[j].S;
+					S += s;
+					sRO += ro[j] * s;
+					sRU += ru[j] * s;
+					sRV += rv[j] * s;
+					sRE += re[j] * s;
 				} 
 			}
 			ro[iCell] = sRO/S;
@@ -629,6 +664,7 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
+		return;
 		//Point PE = grid.edges[iEdge].c[0];
 		Point &PE = p;
 		Point P1 = grid.cells[c1].c;
@@ -659,49 +695,21 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 
 void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
-	int iBound = -1;
-	for (int i = 0; i < bCount; i++)
-	{
-		if (grid.edges[iEdge].type == boundaries[i].edgeType) 
-		{
-			iBound = i;
-			break;
-		}
-	}
-	if (iBound < 0)
-	{
-		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
-		EXIT(1);
-	}
-	Boundary& b = boundaries[iBound];
+	Edge &edge = grid.edges[iEdge];
 	int c1	= grid.edges[iEdge].c1;
 	Material& m = getMaterial(c1);
-	switch (b.type)
-	{
-	case Boundary::BOUND_INLET:
-		pR.T  = b.par[0];		//!< температура
-		pR.p  = b.par[1];		//!< давление
-		pR.u  = b.par[2];		//!< первая компонента вектора скорости
-		pR.v  = b.par[3];		//!< вторая компонента вектора скорости
-		
+	if (edge.bnd) {
+		edge.bnd->run(iEdge, pL, pR);
 		m.URS(pR, 2);
 		m.URS(pR, 1);
-		break;
-	
-	case Boundary::BOUND_OUTLET:
-		pR = pL;
-		break;
-	
-	case Boundary::BOUND_WALL:
-		pR = pL;
-		double Un = pL.u*grid.edges[iEdge].n.x+pL.v*grid.edges[iEdge].n.y;
-		Vector V;
-		V.x = grid.edges[iEdge].n.x*Un*2.0; 
-		V.y = grid.edges[iEdge].n.y*Un*2.0;
-		pR.u = pL.u-V.x;
-		pR.v = pL.v-V.y;
-		break;
+		return;
 	}
+	else {
+		char msg[128];
+		sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+		throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+	}
+
 }
 
 
@@ -747,9 +755,24 @@ Region   &	FVM_TVD::getRegion	(int iCell)
 	return getRegionByCellType( grid.cells[iCell].type );
 }
 
-Material &	FVM_TVD::getMaterial	(int iCell)
+Region & FVM_TVD::getRegionByName(char* name)
 {
-	Region & reg = getRegion(iCell);
+	for (int i = 0; i < regCount; i++)
+	{
+		if (strcmp(regions[i].name.c_str(), name) == 0) return regions[i];
+	}
+	log("ERROR: unknown cell name '%d'...\n", name);
+	EXIT(1);
+}
+
+Region & FVM_TVD::getRegion(char * name)
+{
+	return getRegionByName(name);
+}
+
+Material &	FVM_TVD::getMaterial(int iCell)
+{
+	Region & reg = getRegion(grid.cells[iCell].typeName);
 	return materials[reg.matId];
 }
 
@@ -771,6 +794,7 @@ void FVM_TVD::convertConsToPar(int iCell, Param & par)
 	par.e = par.E-0.5*(par.u*par.u+par.v*par.v);
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
+	mat.URS(par, 1);
 }
 
 

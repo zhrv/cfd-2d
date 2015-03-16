@@ -6,6 +6,7 @@
 #include <math.h>
 #include <string.h>
 #include "global.h"
+#include "bnd_cond.h"
 
 const unsigned int CELL_FLAG_GOOD	= 0x000000;
 const unsigned int CELL_FLAG_BAD	= 0x000001;
@@ -25,6 +26,7 @@ public:
 	int*  edgesInd;
 	int	  neigh[3];
 	int	  type;
+	char  typeName[64];
 	double  S;
 	Point c; // центр ячейки
 	double HX;
@@ -51,12 +53,16 @@ public:
 	int      cCount;    // количество точек на грани
 	Point*   c;         // точки на грани
 	int      type;      // тип грани (внутр., гранич.)
+	char	typeName[64];
+	CFDBoundary * bnd = NULL;
 	friend class Grid;
 public:
 	static const int TYPE_INNER		= 0;  
 	static const int TYPE_INLET		= 1;  
 	static const int TYPE_OUTLET	= 2;  
 	static const int TYPE_WALL		= 3;  
+
+	static const int TYPE_NAMED = 0x100;
 };
 
 class Grid 
