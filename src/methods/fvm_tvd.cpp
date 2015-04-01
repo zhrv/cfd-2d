@@ -214,17 +214,27 @@ void FVM_TVD::init(char * xmlFileName)
 
 void FVM_TVD::calcTimeStep()
 {
-	//double tau = 1.0e+20;
-	for (int iCell = 0; iCell < grid.cCount; iCell++)
-	{
-		if (STEADY) {
+	if (STEADY) {
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
+		{
 			Param p;
 			convertConsToPar(iCell, p);
-			cTau[iCell] = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
-		} else {
+			cTau[iCell] = CFL * grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+		}
+	}
+	else {
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
+		{
+			Param p;
+			convertConsToPar(iCell, p);
+			if (TAU > CFL* grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz)) {
+				TAU = CFL * grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+			}
+		}
+		for (int iCell = 0; iCell < grid.cCount; iCell++) {
 			cTau[iCell] = TAU;
 		}
-		
+		log("time step: %25.16E\n", TAU);
 	}
 }
 
@@ -279,25 +289,6 @@ void FVM_TVD::calcGrad()
 		}
 
 	}
-	//for (int iEdge = 0; iEdge < ne; iEdge++)
-	//{
-	//		
-	//	int c1	= grid.edges[iEdge].c1;
-	//	int c2	= grid.edges[iEdge].c2;
-	//		
-	//	if (c2 < 0) 
-	//	{
-	//		gradR[c1].x = 0.0;
-	//		gradR[c1].y = 0.0;
-	//		gradP[c1].x = 0.0;
-	//		gradP[c1].y = 0.0;
-	//		gradU[c1].x = 0.0;
-	//		gradU[c1].y = 0.0;
-	//		gradV[c1].x = 0.0;
-	//		gradV[c1].y = 0.0;
-	//	}
-
-	//}
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid.cells[iCell].S;
