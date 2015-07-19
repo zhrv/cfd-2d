@@ -2,6 +2,7 @@
 #define _FVM_TVD_H_
 
 #include <method.h>
+#include "bnd_cond.h"
 
 class FVM_TVD: public Method
 {
@@ -28,7 +29,7 @@ protected:
 	/**
 	 *	¬ычисление параметров справа и слева от границы €чейки
 	 */
-	void reconstruct(int iFace, Param& pL, Param& pR);
+	void reconstruct(int iFace, Param& pL, Param& pR, Point p);
 
 	/**
 	 *	¬ычисление параметров с внешней стороны от границы €чейки согласно граничным услови€м
@@ -51,19 +52,35 @@ protected:
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
+	/**
+	 *	¬ычисление градиентов в €чейках
+	 */
+	void calcGrad();
+
+	void setCellFlagLim(int iCell)	{ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+	bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+
+	void remediateLimCells();
+	Region & getRegionByName(char* name);
+	Region & getRegion(char * name);
+
 private:
 	double TMAX;
 	double TAU;
 	double CFL;
+	int STEP_MAX;
 	int FILE_SAVE_STEP;
 	int PRINT_STEP;
+
+	bool			STEADY;		// false - нестационарное течение, true - стационанрное течение.
+	double		*	cTau;		// локальный шаг по времени в €чейке
 
 	int				matCount;
 	int				regCount;
 	int				bCount;
 	Material	*	materials;
 	Region		*	regions;
-	Boundary	*	boundaries;
+	CFDBoundaries	boundaries;
 
 	//! консервативные переменные на текущем временном слое
 	double * ro;			 
@@ -82,7 +99,18 @@ private:
 	double * ru_int;
 	double * rv_int;
 	double * re_int;
+	//! градиенты
+	Vector *gradR;
+	Vector *gradP;
+	Vector *gradU;
+	Vector *gradV;
 	
+	//! лимиты
+	double limitRmin;
+	double limitRmax;
+	double limitPmin;
+	double limitPmax;
+	double limitUmax;
 
 };
 

@@ -146,54 +146,56 @@ void Grid::initFromFiles(char* fName)
 	// ::memset(cfi, 0, cCount*sizeof(int));
 	for (int i = 0; i < cCount; i++) 
 	{
-			for (int j = 0; j < 3; j++) 
+		for (int j = 0; j < 3; j++) 
+		{
+			int p = neigh[i][j];
+			if (p != -1) 
 			{
-					int p = neigh[i][j];
-					if (p != -1) 
-					{
-							edges[iEdge].n1     = cells[i].nodesInd[(j+1)%3];
-							edges[iEdge].n2     = cells[i].nodesInd[(j+2)%3];
-                                
-							edges[iEdge].cCount = 3;
-							edges[iEdge].c      = new Point[edges[iEdge].cCount];
-							double _sqrt3 = 1.0/sqrt(3.0);
-							edges[iEdge].c[0].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0;
-							edges[iEdge].c[0].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0;
-							
-							edges[iEdge].c[1].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0-_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
-							edges[iEdge].c[1].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0-_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
-							
-							edges[iEdge].c[2].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0+_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
-							edges[iEdge].c[2].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0+_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
+				edges[iEdge].n1     = cells[i].nodesInd[(j+1)%3];
+				edges[iEdge].n2     = cells[i].nodesInd[(j+2)%3];
+				
+				edges[iEdge].cCount = 3;
+				edges[iEdge].c      = new Point[edges[iEdge].cCount];
+				double _sqrt3 = 1.0/sqrt(3.0);
+				// центр ребра
+				edges[iEdge].c[0].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0;
+				edges[iEdge].c[0].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0;
+				// перва¤ точка vаусса
+				edges[iEdge].c[1].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0-_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
+				edges[iEdge].c[1].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0-_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
+				// втора¤ точка vаусса
+				edges[iEdge].c[2].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0+_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
+				edges[iEdge].c[2].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0+_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
 
-							edges[iEdge].n.x    = nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y;
-							edges[iEdge].n.y    = nodes[edges[iEdge].n1].x-nodes[edges[iEdge].n2].x;
-							edges[iEdge].l      = sqrt(edges[iEdge].n.x*edges[iEdge].n.x+edges[iEdge].n.y*edges[iEdge].n.y);
-							edges[iEdge].n.x    /= edges[iEdge].l;
-							edges[iEdge].n.y    /= edges[iEdge].l;
-							edges[iEdge].c1     = i;
-							cells[i].edgesInd[cfi[i]] = iEdge;
-							cfi[i]++;
-							edges[iEdge].cnl1 = fabs(edges[iEdge].n.x*(edges[iEdge].c[0].x-cells[edges[iEdge].c1].c.x)+edges[iEdge].n.y*(edges[iEdge].c[0].y-cells[edges[iEdge].c1].c.y) );
+				edges[iEdge].n.x    = nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y;
+				edges[iEdge].n.y    = nodes[edges[iEdge].n1].x-nodes[edges[iEdge].n2].x;
+				edges[iEdge].l      = sqrt(edges[iEdge].n.x*edges[iEdge].n.x+edges[iEdge].n.y*edges[iEdge].n.y);
+				edges[iEdge].n.x    /= edges[iEdge].l;
+				edges[iEdge].n.y    /= edges[iEdge].l;
+				edges[iEdge].c1     = i;
+				cells[i].edgesInd[cfi[i]] = iEdge;
+				cfi[i]++;
+				edges[iEdge].cnl1 = fabs(edges[iEdge].n.x*(edges[iEdge].c[0].x-cells[edges[iEdge].c1].c.x)+edges[iEdge].n.y*(edges[iEdge].c[0].y-cells[edges[iEdge].c1].c.y) );
 
-							if (p > -1) 
-							{
+				if (p > -1) 
+				{
 
-									edges[iEdge].c2 = p;
-									cells[p].edgesInd[cfi[p]] = iEdge;
-									cfi[p]++;
-									edges[iEdge].cnl2 = fabs(edges[iEdge].n.x*(cells[edges[iEdge].c2].c.x-edges[iEdge].c[0].x)+edges[iEdge].n.y*(cells[edges[iEdge].c2].c.y-edges[iEdge].c[0].y) );
-									edges[iEdge].type = Edge::TYPE_INNER;
-							}
-							if (p == -2) 
-							{
-									edges[iEdge].c2 = -1;
-									edges[iEdge].cnl2 = 0;
-									edges[iEdge].type = -1;
-							}
-							iEdge++;
-					}
+					edges[iEdge].c2 = p;
+					cells[p].edgesInd[cfi[p]] = iEdge;
+					cfi[p]++;
+					edges[iEdge].cnl2 = fabs(edges[iEdge].n.x*(cells[edges[iEdge].c2].c.x-edges[iEdge].c[0].x)+edges[iEdge].n.y*(cells[edges[iEdge].c2].c.y-edges[iEdge].c[0].y) );
+					edges[iEdge].type = Edge::TYPE_INNER;
+				}
+				if (p == -2) 
+				{
+					edges[iEdge].c2 = -1;
+					edges[iEdge].cnl2 = 0;
+					edges[iEdge].type = -1;
+				}
+				iEdge++;
 			}
+		}
+		}
 	}
 	
 	// чтение данных о граничных гранях
@@ -230,6 +232,11 @@ void Grid::initFromFiles(char* fName)
 		cells[i].flag = CELL_FLAG_GOOD;		
 	}
 
+	for (int i = 0; i < cCount; i++) 
+	{
+		cells[i].flag = 0;
+	}
+	
 	for (int i = 0; i < cCount; i++) 
 	{
 		delete[] neigh[i];
