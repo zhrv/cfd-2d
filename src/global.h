@@ -67,7 +67,43 @@ struct VECTOR
 	
 	void		operator -=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] -= x; }
 
-	void		operator *=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] *= x;	}		
+	void		operator *=		(const double& x)		{ for (int i = 0; i < n; i++) elem[i] *= x; }
+
+	void		operator *=		(double** matr)		
+	{ 
+		double * tmp = new double[n];
+		for (int i = 0; i < n; i++) {
+			tmp[i] = 0.0;
+			for (int j = 0; j < n; j++) {
+				tmp[i] += matr[i][j] * elem[j];
+			}
+		}
+		delete[] elem;
+		elem = tmp;
+	}
+
+	void zero()
+	{
+		if (elem != NULL && n != 0) {
+			memset(elem, 0, n*sizeof(double));
+		}
+	}
+
+	void abs()
+	{
+		for (int i = 0; i < n; i++) {
+			elem[i] = fabs(elem[i]);
+		}
+	}
+
+	double norm()
+	{
+		double s = 0.0;
+		for (int i = 0; i < n; i++) {
+			s += elem[i] * elem[i];
+		}
+		return sqrt(s);
+	}
 
 	static double SCALAR_PROD(const VECTOR& v1, const VECTOR& v2) {
 		double s = 0;
@@ -186,7 +222,7 @@ public:
 
 	static const int TYPE_MESH_WRONG_NAME = 201;
 	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
-	static const int TYPE_MESH_UNV_NOT_DEFINED_BNT_EDGE = 222;
+	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE = 222;
 
 	static const int FILE_OPENING_ERROR = 301;
 

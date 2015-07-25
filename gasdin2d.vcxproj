@@ -87,7 +87,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <FunctionLevelLinking>
       </FunctionLevelLinking>
@@ -129,7 +129,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,7 +149,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

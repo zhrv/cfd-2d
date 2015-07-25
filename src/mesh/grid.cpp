@@ -195,7 +195,7 @@ void Grid::initFromFiles(char* fName)
 				iEdge++;
 			}
 		}
-		}
+		
 	}
 	
 	// чтение данных о граничных гранях

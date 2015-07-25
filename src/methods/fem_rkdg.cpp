@@ -2,8 +2,25 @@
 #include "tinyxml.h"
 #include <string>
 #include "global.h"
+#include "MeshReader.h"
 
-void FEM_RKDG::init(char * xmlFileName)
+#define FLUX_RIM
+
+#define _EPS_ 1.0e-11
+#define _NORM_(X) ((fabs(X) <= _EPS_) ? 0.0 : (X))
+#define POW_2(X) ((X)*(X))
+
+VECTOR normVector(VECTOR v)
+{
+	VECTOR w(v.n);
+	for (int i = 0; i < v.n; i++) {
+		w[i] = _NORM_(v[i]);
+	}
+	return w;
+}
+
+
+void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех массивов
 {
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
@@ -21,11 +38,25 @@ void FEM_RKDG::init(char * xmlFileName)
 
 
 	node0 = task->FirstChild("control");
+	node0->FirstChild("STEADY")->ToElement()->Attribute("value", &STEADY);
 	node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
 	node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
 	node0->FirstChild("CFL")->ToElement()->Attribute("value", &CFL);
 	node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
 	node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+	node0->FirstChild("BASE_FUNC_COUNT")->ToElement()->Attribute("value", &FUNC_COUNT);
+	node0->FirstChild("GP_CELL_COUNT")->ToElement()->Attribute("value", &GP_CELL_COUNT);
+	node0->FirstChild("GP_EDGE_COUNT")->ToElement()->Attribute("value", &GP_EDGE_COUNT);
+	const char * flxStr = node0->FirstChild("FLUX")->ToElement()->Attribute("value");
+	if (strcmp(flxStr, "GODUNOV") == 0) {
+		FLUX = FLUX_GODUNOV;
+	}
+	else if (strcmp(flxStr, "LAX") == 0) {
+		FLUX = FLUX_LAX;
+	}
+	else {
+		FLUX = FLUX_GODUNOV;
+	}
 
 	// чтение параметров о МАТЕРИАЛАХ
 	node0 = task->FirstChild("materials");
@@ -48,6 +79,11 @@ void FEM_RKDG::init(char * xmlFileName)
 	}
 
 	// чтение параметров о РЕГИОНАХ
+	double maxP = 0.0;
+	double maxR = 0.0;
+	double maxT = 0.0;
+	double maxU = 0.0;
+
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -58,6 +94,8 @@ void FEM_RKDG::init(char * xmlFileName)
 		regNode->ToElement()->Attribute("id", &reg.id);
 		regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
 		regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
+
+		reg.name = regNode->FirstChild("name")->ToElement()->GetText();
 		
 		node1 = regNode->FirstChild("parameters");
 		node1->FirstChild( "Vx" )->ToElement()->Attribute( "value", &reg.par.u );
@@ -70,57 +108,147 @@ void FEM_RKDG::init(char * xmlFileName)
 		mat.URS(reg.par, 1);	// e=e(p,r)
 		
 		regNode = regNode->NextSibling("region");
+
+		if (reg.par.p > maxP) maxP = reg.par.p;
+		if (reg.par.r > maxR) maxR = reg.par.r;
+		if (reg.par.T > maxT) maxT = reg.par.T;
+		if (reg.par.U2() > maxU) maxU = reg.par.U2();
 	}
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
-	node0 = task->FirstChild("boundaries");
-	node0->ToElement()->Attribute("count", &bCount);
-	boundaries = new Boundary[bCount];
-	TiXmlNode* bNode = node0->FirstChild("boundCond");
-	for (int i = 0; i < bCount; i++)
-	{
-		Boundary & b = boundaries[i];
-		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
-		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-		if (strcmp(str, "BOUND_WALL") == 0) 
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_WALL;
-		} else
-		if (strcmp(str, "BOUND_OUTLET") == 0) 
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_OUTLET;
-		} else
-		if (strcmp(str, "BOUND_INLET") == 0) 
-		{
-			b.parCount = 4;
-			b.par = new double[4];
-			b.type = Boundary::BOUND_INLET;
+	maxU = sqrt(maxU);
 
-			node1 = bNode->FirstChild("parameters");
-			node1->FirstChild( "T"  )->ToElement()->Attribute( "value", &b.par[0] );
-			node1->FirstChild( "P"  )->ToElement()->Attribute( "value", &b.par[1] );
-			node1->FirstChild( "Vx" )->ToElement()->Attribute( "value", &b.par[2] );
-			node1->FirstChild( "Vy" )->ToElement()->Attribute( "value", &b.par[3] );
-		} else {
-			log("ERROR: unsupported boundary condition type '%s'", str);
-			EXIT(1);
+	//// параметры обезразмеривания
+	//L_ = 1.0;
+	//R_ = maxR;					// характерная плотность = начальная плотность
+	//P_ = maxP;					// характерное давление = начальное давление 
+	//T_ = maxT;					// характерная температура = начальная температура
+	//U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
+	//E_ = POW_2(U_);			// характерная энергия  = U_**2
+	//CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+	//TIME_ = L_ / U_;			// характерное время
+	//MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
+	//KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
+	//CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+
+
+	//// Обезразмеривание всех параметров
+	//TAU /= TIME_;
+	//TMAX /= TIME_;
+
+	//for (int i = 0; i < regCount; i++) {
+	//	Region &reg = regions[i];
+	//	Param &par = reg.par;
+
+	//	Material& mat = materials[reg.matId];
+	//	mat.URS(reg.par, 2);	// r=r(p,T)
+	//	mat.URS(reg.par, 1);	// e=e(p,r)
+
+	//	par.p /= P_;
+	//	par.u /= U_;
+	//	par.v /= U_;
+	//	par.T /= T_;
+
+	//	par.r /= R_;
+	//	par.e /= E_;
+	//	par.cz /= U_;
+	//	par.ML /= MU_;
+	//	par.E = par.e + par.U2()*0.5;
+
+	//	int zhrv = 0;
+	//}
+
+	//Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+	//for (int i = 0; i < matCount; i++)
+	//{
+	//	Material & mat = materials[i];
+	//	mat.Cp /= CV_;
+	//	mat.K /= KP_;
+	//	mat.ML /= MU_;
+	//}
+
+
+
+	/* Чтение параметров ГУ */
+	node0 = task->FirstChild("boundaries");
+	TiXmlNode* bNode = node0->FirstChild("boundCond");
+	while (bNode != NULL)
+	{
+		int edgeType;
+		bNode->ToElement()->Attribute("edgeType", &edgeType);
+
+		CFDBoundary * b;
+
+		try {
+			b = CFDBoundary::create(bNode, &grid);
+		}
+		catch (Exception e) {
+			log("ERROR: %s\n", e.getMessage());
+			exit(e.getType());
 		}
 
-		
-		
-		
+		boundaries.push_back(b);
+
 		bNode = bNode->NextSibling("boundCond");
 	}
 
+	bCount = boundaries.size();
 
+	
+	/* Чтение данных сетки. */
 	node0 = task->FirstChild("mesh");
-	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	grid.initFromFiles((char*)fName);
+	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+	mr->read(&grid);
 
+	
+	/* Определение ГУ для каждого ребра. */
+	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+		Edge & e = grid.edges[iEdge];
+		if (e.type == Edge::TYPE_INNER) {
+			e.bnd = NULL;
+			continue;
+		}
+		if (e.type == Edge::TYPE_NAMED) {
+			int iBound = -1;
+			for (int i = 0; i < bCount; i++)
+			{
+				if (strcmp(e.typeName, boundaries[i]->name) == 0)
+				{
+					iBound = i;
+					break;
+				}
+			}
+			if (iBound < 0)
+			{
+				log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+				EXIT(1);
+			}
+
+			e.bnd = boundaries[iBound];
+		}
+		else {
+			int iBound = -1;
+			for (int i = 0; i < bCount; i++)
+			{
+				if (e.type == boundaries[i]->edgeType)
+				{
+					iBound = i;
+					break;
+				}
+			}
+			if (iBound < 0)
+			{
+				log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+				EXIT(1);
+			}
+
+			e.bnd = boundaries[iBound];
+		}
+	}
+
+
+	cTau = new double[grid.cCount];
 
 	ro		= new VECTOR[grid.cCount];
 	ru		= new VECTOR[grid.cCount];
@@ -132,10 +260,10 @@ void FEM_RKDG::init(char * xmlFileName)
 	rv_old	= new VECTOR[grid.cCount];
 	re_old	= new VECTOR[grid.cCount];
 
-	ro_int	= new VECTOR[grid.cCount];
-	ru_int	= new VECTOR[grid.cCount];
-	rv_int	= new VECTOR[grid.cCount];
-	re_int	= new VECTOR[grid.cCount];
+	ro_int = new VECTOR[grid.cCount];
+	ru_int = new VECTOR[grid.cCount];
+	rv_int = new VECTOR[grid.cCount];
+	re_int = new VECTOR[grid.cCount];
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -155,40 +283,304 @@ void FEM_RKDG::init(char * xmlFileName)
 		re_int[i].init(FUNC_COUNT);
 	}
 
+	cellJ = new double[grid.cCount];
+	cellGW = new double*[grid.cCount];
+	cellGP = new Point*[grid.cCount];
+	for (int i = 0; i < grid.cCount; i++) {
+		cellGW[i] = new double[GP_CELL_COUNT];
+		cellGP[i] = new Point[GP_CELL_COUNT];
+	}
+
+	edgeJ = new double[grid.eCount];
+	edgeGW = new double*[grid.eCount];
+	edgeGP = new Point*[grid.eCount];
+	for (int i = 0; i < grid.eCount; i++) {
+		edgeGW[i] = new double[GP_EDGE_COUNT];
+		edgeGP[i] = new Point[GP_EDGE_COUNT];
+	}
+
+	matrA = new double**[grid.cCount];
+	matrInvA = new double**[grid.cCount];
+
+	for (int i = 0; i < grid.cCount; i++) {
+		matrA[i] = new double*[FUNC_COUNT];
+		matrInvA[i] = new double*[FUNC_COUNT];
+		for (int j = 0; j < FUNC_COUNT; j++) {
+			matrA[i][j] = new double[FUNC_COUNT];
+			matrInvA[i][j] = new double[FUNC_COUNT];
+		}
+	}
+
+	calcGaussPar();
+
+	calcMassMatr();
+
 	for (int i = 0; i < grid.cCount; i++)
 	{
-		Region & reg = getRegion(i);
+		Cell & c = grid.cells[i];
+		Region & reg = getRegion(c.typeName);
 		convertParToCons(i, reg.par);
 	}
+
 
 	memcpy(ro_old, ro, grid.cCount*sizeof(double));
 	memcpy(ru_old, ru, grid.cCount*sizeof(double));
 	memcpy(rv_old, rv, grid.cCount*sizeof(double));
 	memcpy(re_old, re, grid.cCount*sizeof(double));
 
+	
+	
 	calcTimeStep();
 	save(0);
+
+	///////////////////////////////////////////////////////////////
+	//log("MESH INFORMATION\n=======================================================================\n\n");
+	//log("NODES: \n-------------------\n");
+	//for (int i = 0; i < grid.nCount; i++) {
+	//	Point &p = grid.nodes[i];
+	//	log("%5d %f %f\n", i+1, p.x, p.y);
+	//}
+	//log("\n\n\n");
+
+	//log("CELLS: \n-------------------\n");
+	//for (int i = 0; i < grid.cCount; i++) {
+	//	Cell &c = grid.cells[i];
+	//	log("%5d: nodes: %5d %5d %5d\n", i, c.nodesInd[0], c.nodesInd[1], c.nodesInd[2]);
+	//	log("  square: %10.5e\n", c.S);
+	//	log("  center: (%10.5e, %10.5e)\n", c.c.x, c.c.y);
+	//	log("  gp:     (%10.5e, %10.5e), (%10.5e, %10.5e)  J: %10.5e\n", cellGP[i][0].x, cellGP[i][0].y, cellGP[i][1].x, cellGP[i][1].y, cellJ[i]);
+	//}
+	//log("\n\n\n");
+
+	//log("EDGES: \n-------------------\n");
+	//for (int i = 0; i < grid.eCount; i++) {
+	//	Edge &e = grid.edges[i];
+	//	Point &p1 = grid.nodes[e.n1];
+	//	Point &p2 = grid.nodes[e.n2];
+	//	log("%5d: nodes: %5d (%10.5e, %10.5e)  %5d (%10.5e, %10.5e)  l: %10.5e\n", i, e.n1, p1.x, p1.y, e.n2, p2.x, p2.y, e.l);
+	//	log("  center: (%10.5e, %10.5e)\n", e.c[0].x, e.c[0].y);
+	//	log("  gp:     (%10.5e, %10.5e), (%10.5e, %10.5e)  J: %10.5e\n", edgeGP[i][0].x, edgeGP[i][0].y, edgeGP[i][1].x, edgeGP[i][1].y, edgeJ[i]);
+	//	log("  normal: (%10.5e, %10.5e)\n", e.n.x, e.n.y);
+	//	log("  c1: %5d   c2: %5d\n\n", e.c1, e.c2);
+	//}
+
+	//log("BND. EDGES: \n-------------------\n");
+	//for (int i = 0; i < grid.eCount; i++) {
+	//	Edge &e = grid.edges[i];
+	//	if (e.c2 < 0) {
+	//		Point &p1 = grid.nodes[e.n1];
+	//		Point &p2 = grid.nodes[e.n2];
+	//		log("%5d: nodes: %5d (%10.5e, %10.5e)  %5d (%10.5e, %10.5e)  l: %10.5e\n", i, e.n1, p1.x, p1.y, e.n2, p2.x, p2.y, e.l);
+	//		log("  center: (%10.5e, %10.5e)\n", e.c[0].x, e.c[0].y);
+	//		log("  gp:     (%10.5e, %10.5e), (%10.5e, %10.5e)  J: %10.5e\n", edgeGP[i][0].x, edgeGP[i][0].y, edgeGP[i][1].x, edgeGP[i][1].y, edgeJ[i]);
+	//		log("  normal: (%10.5e, %10.5e)\n", e.n.x, e.n.y);
+	//		log("  c1: %5d   c2: %5d\n", e.c1, e.c2);
+	//		log("  name: %s\n\n", e.typeName);
+	//	}
+	//}
+	//log("\n\n\n");
+
+
+	///////////////////////////////////////////////////////////////
+
 }
 
 
 void FEM_RKDG::calcTimeStep()
 {
-	double tau = 1.0e+20;
-	for (int iCell = 0; iCell < grid.cCount; iCell++)
-	{
-		Param p;
-		convertConsToPar(iCell, grid.cells[iCell].c, p);
-		double tmp = grid.cells[iCell].S/_max_(abs(p.u)+p.cz, abs(p.v)+p.cz);
-		if (tmp < tau) tau = tmp;
+	if (!STEADY) {
+		double tau = 1.0e+20;
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
+		{
+			Param p;
+			convertConsToPar(iCell, grid.cells[iCell].c, p);
+			double tmp = grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+			if (tmp < tau) tau = tmp;
+		}
+		tau *= CFL;
+		TAU = _min_(TAU, tau);
+		for (int i = 0; i < grid.cCount; i++) {
+			cTau[i] = TAU;
+		}
+		printf("\n\nTime step TAU = %e.\n\n", TAU);
 	}
-	tau  *= CFL;
-	TAU = _min_(TAU, tau);
-	printf("\n\nTime step TAU = %e.\n\n", TAU);
+	else {
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
+		{
+			Param p;
+			double U, maxU = 0.0;
+			for (int i = 0; i < GP_CELL_COUNT; i++) {
+				convertConsToPar(iCell, cellGP[iCell][i], p);
+				U = _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+				if (maxU < U) maxU = U;
+			}
+			for (int i = 0; i < 3; i++) {
+				int iEdge = grid.cells[iCell].edgesInd[i];
+				for (int iG = 0; iG < GP_EDGE_COUNT; iG++) {
+					convertConsToPar(iCell, edgeGP[iEdge][i], p);
+					U = _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+					if (maxU < U) maxU = U;
+				}
+			}
+
+			convertConsToPar(iCell, grid.cells[iCell].c, p);
+			U = _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+			if (maxU < U) maxU = U;
+
+			cTau[iCell] = CFL * grid.cells[iCell].S / maxU;
+		}
+	}
 }
 
-void FEM_RKDG::calcGP() {}   //TODO:
+void FEM_RKDG::calcMassMatr()
+{
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+		double **	A		= matrA[iCell];
+		double **	invA	= matrInvA[iCell];
+		for (int i = 0; i < FUNC_COUNT; i++) {
+			for (int j = 0; j < FUNC_COUNT; j++) {
+				A[i][j] = 0.0;
+				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+					A[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP])
+						* getF(j, iCell, cellGP[iCell][iGP]);
+				}
+				A[i][j] *= cellJ[iCell];
+				//A[i][j] = _NORM_(A[i][j]);
+			}
+		}
+		inverseMatr(A, invA, FUNC_COUNT);
+	}
+}
 
-void FEM_RKDG::calcMatr() {} //TODO:
+
+void FEM_RKDG::calcGaussPar()
+{
+
+	// для ячеек
+	if (GP_CELL_COUNT == 4) {
+		for (int i = 0; i < grid.cCount; i++) {
+
+			double a = 1.0 / 3.0;
+			double b = 1.0 / 5.0;
+			double c = 3.0 / 5.0;
+			double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+			double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+			double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+			double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+			double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+			double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+			double a1 = x1 - x3;
+			double a2 = y1 - y3;
+			double b1 = x2 - x3;
+			double b2 = y2 - y3;
+			double c1 = x3;
+			double c2 = y3;
+
+			cellGW[i][0] = -27.0 / 48.0;
+			cellGP[i][0].x = a1*a + b1*a + c1;
+			cellGP[i][0].y = a2*a + b2*a + c2;
+
+			cellGW[i][1] = 25.0 / 48.0;
+			cellGP[i][1].x = a1*c + b1*b + c1;
+			cellGP[i][1].y = a2*c + b2*b + c2;
+
+			cellGW[i][2] = 25.0 / 48.0;
+			cellGP[i][2].x = a1*b + b1*c + c1;
+			cellGP[i][2].y = a2*b + b2*c + c2;
+
+			cellGW[i][3] = 25.0 / 48.0;
+			cellGP[i][3].x = a1*b + b1*b + c1;
+			cellGP[i][3].y = a2*b + b2*b + c2;
+
+			cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
+			//cellJ[i] = 0.5*(a1*b2 - a2*b1);
+			if (cellJ[i] <= 0) {
+				int zhrv = 0;
+			}
+		}
+	}
+	else if (GP_CELL_COUNT == 3) {
+		for (int i = 0; i < grid.cCount; i++) {
+			double a = 1.0 / 6.0;
+			double b = 2.0 / 3.0;
+			double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+			double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+			double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+			double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+			double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+			double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+			double a1 = x1 - x3;
+			double a2 = y1 - y3;
+			double b1 = x2 - x3;
+			double b2 = y2 - y3;
+			double c1 = x3;
+			double c2 = y3;
+
+			cellGW[i][0] = 1.0 / 6.0;
+			cellGP[i][0].x = a1*a + b1*a + c1;
+			cellGP[i][0].y = a2*a + b2*a + c2;
+
+			cellGW[i][1] = 1.0 / 6.0;
+			cellGP[i][1].x = a1*a + b1*b + c1;
+			cellGP[i][1].y = a2*a + b2*b + c2;
+
+			cellGW[i][2] = 1.0 / 6.0;
+			cellGP[i][2].x = a1*b + b1*a + c1;
+			cellGP[i][2].y = a2*b + b2*a + c2;
+
+			cellJ[i] = fabs(a1*b2 - a2*b1);
+
+		}
+	}
+
+	// для ребер
+	if (GP_EDGE_COUNT == 3) {
+		for (int i = 0; i < grid.eCount; i++) {
+			double gp1 = -3.0 / 5.0;
+			double gp2 = 0.0;
+			double gp3 = 3.0 / 5.0;
+			double x1 = grid.nodes[grid.edges[i].n1].x;
+			double y1 = grid.nodes[grid.edges[i].n1].y;
+			double x2 = grid.nodes[grid.edges[i].n2].x;
+			double y2 = grid.nodes[grid.edges[i].n2].y;
+
+			edgeGW[i][0] = 5.0 / 9.0;
+			edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
+			edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
+
+			edgeGW[i][1] = 8.0 / 9.0;
+			edgeGP[i][1].x = (x1 + x2) / 2.0;
+			edgeGP[i][1].y = (y1 + y2) / 2.0;
+
+			edgeGW[i][2] = 5.0 / 9.0;
+			edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
+			edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
+
+			edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+
+		}
+	}
+	else if (GP_EDGE_COUNT == 2) {
+		for (int i = 0; i < grid.eCount; i++) {
+			double _sqrt3 = 1.0 / sqrt(3.0);
+			double x1 = grid.nodes[grid.edges[i].n1].x;
+			double y1 = grid.nodes[grid.edges[i].n1].y;
+			double x2 = grid.nodes[grid.edges[i].n2].x;
+			double y2 = grid.nodes[grid.edges[i].n2].y;
+
+			edgeGW[i][0] = 1.0;
+			edgeGP[i][0].x = ((x1 + x2) - _sqrt3*(x2 - x1))*0.5;
+			edgeGP[i][0].y = ((y1 + y2) - _sqrt3*(y2 - y1))*0.5;
+
+			edgeGW[i][1] = 1.0;
+			edgeGP[i][1].x = ((x1 + x2) + _sqrt3*(x2 - x1))*0.5;
+			edgeGP[i][1].y = ((y1 + y2) + _sqrt3*(y2 - y1))*0.5;
+
+			edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+
+		}
+	}
+}
 
 
 void FEM_RKDG::run() 
@@ -202,24 +594,29 @@ void FEM_RKDG::run()
 	unsigned int	step	= 0;
 	while (t < TMAX) 
 	{
-		t += TAU; 
+		if (!STEADY) {
+			t += TAU;
+		}
 		step++;
-		
+		calcTimeStep();
+		zeroIntegrals();
 		calcLimiters();
 		calcConvectionVol();
 		calcConvectionSurf();
-		calcDiffusionVol();
-		calcDiffusionSurf();
 		calcNewFields();
-
-		
+		calcResiduals();
 		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);
 		}
 		if (step % PRINT_STEP == 0)
 		{
-			log("step: %d\t\ttime step: %.16f\n", step, t);
+			if (!STEADY) {
+				log("step: %d\t\ttime step: %.16f\n", step, t);
+			}
+			else {
+				log("step: %6d\tres: ro:%10.5e ru:%10.5e rv:%10.5e re:%10.5e\n", step, ro_res, ru_res, rv_res, re_res); 
+			}
 		}
 	}
 
@@ -228,72 +625,178 @@ void FEM_RKDG::run()
 void FEM_RKDG::save(int step)
 {
 	char fName[50];
-	sprintf(fName, "res_%010d.dat", step);
+
+	sprintf(fName, "res_%010d.vtk", step);
 	FILE * fp = fopen(fName, "w");
-	//fprintf(fp, "# x y ro p u v e M\n");
+	fprintf(fp, "# vtk DataFile Version 2.0\n");
+	fprintf(fp, "GASDIN data file\n");
+	fprintf(fp, "ASCII\n");
+	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+
+	fprintf(fp, "POINTS %d float\n", grid.nCount);
+	for (int i = 0; i < grid.nCount; i++)
+	{
+		fprintf(fp, "%f %f %f  ", grid.nodes[i].x, grid.nodes[i].y, 0.0);
+		if (i + 1 % 8 == 0) fprintf(fp, "\n");
+	}
+	fprintf(fp, "\n");
+	fprintf(fp, "CELLS %d %d\n", grid.cCount, 4 * grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "3 %d %d %d\n", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "CELL_TYPES %d\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
+	fprintf(fp, "\n");
+
+	fprintf(fp, "CELL_DATA %d\nSCALARS Density float 1\nLOOKUP_TABLE default\n", grid.cCount);
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
-		convertConsToPar(i, grid.cells[i].c, p);
-		fprintf(fp, "%25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f %25.16f\n",	grid.cells[i].c.x,
-																							grid.cells[i].c.y,
-																							p.r,								//	плотность
-																							p.p,								//	давление
-																							p.u,								//	скорость
-																							p.v,								//
-																							p.e,								//	внутренняя энергия
-																							sqrt(_sqr_(p.u)+_sqr_(p.v))/p.cz);	//	число Маха
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.r);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
+
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.p);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.T);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", sqrt(p.u*p.u + p.v*p.v) / p.cz);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "VECTORS Velosity float\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f %25.16f %25.16f ", p.u, p.v, 0.0);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Total_energy float 1\nLOOKUP_TABLE default\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.E);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		Material &mat = getMaterial(i);
+		double gam = mat.getGamma();
+		double agam = gam - 1.0;
+		Param p;
+		convertConsToPar(i, p);
+		double M2 = (p.u*p.u + p.v*p.v) / (p.cz*p.cz);
+		fprintf(fp, "%25.16e ", p.p*::pow(1.0 + 0.5*M2*agam, gam / agam));
+		if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", cTau[i]);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
+	fprintf(fp, "SCALARS SQUARE float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		fprintf(fp, "%25.16f ", grid.cells[i].S);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+
 	fclose(fp);
-	// выводим градиенты примитивных переменных
 	printf("File '%s' saved...\n", fName);
-	//sprintf(fName, "grad_%010d.dat", step);
-	//fp = fopen(fName, "w");
-	////fprintf(fp, "# x y ro p u v e M\n");
-	//for (int i = 0; i < grid.cCount; i++)
-	//{
-	//	fprintf(fp, "%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\t\t%25.16f\t%25.16f\n",	primGrad[ID_R][i].x,
-	//																									primGrad[ID_R][i].y,
-	//																									primGrad[ID_P][i].x,
-	//																									primGrad[ID_P][i].y,
-	//																									primGrad[ID_U][i].x,
-	//																									primGrad[ID_U][i].y,
-	//																									primGrad[ID_V][i].x,
-	//																									primGrad[ID_V][i].y	);
-	//}
-	//fclose(fp);
-	//printf("File '%s' saved...\n", fName);
 }
 
 
 
 void FEM_RKDG::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
-	{	// GODUNOV FLUX
-		double RI, EI, PI, UI, VI, UN;
-		double unl = pL.u*n.x+pL.v*n.y;
-		double unr = pR.u*n.x+pR.v*n.y;
-		rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-			
+	if (FLUX == FLUX_GODUNOV) {	// GODUNOV FLUX
+		double RI, EI, PI, UI, VI, WI, UN, UT;
+		double unl = pL.u*n.x + pL.v*n.y;
+		double unr = pR.u*n.x + pR.v*n.y;
+		double utl = pL.u*n.y - pL.v*n.x;
+		double utr = pR.u*n.y - pR.v*n.x;
+		rim_orig(RI, EI, PI, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+
+		UI = UN*n.x + UT*n.y;
+		VI = UN*n.y - UT*n.x;
+
 		fr = RI*UN;
-		fu = fr*UI+PI*n.x;
-		fv = fr*VI+PI*n.y;
-		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
+		fu = fr*UI + PI*n.x;
+		fv = fr*VI + PI*n.y;
+		fe = (RI*(EI + 0.5*(UI*UI + VI*VI)) + PI)*UN;
 	}
-	//{	// LAX-FRIEDRIX FLUX
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	pL.getToCons(rol, rul, rvl, rel);
-	//	pR.getToCons(ror, rur, rvr, rer);
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
-	//}
+	if (FLUX == FLUX_LAX) {	// LAX-FRIEDRIX FLUX
+		double unl = pL.u*n.x + pL.v*n.y;
+		double unr = pR.u*n.x + pR.v*n.y;
+		double rol, rul, rvl, rel, ror, rur, rvr, rer;
+		double alpha = _max_(fabs(unl) + sqrt(GAM*pL.p / pL.r), fabs(unr) + sqrt(GAM*pR.p / pR.r));
+		//pL.getToCons(rol, rul, rvl, rel);
+		//pR.getToCons(ror, rur, rvr, rer);
+		rol = pL.r;
+		rul = pL.r*pL.u;
+		rvl = pL.r*pL.v;
+		rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.U2());
+		ror = pR.r;
+		rur = pR.r*pR.u;
+		rvr = pR.r*pR.v;
+		rer = pR.p / (GAM - 1.0) + 0.5*pR.r*(pR.U2());
+		double frl = rol*unl;
+		double frr = ror*unr;
+		fr = 0.5*(frr + frl - alpha*(ror - rol));
+		fu = 0.5*(frr*pR.u + frl*pL.u + (pR.p + pL.p)*n.x - alpha*(rur - rul));
+		fv = 0.5*(frr*pR.v + frl*pL.v + (pR.p + pL.p)*n.y - alpha*(rvr - rvl));
+		fe = 0.5*((rer + pR.p)*unr + (rel + pL.p)*unl - alpha*(rer - rel));
+	}
+}
+
+
+void FEM_RKDG::zeroIntegrals()
+{
+	for (int i = 0; i < grid.cCount; i++) {
+		for (int iF = 0; iF < FUNC_COUNT; iF++) {
+			ro_int[i][iF] = 0.0;
+			ru_int[i][iF] = 0.0;
+			rv_int[i][iF] = 0.0;
+			re_int[i][iF] = 0.0;
+
+			ro_old[i][iF] = ro[i][iF];
+			ru_old[i][iF] = ru[i][iF];
+			rv_old[i][iF] = rv[i][iF];
+			re_old[i][iF] = re[i][iF];
+		}
+		
+	}
 }
 
 
@@ -306,60 +809,64 @@ void FEM_RKDG::calcConvectionSurf()
 		Vector n = edge.n;
 		if (edge.type == Edge::TYPE_INNER)
 		{
+
 			int c1 = edge.c1;
 			int c2 = edge.c2;
 			VECTOR intRO1(FUNC_COUNT), intRU1(FUNC_COUNT), intRV1(FUNC_COUNT), intRE1(FUNC_COUNT);
 			VECTOR intRO2(FUNC_COUNT), intRU2(FUNC_COUNT), intRV2(FUNC_COUNT), intRE2(FUNC_COUNT);
-			for (int iGP = 0; iGP < CELL_GP_COUNT; iGP++)
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++)
 			{
 				Point& pt = edgeGP[i][iGP];
 				Param pL, pR;
 				convertConsToPar(c1, pt, pL);
 				convertConsToPar(c2, pt, pR);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				Material &mat = getMaterial(c1);
+				double __GAM = mat.getGamma();   // TODO: сделать правильное вычисление показателя адиабаты
 				calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
 				
 				VECTOR tmp(FUNC_COUNT), tmp1(FUNC_COUNT), tmp2(FUNC_COUNT);
 				tmp1     = getF(c1, pt);
-				tmp1    *= edgeGW[iGP];
+				tmp1	*= edgeGW[i][iGP];
 				tmp2     = getF(c2, pt);
-				tmp2    *= edgeGW[iGP];
+				tmp2	*= edgeGW[i][iGP];
 				
 				tmp     = tmp1;
 				tmp    *= fr;
 				intRO1 += tmp;
-				tmp     = tmp2;
-				tmp    *= fr;
-				intRO2 += tmp;
-
 				tmp     = tmp1;
 				tmp    *= fu;
 				intRU1 += tmp;
-				tmp     = tmp2;
-				tmp    *= fu;
-				intRU2 += tmp;
-
 				tmp     = tmp1;
 				tmp    *= fv;
 				intRV1 += tmp;
-				tmp     = tmp2;
-				tmp    *= fv;
-				intRV2 += tmp;
-
 				tmp     = tmp1;
 				tmp    *= fe;
 				intRE1 += tmp;
+
+
+
+				tmp     = tmp2;
+				tmp    *= fr;
+				intRO2 += tmp;
+				tmp     = tmp2;
+				tmp    *= fu;
+				intRU2 += tmp;
+				tmp     = tmp2;
+				tmp    *= fv;
+				intRV2 += tmp;
 				tmp     = tmp2;
 				tmp    *= fe;
 				intRE2 += tmp;
 			}
+			
 			intRO1 *= edgeJ[i];
-			intRO2 *= edgeJ[i];
 			intRU1 *= edgeJ[i];
-			intRU2 *= edgeJ[i];
 			intRV1 *= edgeJ[i];
-			intRV2 *= edgeJ[i];
 			intRE1 *= edgeJ[i];
+			
+			intRO2 *= edgeJ[i];
+			intRU2 *= edgeJ[i];
+			intRV2 *= edgeJ[i];
 			intRE2 *= edgeJ[i];
 
 			ro_int[c1] -= intRO1;
@@ -367,51 +874,56 @@ void FEM_RKDG::calcConvectionSurf()
 			rv_int[c1] -= intRV1;
 			re_int[c1] -= intRE1;
 
-			ro_int[c2] += intRO1;
-			ru_int[c2] += intRU1;
-			rv_int[c2] += intRV1;
-			re_int[c2] += intRE1;
+			ro_int[c2] += intRO2;
+			ru_int[c2] += intRU2;
+			rv_int[c2] += intRV2;
+			re_int[c2] += intRE2;
+
 		} else {
+
 			int c1 = edge.c1;
 			VECTOR intRO1(FUNC_COUNT), intRU1(FUNC_COUNT), intRV1(FUNC_COUNT), intRE1(FUNC_COUNT);
-			for (int iGP = 0; iGP < CELL_GP_COUNT; iGP++)
+			VECTOR intRO2(FUNC_COUNT), intRU2(FUNC_COUNT), intRV2(FUNC_COUNT), intRE2(FUNC_COUNT);
+			for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++)
 			{
 				Point& pt = edgeGP[i][iGP];
 				Param pL, pR;
 				convertConsToPar(c1, pt, pL);
 				boundaryCond(i, pt, pL, pR);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				Material &mat = getMaterial(c1);
+				double __GAM = mat.getGamma();
 				calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
-				
-				VECTOR tmp(FUNC_COUNT), tmp1(FUNC_COUNT), tmp2(FUNC_COUNT);
-				tmp1     = getF(c1, pt);
-				tmp1    *= edgeGW[iGP];
-				
-				tmp     = tmp1;
-				tmp    *= fr;
+
+				VECTOR tmp(FUNC_COUNT), tmp1(FUNC_COUNT);
+				tmp1 = getF(c1, pt);
+				tmp1 *= edgeGW[i][iGP];
+
+				tmp = tmp1;
+				tmp *= fr;
 				intRO1 += tmp;
 
-				tmp     = tmp1;
-				tmp    *= fu;
+				tmp = tmp1;
+				tmp *= fu;
 				intRU1 += tmp;
 
-				tmp     = tmp1;
-				tmp    *= fv;
+				tmp = tmp1;
+				tmp *= fv;
 				intRV1 += tmp;
 
-				tmp     = tmp1;
-				tmp    *= fe;
+				tmp = tmp1;
+				tmp *= fe;
 				intRE1 += tmp;
 			}
 			intRO1 *= edgeJ[i];
 			intRU1 *= edgeJ[i];
 			intRV1 *= edgeJ[i];
 			intRE1 *= edgeJ[i];
-
+			
 			ro_int[c1] -= intRO1;
 			ru_int[c1] -= intRU1;
 			rv_int[c1] -= intRV1;
 			re_int[c1] -= intRE1;
+
 		}
 	}
 }
@@ -422,7 +934,7 @@ void FEM_RKDG::calcConvectionVol()
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		VECTOR intRO(FUNC_COUNT), intRU(FUNC_COUNT), intRV(FUNC_COUNT), intRE(FUNC_COUNT);
-		for (int iGP = 0; iGP < CELL_GP_COUNT; iGP++)
+		for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++)
 		{
 			Point& pt = cellGP[i][iGP];
 			Param par;
@@ -451,7 +963,7 @@ void FEM_RKDG::calcConvectionVol()
 			tmpInt1 *= gr;
 			tmpInt += tmpInt1;
 			
-			tmpInt *= cellGW[iGP];
+			tmpInt *= cellGW[i][iGP];
 			intRO  += tmpInt;
 
 			// RU
@@ -464,7 +976,7 @@ void FEM_RKDG::calcConvectionVol()
 			tmpInt1 *= gu;
 			tmpInt += tmpInt1;
 
-			tmpInt *= cellGW[iGP];
+			tmpInt *= cellGW[i][iGP];
 			intRU  += tmpInt;
 
 			// RV
@@ -477,7 +989,7 @@ void FEM_RKDG::calcConvectionVol()
 			tmpInt1 *= gv;
 			tmpInt += tmpInt1;
 
-			tmpInt *= cellGW[iGP];
+			tmpInt *= cellGW[i][iGP];
 			intRV  += tmpInt;
 
 			// RE
@@ -490,7 +1002,7 @@ void FEM_RKDG::calcConvectionVol()
 			tmpInt1 *= ge;
 			tmpInt += tmpInt1;
 
-			tmpInt *= cellGW[iGP];
+			tmpInt *= cellGW[i][iGP];
 			intRE  += tmpInt;
 		}
 		intRO *= cellJ[i];
@@ -516,86 +1028,83 @@ void FEM_RKDG::calcNewFields()
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		tmp = ro_int[i];
-		tmp *= TAU;
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
 		ro[i] += tmp;
 
 		tmp = ru_int[i];
-		tmp *= TAU;
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
 		ru[i] += tmp;
 
 		tmp = rv_int[i];
-		tmp *= TAU;
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
 		rv[i] += tmp;
 
 		tmp = re_int[i];
-		tmp *= TAU;
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
 		re[i] += tmp;
+	}
+}
+
+void FEM_RKDG::calcResiduals()
+{
+	VECTOR v;
+	double res;
+	ro_res = 0.0;
+	ru_res = 0.0;
+	rv_res = 0.0;
+	re_res = 0.0;
+	for (int i = 0; i < grid.cCount; i++) {
+		v = ro[i];
+		v -= ro_old[i];
+		v.abs();
+		res = v.norm();
+		if (res > ro_res) ro_res = res;
+
+		v = ru[i];
+		v -= ru_old[i];
+		v.abs();
+		res = v.norm();
+		if (res > ru_res) ru_res = res;
+
+		v = rv[i];
+		v -= rv_old[i];
+		v.abs();
+		res = v.norm();
+		if (res > rv_res) rv_res = res;
+
+		v = re[i];
+		v -= re_old[i];
+		v.abs();
+		res = v.norm();
+		if (res > re_res) re_res = res;
 	}
 }
 
 void FEM_RKDG::calcLimiters() {}
 
-void FEM_RKDG::reconstruct(int iEdge, Point pt, Param& pL, Param& pR)
-{
-	if (grid.edges[iEdge].type == Edge::TYPE_INNER) 
-	{
-		int c1	= grid.edges[iEdge].c1;
-		int c2	= grid.edges[iEdge].c2;
-		convertConsToPar(c1, pt, pL);
-		convertConsToPar(c2, pt, pR);
-	} else {
-		int c1	= grid.edges[iEdge].c1;
-		convertConsToPar(c1, pt, pL);
-		boundaryCond(iEdge, pt, pL, pR);
-	}
-}
-
 
 void FEM_RKDG::boundaryCond(int iEdge, Point pt, Param& pL, Param& pR)
 {
-	int iBound = -1;
-	for (int i = 0; i < bCount; i++)
-	{
-		if (grid.edges[iEdge].type == boundaries[i].edgeType) 
-		{
-			iBound = i;
-			break;
-		}
-	}
-	if (iBound < 0)
-	{
-		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
-		EXIT(1);
-	}
-	Boundary& b = boundaries[iBound];
-	int c1	= grid.edges[iEdge].c1;
+	Edge &edge = grid.edges[iEdge];
+	int c1 = edge.c1;
 	Material& m = getMaterial(c1);
-	switch (b.type)
-	{
-	case Boundary::BOUND_INLET:
-		pR.T  = b.par[0];		//!< температура
-		pR.p  = b.par[1];		//!< давление
-		pR.u  = b.par[2];		//!< первая компонента вектора скорости
-		pR.v  = b.par[3];		//!< вторая компонента вектора скорости
-		
+	if (edge.bnd) {
+		edge.bnd->run(iEdge, pL, pR);
 		m.URS(pR, 2);
 		m.URS(pR, 1);
-		break;
-	
-	case Boundary::BOUND_OUTLET:
-		pR = pL;
-		break;
-	
-	case Boundary::BOUND_WALL:
-		pR = pL;
-		double Un = pL.u*grid.edges[iEdge].n.x+pL.v*grid.edges[iEdge].n.y;
-		Vector V;
-		V.x = grid.edges[iEdge].n.x*Un*2.0; 
-		V.y = grid.edges[iEdge].n.y*Un*2.0;
-		pR.u = pL.u-V.x;
-		pR.v = pL.v-V.y;
-		break;
+		pR.E = pR.e + 0.5*(pR.U2());
+		return;
 	}
+	else {
+		char msg[128];
+		sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+		throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+	}
+
 }
 
 
@@ -636,9 +1145,24 @@ Region   &	FEM_RKDG::getRegion	(int iCell)
 	return getRegionByCellType( grid.cells[iCell].type );
 }
 
-Material &	FEM_RKDG::getMaterial	(int iCell)
+Region & FEM_RKDG::getRegionByName(char* name)
 {
-	Region & reg = getRegion(iCell);
+	for (int i = 0; i < regCount; i++)
+	{
+		if (strcmp(regions[i].name.c_str(), name) == 0) return regions[i];
+	}
+	log("ERROR: unknown cell name '%s'...\n", name);
+	EXIT(1);
+}
+
+Region & FEM_RKDG::getRegion(char * name)
+{
+	return getRegionByName(name);
+}
+
+Material &	FEM_RKDG::getMaterial(int iCell)
+{
+	Region & reg = getRegion(grid.cells[iCell].typeName);
 	return materials[reg.matId];
 }
 
@@ -668,8 +1192,13 @@ void FEM_RKDG::convertConsToPar(int iCell, Point pt, Param & par)
 	par.e = par.E-0.5*(par.u*par.u+par.v*par.v);
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
+	mat.URS(par, 1);
 }
 
+void FEM_RKDG::convertConsToPar(int iCell, Param & par)
+{
+	convertConsToPar(iCell, grid.cells[iCell].c, par);
+}
 
 
 

@@ -32,6 +32,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 		g->cells[i].nodesInd[0]--;
 		g->cells[i].nodesInd[1]--;
 		g->cells[i].nodesInd[2]--;
+		sprintf(g->cells[i].typeName, "%d", g->cells[i].type);
 		g->cells[i].c.x = (g->nodes[g->cells[i].nodesInd[0]].x + g->nodes[g->cells[i].nodesInd[1]].x + g->nodes[g->cells[i].nodesInd[2]].x) / 3.0;
 		g->cells[i].c.y = (g->nodes[g->cells[i].nodesInd[0]].y + g->nodes[g->cells[i].nodesInd[1]].y + g->nodes[g->cells[i].nodesInd[2]].y) / 3.0;
 		g->cells[i].HX = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[1]].x),

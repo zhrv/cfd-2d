@@ -437,8 +437,36 @@ void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 } 
 
 
-
 void inverseMatr(double** a_src, double **am, int N)
+{
+	double **a = a_src;
+	double detA = a[0][0] * a[1][1] * a[2][2] + a[1][0] * a[2][1] * a[0][2] + a[0][1] * a[1][2] * a[2][0]
+				- a[2][0] * a[1][1] * a[0][2] - a[1][0] * a[0][1] * a[2][2] - a[0][0] * a[2][1] * a[1][2];
+	//OutPut("detA = %25.16e\n", detA);
+	double m[3][3];
+	m[0][0] = a[1][1] * a[2][2] - a[2][1] * a[1][2];
+	m[0][1] = a[2][0] * a[1][2] - a[1][0] * a[2][2];
+	m[0][2] = a[1][0] * a[2][1] - a[2][0] * a[1][1];
+	m[1][0] = a[2][1] * a[0][2] - a[0][1] * a[2][2];
+	m[1][1] = a[0][0] * a[2][2] - a[2][0] * a[0][2];
+	m[1][2] = a[2][0] * a[0][1] - a[0][0] * a[2][1];
+	m[2][0] = a[0][1] * a[1][2] - a[1][1] * a[0][2];
+	m[2][1] = a[1][0] * a[0][2] - a[0][0] * a[1][2];
+	m[2][2] = a[0][0] * a[1][1] - a[1][0] * a[0][1];
+
+	am[0][0] = m[0][0] / detA;
+	am[0][1] = m[1][0] / detA;
+	am[0][2] = m[2][0] / detA;
+	am[1][0] = m[0][1] / detA;
+	am[1][1] = m[1][1] / detA;
+	am[1][2] = m[2][1] / detA;
+	am[2][0] = m[0][2] / detA;
+	am[2][1] = m[1][2] / detA;
+	am[2][2] = m[2][2] / detA;
+}
+
+
+void inverseMatr_(double** a_src, double **am, int N)
 {
 	int	*	mask;
 	double	fmaxval;
@@ -531,18 +559,20 @@ void inverseMatr(double** a_src, double **am, int N)
 			}
 		}
 	}
-	//for (int i = 0; i < N; i++)
-	//{
-	//	if (mask[i] != i) 
-	//	{
-	//		for (int j = 0; j < N; j++) 
-	//		{
-	//			tmp				= a[i][j];
-	//			a[i][j]			= a[mask[i]][j];
-	//			a[mask[i]][j]	= tmp;
-	//		}
-	//	}
-	//}
+	/**/
+	for (int i = 0; i < N; i++)
+	{
+		if (mask[i] != i) 
+		{
+			for (int j = 0; j < N; j++) 
+			{
+				tmp				= a[i][j];
+				a[i][j]			= a[mask[i]][j];
+				a[mask[i]][j]	= tmp;
+			}
+		}
+	}
+	/**/
 	for (int i = 0; i < N; i++)
 	{
 		delete[] a[i];

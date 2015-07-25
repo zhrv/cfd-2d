@@ -14,10 +14,6 @@ const unsigned int CELL_FLAG_LIM	= 0x000002;
 
 
 
-const unsigned int CELL_FLAG_GOOD	= 0x000000;
-const unsigned int CELL_FLAG_BAD	= 0x000001;
-const unsigned int CELL_FLAG_LIM	= 0x000002;
-
 class Cell 
 {
 public:

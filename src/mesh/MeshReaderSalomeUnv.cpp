@@ -206,7 +206,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 						elements[edges[jEdge][0]] = element(iEdge, element::TYPE_EDGE);
 					}
 					else {
-						throw Exception("Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BNT_EDGE);
+						throw Exception("Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE);
 					}
 				}
 
