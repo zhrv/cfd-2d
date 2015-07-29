@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS_x64\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <FunctionLevelLinking>
       </FunctionLevelLinking>
@@ -117,7 +117,7 @@
       <SubSystem>NotSet</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>hypre.lib;mpi.lib;metis.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\contrib\METIS\lib\win32;$(ProjectDir)\contrib\MPICH2_x64\lib;$(ProjectDir)\contrib\hypre\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)\contrib\METIS_x64\lib;$(ProjectDir)\contrib\MPICH2_x64\lib;$(ProjectDir)\contrib\hypre\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

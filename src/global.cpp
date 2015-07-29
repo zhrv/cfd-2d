@@ -582,3 +582,101 @@ void inverseMatr_(double** a_src, double **am, int N)
 	return;
 }
 
+
+MPI_Status mpiSt;
+int Parallel::procCount = 0;
+int Parallel::procId = 0;
+
+void Parallel::init(int* argc, char*** argv)
+{
+	MPI_Init(argc, argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+	MPI_Comm_rank(MPI_COMM_WORLD, &procId);
+}
+
+void Parallel::done()
+{
+	MPI_Finalize();
+}
+
+void Parallel::send(int pid, int tag, int n, double* x)
+{
+	MPI_Send(x, n, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+}
+
+void Parallel::send(int pid, int tag, int n, int* x)
+{
+	MPI_Send(x, n, MPI_INT, pid, tag, MPI_COMM_WORLD);
+}
+
+void Parallel::send(int pid, int tag, int n, VECTOR* x)
+{
+	int nv = x[0].n;
+	int size = nv*n;
+	double * buf = new double[size];
+	int k = 0;
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < nv; j++) {
+			buf[k] = x[i][j];
+			k++;
+		}
+	}
+	MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+
+	delete[] buf;
+}
+
+void Parallel::recv(int pid, int tag, int n, double* x)
+{
+	MPI_Recv(x, n, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+}
+
+void Parallel::recv(int pid, int tag, int n, int* x)
+{
+	MPI_Recv(x, n, MPI_INT, pid, tag, MPI_COMM_WORLD, &mpiSt);
+}
+
+void Parallel::recv(int pid, int tag, int n, VECTOR* x)
+{
+	int nv = x[0].n;
+	int size = nv*n;
+	double * buf = new double[size];
+	MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+
+	int k = 0;
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < nv; j++) {
+			x[i][j] = buf[k];
+			k++;
+		}
+	}
+	delete[] buf;
+}
+/*
+void Parallel::bcast(int n, double* x)
+{
+	MPI_Bcast(x, n, MPI_DOUBLE, procId, MPI_COMM_WORLD);
+}
+
+void Parallel::bcast(int n, int* x)
+{
+	MPI_Bcast(x, n, MPI_INT, procId, MPI_COMM_WORLD);
+}
+
+void Parallel::bcast(int n, VECTOR* x)
+{
+	int nv = x[0].n;
+	int size = nv*n;
+	double * buf = new double[size];
+	int k = 0;
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < nv; j++) {
+			buf[k] = x[i][j];
+			k++;
+		}
+	}
+	MPI_Bcast(buf, size, MPI_DOUBLE, tag, MPI_COMM_WORLD);
+
+	delete[] buf;
+}
+*/

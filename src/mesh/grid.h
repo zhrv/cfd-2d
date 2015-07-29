@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <vector>
 #include "global.h"
 #include "bnd_cond.h"
 
@@ -86,6 +87,14 @@ public:
 	int    nCount;	//количество nodes.
 	int    cCount;  //количество €чеек(cells).
 	int    eCount;  //количество ребер(edges).
+	int    nCountEx;	//количество nodes с фиктивными €чйками.
+	int    cCountEx;  //количество €чеек(cells) с фиктивными €чйками.
+	int    eCountEx;  //количество ребер(edges) с фиктивными €чйками.
+
+	std::vector<int>					recvCount;
+	std::vector< std::vector<int> >		sendInd;
+
+	void readMeshFiles();
 };
 
 inline double _max_(double a, double b)

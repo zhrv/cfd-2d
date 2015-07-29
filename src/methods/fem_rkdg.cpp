@@ -203,12 +203,13 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить пам€ть дл€ всех масс
 
 	
 	/* „тение данных сетки. */
-	node0 = task->FirstChild("mesh");
-	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
-	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
-	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
-	mr->read(&grid);
+	//node0 = task->FirstChild("mesh");
+	//const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+	//const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+	//MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+	//mr->read(&grid);
 
+	grid.readMeshFiles();
 	
 	/* ќпределение √” дл€ каждого ребра. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
@@ -256,24 +257,24 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить пам€ть дл€ всех масс
 	}
 
 
-	cTau = new double[grid.cCount];
+	cTau = new double[grid.cCountEx];
 
-	ro		= new VECTOR[grid.cCount];
-	ru		= new VECTOR[grid.cCount];
-	rv		= new VECTOR[grid.cCount];
-	re		= new VECTOR[grid.cCount];
+	ro = new VECTOR[grid.cCountEx];
+	ru = new VECTOR[grid.cCountEx];
+	rv = new VECTOR[grid.cCountEx];
+	re = new VECTOR[grid.cCountEx];
 
-	ro_old	= new VECTOR[grid.cCount];
-	ru_old	= new VECTOR[grid.cCount];
-	rv_old	= new VECTOR[grid.cCount];
-	re_old	= new VECTOR[grid.cCount];
+	ro_old = new VECTOR[grid.cCountEx];
+	ru_old = new VECTOR[grid.cCountEx];
+	rv_old = new VECTOR[grid.cCountEx];
+	re_old = new VECTOR[grid.cCountEx];
 
-	ro_int = new VECTOR[grid.cCount];
-	ru_int = new VECTOR[grid.cCount];
-	rv_int = new VECTOR[grid.cCount];
-	re_int = new VECTOR[grid.cCount];
+	ro_int = new VECTOR[grid.cCountEx];
+	ru_int = new VECTOR[grid.cCountEx];
+	rv_int = new VECTOR[grid.cCountEx];
+	re_int = new VECTOR[grid.cCountEx];
 
-	for (int i = 0; i < grid.cCount; i++)
+	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		ro[i].init(FUNC_COUNT);
 		ru[i].init(FUNC_COUNT);
@@ -291,26 +292,26 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить пам€ть дл€ всех масс
 		re_int[i].init(FUNC_COUNT);
 	}
 
-	cellJ = new double[grid.cCount];
-	cellGW = new double*[grid.cCount];
-	cellGP = new Point*[grid.cCount];
-	for (int i = 0; i < grid.cCount; i++) {
+	cellJ = new double[grid.cCountEx];
+	cellGW = new double*[grid.cCountEx];
+	cellGP = new Point*[grid.cCountEx];
+	for (int i = 0; i < grid.cCountEx; i++) {
 		cellGW[i] = new double[GP_CELL_COUNT];
 		cellGP[i] = new Point[GP_CELL_COUNT];
 	}
 
-	edgeJ = new double[grid.eCount];
-	edgeGW = new double*[grid.eCount];
-	edgeGP = new Point*[grid.eCount];
-	for (int i = 0; i < grid.eCount; i++) {
+	edgeJ = new double[grid.eCountEx];
+	edgeGW = new double*[grid.eCountEx];
+	edgeGP = new Point*[grid.eCountEx];
+	for (int i = 0; i < grid.eCountEx; i++) {
 		edgeGW[i] = new double[GP_EDGE_COUNT];
 		edgeGP[i] = new Point[GP_EDGE_COUNT];
 	}
 
-	matrA = new double**[grid.cCount];
-	matrInvA = new double**[grid.cCount];
+	matrA = new double**[grid.cCountEx];
+	matrInvA = new double**[grid.cCountEx];
 
-	for (int i = 0; i < grid.cCount; i++) {
+	for (int i = 0; i < grid.cCountEx; i++) {
 		matrA[i] = new double*[FUNC_COUNT];
 		matrInvA[i] = new double*[FUNC_COUNT];
 		for (int j = 0; j < FUNC_COUNT; j++) {
@@ -323,7 +324,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить пам€ть дл€ всех масс
 
 	calcMassMatr();
 
-	for (int i = 0; i < grid.cCount; i++)
+	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		Cell & c = grid.cells[i];
 		Region & reg = getRegion(c.typeName);
@@ -331,16 +332,16 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить пам€ть дл€ всех масс
 	}
 
 
-	memcpy(ro_old, ro, grid.cCount*sizeof(double));
-	memcpy(ru_old, ru, grid.cCount*sizeof(double));
-	memcpy(rv_old, rv, grid.cCount*sizeof(double));
-	memcpy(re_old, re, grid.cCount*sizeof(double));
+	memcpy(ro_old, ro, grid.cCountEx*sizeof(double));
+	memcpy(ru_old, ru, grid.cCountEx*sizeof(double));
+	memcpy(rv_old, rv, grid.cCountEx*sizeof(double));
+	memcpy(re_old, re, grid.cCountEx*sizeof(double));
 
 	
 	
 	calcTimeStep();
 	save(0);
-
+	log("111111111111111111");
 
 }
 
@@ -604,9 +605,94 @@ void FEM_RKDG::run()
 void FEM_RKDG::save(int step)
 {
 	char fName[50];
+	FILE * fp;
+	if (Parallel::isRoot()) {
+		sprintf(fName, "res_%010d.pvtu", step);
+		fp = fopen(fName, "w");
+		fprintf(fp, "<?xml version=\"1.0\"?>\n");
+		fprintf(fp, "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+		fprintf(fp, "  <PUnstructuredGrid GhostLevel=\"0\">\n");
+		fprintf(fp, "    <PPoints><PDataArray type=\"Float32\" NumberOfComponents = \"3\" /></PPoints>\n");
+		fprintf(fp, "    <PCellData Scalars=\"Pressure\" Vectors=\"Velocity\">\n");
+		fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Pressure\" format=\"ascii\" />\n");
+		//fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Velocity\" format=\"ascii\" NumberOfComponents=\"3\"/>\n");
+		fprintf(fp, "    </PCellData>\n");
+		
+		
+		for (int pid = 0; pid < Parallel::procCount; pid++) {
+			fprintf(fp, "    <Piece Source=\"vtk_data/res_%010d.%04d.vtu\"/>\n", step, pid);
+		}
+		fprintf(fp, "  </PUnstructuredGrid>\n");
 
-	sprintf(fName, "res_%010d.vtk", step);
-	FILE * fp = fopen(fName, "w");
+		fprintf(fp, "</VTKFile>\n");
+		fclose(fp);
+		printf("File '%s' saved...\n", fName);
+	}
+	sprintf(fName, "vtk_data/res_%010d.%04d.vtu", step, Parallel::procId);
+	fp = fopen(fName, "w");
+	fprintf(fp, "<?xml version=\"1.0\"?>\n");
+	fprintf(fp, "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+	fprintf(fp, "  <UnstructuredGrid GhostLevel=\"0\">\n");
+	fprintf(fp, "    <Piece NumberOfPoints=\"%d\" NumberOfCells=\"%d\">\n", grid.nCount, grid.cCount);
+	fprintf(fp, "      <Points>\n");
+	fprintf(fp, "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">\n");
+	fprintf(fp, "          ");
+	for (int i = 0; i < grid.nCount; i++) {
+		fprintf(fp, "%25.15f %25.15f %25.15f ", grid.nodes[i].x, grid.nodes[i].y, 0.0);
+	}
+	fprintf(fp, "\n");
+	fprintf(fp, "        </DataArray>\n");
+	fprintf(fp, "      </Points>\n");
+	fprintf(fp, "      <Cells>\n");
+	fprintf(fp, "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n");
+	fprintf(fp, "          ");
+	for (int i = 0; i < grid.cCount; i++) {
+		fprintf(fp, "%d ", (i+1)*3);
+	}
+	fprintf(fp, "\n");
+	fprintf(fp, "        </DataArray>\n");
+	fprintf(fp, "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n");
+	fprintf(fp, "          ");
+	for (int i = 0; i < grid.cCount; i++) {
+		fprintf(fp, "%d %d %d ", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
+	}
+	fprintf(fp, "\n");
+	fprintf(fp, "        </DataArray>\n");
+	fprintf(fp, "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n");
+	fprintf(fp, "          ");
+	for (int i = 0; i < grid.cCount; i++) {
+		fprintf(fp, "%d ", 5);
+	}
+	fprintf(fp, "\n");
+	fprintf(fp, "        </DataArray>\n");
+	fprintf(fp, "      </Cells>\n");
+	fprintf(fp, "      <CellData Scalars=\"Pressure\" Vectors=\"Velocity\">\n");
+	fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Pressure\" format=\"ascii\">\n");
+	fprintf(fp, "          ");
+	for (int i = 0; i < grid.cCount; i++) {
+		Param p;
+		convertConsToPar(i, p);
+		fprintf(fp, "%25.16f ", p.p*P_);
+		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+	}
+	//fprintf(fp, "\n");
+	fprintf(fp, "        </DataArray>\n");
+	//fprintf(fp, "        <DataArrayc Name=\"Velocity\" format=\"ascii\" NumberOfComponents=\"3\"/>\n");
+	fprintf(fp, "      </CellData>\n");
+	fprintf(fp, "    </Piece>\n");
+
+
+	fprintf(fp, "  </UnstructuredGrid>\n");
+
+	fprintf(fp, "</VTKFile>\n");
+	fclose(fp);
+		
+	
+	
+	
+	return;
+	sprintf(fName, "res_%010d.%04d.vtu", step, Parallel::procId);
+	fp = fopen(fName, "w");
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
 	fprintf(fp, "GASDIN data file\n");
 	fprintf(fp, "ASCII\n");

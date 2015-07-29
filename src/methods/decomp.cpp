@@ -5,6 +5,32 @@
 #include "metis.h"
 #include <string.h>
 #include <vector>
+#include <map>
+#include <string>
+#include "MeshReader.h"
+
+//using namespace std;
+
+typedef std::map<int, int> gl_map;
+typedef std::vector<int> indexes;
+typedef std::vector<indexes> exch_map;
+
+struct ProcMesh
+{
+	int cCount, cCountEx;
+	int eCount, eCountEx;
+	int nCount, nCountEx;
+
+	indexes gCells, gEdges, gNodes;
+	gl_map lCells, lEdges, lNodes;
+
+	indexes recvCount;
+	exch_map sendInd;
+};
+
+const char FLAG_IN = 1;
+const char FLAG_EX = 2;
+
 
 void Decomp::init(char * xmlFileName)
 {
@@ -28,13 +54,22 @@ void Decomp::init(char * xmlFileName)
 
 	grids = new Grid[procCount];
 
-	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	grid.initFromFiles((char*)fName);
+	//const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
+	//grid.initFromFiles((char*)fName);
+
+	/* Чтение данных сетки. */
+	node0 = task->FirstChild("mesh");
+	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+	mr->read(&grid);
 }
 
 
 void Decomp::run()
 {
+	char fName[128];
+
 	log("Decomposition to %d processors started...\n", procCount);
 	log(" Initial grid info:\n");
 	log("  cells count:     %d\n", grid.cCount);
@@ -47,28 +82,32 @@ void Decomp::run()
 	int ncon = 1;
 	idx_t objval;
 	idx_t * part   = new idx_t[n];
-	idx_t * xadj   = new idx_t[n+1];
-	idx_t * adjncy = new idx_t[2*m];
-	int jj = 0;
-	xadj[0] = 0;
-	for (int i = 0; i < n; i++)
-	{
-		Cell & cell = grid.cells[i];
-		for (int j = 0; j < 3; j++)
+	if (procCount > 1) {
+		idx_t * xadj = new idx_t[n + 1];
+		idx_t * adjncy = new idx_t[2 * m];
+		int jj = 0;
+		xadj[0] = 0;
+		for (int i = 0; i < n; i++)
 		{
-			if (cell.neigh[j] >= 0) 
+			Cell & cell = grid.cells[i];
+			for (int j = 0; j < 3; j++)
 			{
-				adjncy[jj] = cell.neigh[j];
-				jj++;
+				if (cell.neigh[j] >= 0)
+				{
+					adjncy[jj] = cell.neigh[j];
+					jj++;
+				}
 			}
+			xadj[i + 1] = jj;
 		}
-		xadj[i+1] = jj;
+		// TODO: подключить х64 версию METIS
+		METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
+		delete[] xadj;
+		delete[] adjncy;
 	}
-	// TODO: подключить х64 версию METIS
-	//METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
-	delete[] xadj;
-	delete[] adjncy;
-
+	else {
+		memset(part, 0, sizeof(idx_t)*n);
+	}
 
 	FILE * fp = fopen("parts.vtk", "w");
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
@@ -106,6 +145,7 @@ void Decomp::run()
 
 	// формирование файлов c данными сетки для каждого процессора
 	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
+	MK_DIR('vtk_data'); 
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
 	for (int i = 0; i < n; i++)
@@ -113,25 +153,25 @@ void Decomp::run()
 		nProc[part[i]]++;
 	}
 
-	for (int p = 0; p < procCount; p++)
-	{
+	std::vector<ProcMesh> procMesh;
+	for (int p = 0; p < procCount; p++)	{
+		ProcMesh pm;
 		int np = nProc[p];
 		int ep = 0;
-		int * cellGlobalIdx = NULL;
-		int * cellFlag = NULL;
-		std::vector<int> procCell;
-		std::vector<int> procCellEx;
+		//int * cellGlobalIdx = NULL;
+		//int * cellFlag = NULL;
+		indexes procCellEx;
 
 		for (int i = 0; i < n; i++)
 		{
 			if (part[i] == p)
 			{
-				procCell.push_back(i);
+				pm.gCells.push_back(i);
 			}
 		}
-		for (int i = 0; i < procCell.size(); i++)
+		for (int i = 0; i < pm.gCells.size(); i++)
 		{
-			Cell& c = grid.cells[procCell[i]];
+			Cell& c = grid.cells[pm.gCells[i]];
 			for (int j = 0; j < 3; j++)
 			{
 				if (c.neigh[j] < 0) continue;
@@ -139,50 +179,158 @@ void Decomp::run()
 			}
 		}
 
-		int cellCount = procCell.size();
-		int cellCountEx = cellCount + procCellEx.size();
+		pm.cCount = pm.gCells.size();
+		pm.cCountEx = pm.cCount + procCellEx.size();
 		for (int i = 0; i < procCellEx.size(); i++) 
 		{
-			procCell.push_back(procCellEx[i]);
+			pm.gCells.push_back(procCellEx[i]);
 		}
 		procCellEx.clear();
 
-		char FLG_EDGE_IN = 1;
-		char FLG_EDGE_EX = 2;
+		// сортировка фиктивных ячеек в порядке убывания процессора
+		int exCnt = pm.cCountEx - pm.cCount;
+
+		pm.recvCount.resize(procCount);
+		pm.sendInd.resize(procCount);
+		for (int i = 0; i < procCount; i++) {
+			pm.recvCount[i] = 0;
+			pm.sendInd[p].clear();
+		}
+		for (int ii = 0; ii < exCnt; ii++) {
+			for (int j = 0; j < exCnt - 1 - ii; j++) {
+				int i = pm.cCount + j;
+				if (part[pm.gCells[i]] > part[pm.gCells[i + 1]]) {
+					int tmp = pm.gCells[i];
+					pm.gCells[i] = pm.gCells[i+1];
+					pm.gCells[i+1] = tmp;
+				}
+			}
+		}
+		for (i = 0; i < pm.cCountEx; i++) {
+			pm.lCells[pm.gCells[i]] = i;
+		}
+		for (i = pm.cCount; i < pm.cCountEx; i++) {
+			pm.recvCount[part[pm.gCells[i]]]++;
+		}
+
+
 		char * edgeFlg = new char[grid.eCount];
 		memset(edgeFlg, 0, grid.eCount*sizeof(char));
-		for (int i = 0; i < cellCount; i++)
+		for (int i = 0; i < pm.cCount; i++)
 		{
-			for (int j = 0; j < grid.cells[procCell[i]].eCount; j++)
+			for (int j = 0; j < grid.cells[pm.gCells[i]].eCount; j++)
 			{
-				edgeFlg[grid.cells[procCell[i]].edgesInd[j]] |= FLG_EDGE_IN;
+				edgeFlg[grid.cells[pm.gCells[i]].edgesInd[j]] |= FLAG_IN;
 			}
 		}
-		for (int i = cellCount; i < cellCountEx; i++)
+		for (int i = pm.cCount; i < pm.cCountEx; i++)
 		{
-			for (int j = 0; j < grid.cells[procCell[i]].eCount; j++)
+			for (int j = 0; j < grid.cells[pm.gCells[i]].eCount; j++)
 			{
-				edgeFlg[grid.cells[procCell[i]].edgesInd[j]] |= FLG_EDGE_EX;
+				edgeFlg[grid.cells[pm.gCells[i]].edgesInd[j]] |= FLAG_EX;
 			}
 		}
 
-		std::vector<int> edgeProc;
 		for (int i = 0; i < grid.eCount; i++)
 		{
-			if (edgeFlg[i] & FLG_EDGE_IN) edgeProc.push_back(i);
+			if (edgeFlg[i] & FLAG_IN) pm.gEdges.push_back(i);
 		}
-		int edgeCount = edgeProc.size();
+		pm.eCount = pm.gEdges.size();
 		for (int i = 0; i < grid.eCount; i++)
 		{
-			if ( ((edgeFlg[i] & FLG_EDGE_EX) == FLG_EDGE_EX) && ((edgeFlg[i] & FLG_EDGE_IN) == 0) ) edgeProc.push_back(i);
+			if (((edgeFlg[i] & FLAG_EX) == FLAG_EX) && ((edgeFlg[i] & FLAG_IN) == 0)) pm.gEdges.push_back(i);
 		}
-		int edgeCountEx = edgeProc.size();
+		pm.eCountEx = pm.gEdges.size();
+		delete[] edgeFlg;
+		for (i = 0; i < pm.eCountEx; i++) {
+			pm.lEdges[pm.gEdges[i]] = i;
+		}
 
-		char fName[20];
+		char * nodeFlg = new char[grid.nCount];
+		memset(nodeFlg, 0, grid.nCount*sizeof(char));
+		for (int i = 0; i < pm.cCount; i++)
+		{
+			for (int j = 0; j < grid.cells[pm.gCells[i]].nCount; j++)
+			{
+				nodeFlg[grid.cells[pm.gCells[i]].nodesInd[j]] |= FLAG_IN;
+			}
+		}
+		for (int i = pm.cCount; i < pm.cCountEx; i++)
+		{
+			for (int j = 0; j < grid.cells[pm.gCells[i]].nCount; j++)
+			{
+				nodeFlg[grid.cells[pm.gCells[i]].nodesInd[j]] |= FLAG_EX;
+			}
+		}
+
+		for (int i = 0; i < grid.nCount; i++) {
+			if (nodeFlg[i] & FLAG_IN) pm.gNodes.push_back(i);
+		}
+		pm.nCount = pm.gNodes.size();
+		for (int i = 0; i < grid.nCount; i++)
+		{
+			if (((nodeFlg[i] & FLAG_EX) == FLAG_EX) && ((nodeFlg[i] & FLAG_IN) == 0)) pm.gNodes.push_back(i);
+		}
+		pm.nCountEx = pm.gNodes.size();
+		delete[] nodeFlg;
+		for (i = 0; i < pm.nCountEx; i++) {
+			pm.lNodes[pm.gNodes[i]] = i;
+		}
+
+
+		procMesh.push_back(pm);
+	}
+
+	for (int p = 0; p < procCount; p++) {
+		ProcMesh & pm = procMesh[p];
+
+		for (int i = pm.cCount; i < pm.cCountEx; i++) {
+			int giCell = pm.gCells[i];
+			ProcMesh & pn = procMesh[part[giCell]];
+			pn.sendInd[p].push_back(pn.lCells[giCell]);
+		}
+	}
+
+
+	for (int p = 0; p < procCount; p++) {
+		
 		sprintf(fName, "mesh/mesh.%04d.proc", p);
 		fp = fopen(fName, "w");
-		fprintf(fp, "%d\n", np);
+		ProcMesh & pm = procMesh[p];
+		fprintf(fp, "%d %d\n", pm.nCount, pm.nCountEx);
+		for (int i = 0; i < pm.nCountEx; i++) {
+			int iNode = pm.gNodes[i];
+			fprintf(fp, "%6d %25.15e %25.15e\n", i, grid.nodes[iNode].x, grid.nodes[iNode].y);
+		}
+
+		fprintf(fp, "\n%d %d\n", pm.cCount, pm.cCountEx);
+		for (int i = 0; i < pm.cCountEx; i++) {
+			Cell & c = grid.cells[pm.gCells[i]];
+			fprintf(fp, "%6d %6d %6d %6d %s\n", i, pm.lNodes[c.nodesInd[0]], pm.lNodes[c.nodesInd[1]], pm.lNodes[c.nodesInd[2]], c.typeName);
+		}
+
+		fprintf(fp, "\n%d %d\n", pm.eCount, pm.eCountEx);
+		for (int i = 0; i < pm.eCountEx; i++) {
+			Edge & e = grid.edges[pm.gEdges[i]];
+			fprintf(fp, "%6d %6d %6d %6d %s\n", i, pm.lNodes[e.n1], pm.lNodes[e.n2], e.type, e.type != 0 ? e.typeName : "");
+		}
+		
+		fprintf(fp, "\n");
+		for (int i = 0; i < procCount; i++) {
+			fprintf(fp, "%d%s", pm.recvCount[i], (i+1 % 8 == 0 || i == procCount - 1) ? "\n" : " ");
+		}
+		fprintf(fp, "\n");
+
+		for (int i = 0; i < procCount; i++) {
+			int n = pm.sendInd[i].size();
+			fprintf(fp, "%d %d\n", i, n);
+			for (int j = 0; j < n; j++) {
+				fprintf(fp, "%d%s", pm.sendInd[i][j], (j+1 % 8 == 0 || j == n - 1) ? "\n" : " ");
+			}
+		}
+
 		fclose(fp);
+
 	}
 }
 

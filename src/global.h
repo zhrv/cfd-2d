@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include "mpi.h"
 
 #ifdef _WIN32
 	#include <direct.h>
@@ -234,6 +235,30 @@ public:
 private:
 	char* message;
 	int type;
+};
+
+
+struct Parallel
+{
+	static void init(int* argc, char*** argv);
+	static void done();
+
+	static bool isRoot() { return (procId == 0); }
+
+	static void send(int pid, int tag, int n, double* data);
+	static void send(int pid, int tag, int n, int* data);
+	static void send(int pid, int tag, int n, VECTOR* data);
+
+	static void recv(int pid, int tag, int n, double* data);
+	static void recv(int pid, int tag, int n, int* data);
+	static void recv(int pid, int tag, int n, VECTOR* data);
+
+	//static void bcast(int tag, int n, double* data);
+	//static void bcast(int tag, int n, int* data);
+	//static void bcast(int tag, int n, VECTOR* data);
+
+	static int procCount;
+	static int procId;
 };
 
 
