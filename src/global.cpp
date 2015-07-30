@@ -31,6 +31,7 @@ void Material::URS(Param &par, int flag)
 
 void log(char * format, ...)
 {
+	if (!Parallel::isRoot()) return;
 	va_list arglist;
 
     va_start(arglist,format);
@@ -46,6 +47,7 @@ void log(char * format, ...)
 
 void EXIT(int err)
 {
+	Parallel::done();
 	fclose(hLog);
 	exit(err);
 }
@@ -586,6 +588,7 @@ void inverseMatr_(double** a_src, double **am, int N)
 MPI_Status mpiSt;
 int Parallel::procCount = 0;
 int Parallel::procId = 0;
+double * Parallel::buf;
 
 void Parallel::init(int* argc, char*** argv)
 {
@@ -613,7 +616,7 @@ void Parallel::send(int pid, int tag, int n, VECTOR* x)
 {
 	int nv = x[0].n;
 	int size = nv*n;
-	double * buf = new double[size];
+	//double * buf = new double[size];
 	int k = 0;
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < nv; j++) {
@@ -623,7 +626,7 @@ void Parallel::send(int pid, int tag, int n, VECTOR* x)
 	}
 	MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
 
-	delete[] buf;
+	//delete[] buf;
 }
 
 void Parallel::recv(int pid, int tag, int n, double* x)

@@ -244,6 +244,7 @@ struct Parallel
 	static void done();
 
 	static bool isRoot() { return (procId == 0); }
+	static void barrier() { MPI_Barrier(MPI_COMM_WORLD); }
 
 	static void send(int pid, int tag, int n, double* data);
 	static void send(int pid, int tag, int n, int* data);
@@ -259,6 +260,7 @@ struct Parallel
 
 	static int procCount;
 	static int procId;
+	static double * buf;
 };
 
 

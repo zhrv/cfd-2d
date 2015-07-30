@@ -92,9 +92,11 @@ public:
 	int    eCountEx;  //количество ребер(edges) с фиктивными €чйками.
 
 	std::vector<int>					recvCount;
+	std::vector<int>					recvShift;
 	std::vector< std::vector<int> >		sendInd;
 
 	void readMeshFiles();
+	void saveMeshInfo();
 };
 
 inline double _max_(double a, double b)

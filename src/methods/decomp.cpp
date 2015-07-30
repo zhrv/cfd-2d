@@ -145,7 +145,7 @@ void Decomp::run()
 
 	// формирование файлов c данными сетки для каждого процессора
 	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
-	MK_DIR('vtk_data'); 
+	MK_DIR('vtk_data');  
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
 	for (int i = 0; i < n; i++)

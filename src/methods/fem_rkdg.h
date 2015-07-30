@@ -95,6 +95,8 @@ protected:
 	inline double getRV(int iCell, Point pt) { return VECTOR::SCALAR_PROD(rv[iCell], getF(iCell, pt)); }
 	inline double getRE(int iCell, Point pt) { return VECTOR::SCALAR_PROD(re[iCell], getF(iCell, pt)); }
 
+	void procExchangeData();
+
 private:
 	double TMAX;
 	double TAU;
