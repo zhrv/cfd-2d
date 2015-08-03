@@ -71,8 +71,10 @@ protected:
 	void calcDiffusionSurf();
 	
 	void calcNewFields();
+	void calcNewFields2(); //с полусуммой во втором шаге Рунге-Кутта
 
 	void zeroIntegrals();
+	void copyToOld();
 
 	void calcResiduals();
 

@@ -371,7 +371,7 @@ void Grid::readMeshFiles()
 			e.c2 = -1;
 		}
 		else {
-			log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", i, __FILE__, __LINE__);
+			log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
 			EXIT(1);
 		}
 		e.cCount = 3;

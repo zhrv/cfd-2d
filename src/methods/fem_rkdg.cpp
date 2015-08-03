@@ -615,15 +615,32 @@ void FEM_RKDG::run()
 			calcTimeStep();
 		}
 		step++;
-		zeroIntegrals();
-		calcLimiters();
-		procExchangeData();
-		calcConvectionVol();
-		calcConvectionSurf();
-		calcNewFields();
-		procExchangeData();
+		copyToOld();
+
+		{	// RK-step 1
+			zeroIntegrals();
+			calcLimiters();
+			procExchangeData();
+			calcConvectionVol();
+			calcConvectionSurf();
+			calcNewFields();
+			procExchangeData();
+		}
+
+		{	// RK-step 2
+			zeroIntegrals();
+			calcLimiters();
+			procExchangeData();
+			calcConvectionVol();
+			calcConvectionSurf();
+			calcNewFields2();
+			procExchangeData();
+		}
+
 		calcResiduals();
+
 		Parallel::barrier();
+
 		if (step % FILE_SAVE_STEP == 0)
 		{
 			save(step);
@@ -956,7 +973,21 @@ void FEM_RKDG::zeroIntegrals()
 			rv_old[i][iF] = rv[i][iF];
 			re_old[i][iF] = re[i][iF];
 		}
-		
+
+	}
+}
+
+
+void FEM_RKDG::copyToOld()
+{
+	for (int i = 0; i < grid.cCount; i++) {
+		for (int iF = 0; iF < FUNC_COUNT; iF++) {
+			ro_old[i][iF] = ro[i][iF];
+			ru_old[i][iF] = ru[i][iF];
+			rv_old[i][iF] = rv[i][iF];
+			re_old[i][iF] = re[i][iF];
+		}
+
 	}
 }
 
@@ -1182,7 +1213,7 @@ void FEM_RKDG::calcDiffusionVol() {} //TODO:
 
 void FEM_RKDG::calcDiffusionSurf() {} //TODO:
 
-void FEM_RKDG::calcNewFields() 
+void FEM_RKDG::calcNewFields()
 {
 	VECTOR tmp(FUNC_COUNT);
 
@@ -1207,6 +1238,48 @@ void FEM_RKDG::calcNewFields()
 		tmp *= matrInvA[i];
 		tmp *= cTau[i];
 		re[i] += tmp;
+	}
+}
+
+void FEM_RKDG::calcNewFields2()
+{
+	VECTOR tmp(FUNC_COUNT);
+
+	for (int i = 0; i < grid.cCount; i++)
+	{
+		tmp = ro_int[i];
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
+		ro[i] += tmp;
+
+		tmp = ru_int[i];
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
+		ru[i] += tmp;
+
+		tmp = rv_int[i];
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
+		rv[i] += tmp;
+
+		tmp = re_int[i];
+		tmp *= matrInvA[i];
+		tmp *= cTau[i];
+		re[i] += tmp;
+	}
+
+	for (int i = 0; i < grid.cCount; i++) {
+		ro[i] += ro_old[i];
+		ro[i] *= 0.5;
+
+		ru[i] += ru_old[i];
+		ru[i] *= 0.5;
+
+		rv[i] += rv_old[i];
+		rv[i] *= 0.5;
+
+		re[i] += re_old[i];
+		re[i] *= 0.5;
 	}
 }
 

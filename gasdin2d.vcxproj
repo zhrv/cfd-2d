@@ -48,7 +48,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -149,22 +149,22 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src; src\methods;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS\include;;$(ProjectDir)contrib\hypre\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>contrib\hypre\include;contrib\MPICH2_x64\include;src;src\methods;src\methods\solvers;src\mesh;src\mesh\triangle;src\tinyxml;contrib\METIS_x64\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>metis.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>contrib\METIS\lib\win32</AdditionalLibraryDirectories>
+      <AdditionalDependencies>hypre.lib;mpi.lib;metis.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)\contrib\METIS_x64\lib;$(ProjectDir)\contrib\MPICH2_x64\lib;$(ProjectDir)\contrib\hypre\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\bnd_cond.cpp" />
-    <ClCompile Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReader.cpp" />
-    <ClCompile Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReaderBerkleyTriangle.cpp" />
-    <ClCompile Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReaderSalomeUnv.cpp" />
+    <ClCompile Include="src\bnd_cond.cpp" />
+    <ClCompile Include="src\mesh\MeshReader.cpp" />
+    <ClCompile Include="src\mesh\MeshReaderBerkleyTriangle.cpp" />
+    <ClCompile Include="src\mesh\MeshReaderSalomeUnv.cpp" />
     <ClCompile Include="src\global.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mesh\grid.cpp" />
@@ -194,10 +194,10 @@
     <ClCompile Include="src\tinyxml\tinyxmlparser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\bnd_cond.h" />
-    <ClInclude Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReader.h" />
-    <ClInclude Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReaderBerkleyTriangle.h" />
-    <ClInclude Include="..\..\..\..\..\Cloud%40Mail.Ru\dev\sci\2D\cfd-2d\src\mesh\MeshReaderSalomeUnv.h" />
+    <ClInclude Include="src\bnd_cond.h" />
+    <ClInclude Include="src\mesh\MeshReader.h" />
+    <ClInclude Include="src\mesh\MeshReaderBerkleyTriangle.h" />
+    <ClInclude Include="src\mesh\MeshReaderSalomeUnv.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\mesh\grid.h" />
     <ClInclude Include="src\mesh\MeshLoader.h" />

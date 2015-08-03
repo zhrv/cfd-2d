@@ -206,10 +206,10 @@ void Decomp::run()
 				}
 			}
 		}
-		for (i = 0; i < pm.cCountEx; i++) {
+		for (int i = 0; i < pm.cCountEx; i++) {
 			pm.lCells[pm.gCells[i]] = i;
 		}
-		for (i = pm.cCount; i < pm.cCountEx; i++) {
+		for (int i = pm.cCount; i < pm.cCountEx; i++) {
 			pm.recvCount[part[pm.gCells[i]]]++;
 		}
 
@@ -242,7 +242,7 @@ void Decomp::run()
 		}
 		pm.eCountEx = pm.gEdges.size();
 		delete[] edgeFlg;
-		for (i = 0; i < pm.eCountEx; i++) {
+		for (int i = 0; i < pm.eCountEx; i++) {
 			pm.lEdges[pm.gEdges[i]] = i;
 		}
 
@@ -273,7 +273,7 @@ void Decomp::run()
 		}
 		pm.nCountEx = pm.gNodes.size();
 		delete[] nodeFlg;
-		for (i = 0; i < pm.nCountEx; i++) {
+		for (int i = 0; i < pm.nCountEx; i++) {
 			pm.lNodes[pm.gNodes[i]] = i;
 		}
 

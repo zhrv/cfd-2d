@@ -128,7 +128,7 @@ void FVM_TVD::init(char * xmlFileName)
 	mr->read(&grid);
 
 
-	/* Определение ГУ для каждой ячейки. */
+	/* Определение ГУ для каждого ребра. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge & e = grid.edges[iEdge];
 		if (e.type == Edge::TYPE_INNER) {
@@ -172,6 +172,7 @@ void FVM_TVD::init(char * xmlFileName)
 			e.bnd = boundaries[iBound];
 		}
 	}
+
 
 	cTau = new double[grid.cCount];
 
@@ -687,12 +688,13 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
 	Edge &edge = grid.edges[iEdge];
-	int c1	= grid.edges[iEdge].c1;
+	int c1 = edge.c1;
 	Material& m = getMaterial(c1);
 	if (edge.bnd) {
 		edge.bnd->run(iEdge, pL, pR);
 		m.URS(pR, 2);
 		m.URS(pR, 1);
+		pR.E = pR.e + 0.5*(pR.U2());
 		return;
 	}
 	else {
@@ -700,6 +702,22 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 		sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
 		throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
 	}
+	
+
+	//Edge &edge = grid.edges[iEdge];
+	//int c1	= grid.edges[iEdge].c1;
+	//Material& m = getMaterial(c1);
+	//if (edge.bnd) {
+	//	edge.bnd->run(iEdge, pL, pR);
+	//	m.URS(pR, 2);
+	//	m.URS(pR, 1);
+	//	return;
+	//}
+	//else {
+	//	char msg[128];
+	//	sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+	//	throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+	//}
 
 }
 
