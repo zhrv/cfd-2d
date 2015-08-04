@@ -75,7 +75,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 				for (int k = 0; k < 3; k++)
 				{ // убираем у соседа номер этой €чейки, чтобы грань не повтор€лась
 					if (neigh[p][k] == i) neigh[p][k] = -1;
-				}
+				 }
 				g->eCount++;
 			}
 			if (p == -2) g->eCount++;

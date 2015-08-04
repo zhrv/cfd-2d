@@ -41,7 +41,7 @@ public:
 	virtual void printToFile(const char* fileName);
 
 	CSRMatrix	*a;
-	int			 blockDim;
+	HYPRE_Int    blockDim;
 	double		*b;
 	double		*x;
 };

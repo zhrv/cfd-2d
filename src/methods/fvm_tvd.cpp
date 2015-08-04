@@ -245,10 +245,10 @@ void FVM_TVD::calcGrad()
 	int ne = grid.eCount;
 	
 
-	memset(gradR, 0, grid.cCount*sizeof(Vector));
-	memset(gradP, 0, grid.cCount*sizeof(Vector));
-	memset(gradU, 0, grid.cCount*sizeof(Vector));
-	memset(gradV, 0, grid.cCount*sizeof(Vector));
+	memset(gradR, 0, nc*sizeof(Vector));
+	memset(gradP, 0, nc*sizeof(Vector));
+	memset(gradU, 0, nc*sizeof(Vector));
+	memset(gradV, 0, nc*sizeof(Vector));
 	//return;
 	for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
@@ -265,7 +265,7 @@ void FVM_TVD::calcGrad()
 		}
 
 		Vector n	= grid.edges[iEdge].n;
-		double l		= grid.edges[iEdge].l;
+		double l	= grid.edges[iEdge].l;
 			
 			
 			
@@ -293,14 +293,10 @@ void FVM_TVD::calcGrad()
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
 		register double si = grid.cells[iCell].S;
-		gradR[iCell].x /= si;
-		gradR[iCell].y /= si;
-		gradP[iCell].x /= si;
-		gradP[iCell].y /= si;
-		gradU[iCell].x /= si;
-		gradU[iCell].y /= si;
-		gradV[iCell].x /= si;
-		gradV[iCell].y /= si;
+		gradR[iCell] /= si;
+		gradP[iCell] /= si;
+		gradU[iCell] /= si;
+		gradV[iCell] /= si;
 	}
 }
 
@@ -656,7 +652,7 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
-		return;
+		//return;
 		//Point PE = grid.edges[iEdge].c[0];
 		Point &PE = p;
 		Point P1 = grid.cells[c1].c;
@@ -678,8 +674,19 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 
 
 	} else {
-		int c1	= grid.edges[iEdge].c1;
+		int c1 = grid.edges[iEdge].c1;
 		convertConsToPar(c1, pL);
+		//return;
+		Point &PE = p;
+		Point P1 = grid.cells[c1].c;
+		Vector DL1;
+		DL1.x = PE.x - P1.x;
+		DL1.y = PE.y - P1.y;
+		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
+		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
+		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
+		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
+
 		boundaryCond(iEdge, pL, pR);
 	}
 }

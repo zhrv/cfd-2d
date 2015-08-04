@@ -20,12 +20,12 @@ void SolverHypre::initMatrVectors()
 void SolverHypre::init(int cellsCount, int blockDimension)
 {
 	blockDim = blockDimension;
-	int n = cellsCount*blockDim;
+	HYPRE_Int n = cellsCount*blockDim;
 	ilower = 0;
 	iupper = n - 1;
 	local_size = iupper - ilower + 1;
 
-	cols	= new int[blockDim];
+	cols	= new HYPRE_Int[blockDim];
 	values	= new double[n];
 	x		= new double[n];
 
@@ -64,7 +64,7 @@ SolverHypre::~SolverHypre()
 
 void SolverHypre::setMatrElement(int i, int j, double** matrDim)
 {
-	int row;
+	HYPRE_Int row;
 
 	for (int ii = 0; ii < blockDim; ++ii)
 	{
@@ -74,7 +74,7 @@ void SolverHypre::setMatrElement(int i, int j, double** matrDim)
 			values[jj] = matrDim[ii][jj];
 			cols[jj] = jj + j*blockDim;
 		}
-		HYPRE_IJMatrixSetValues(A, 1, &blockDim, &row, cols, values);
+		HYPRE_IJMatrixSetValues(A, 1, (HYPRE_Int*)&blockDim, &row, cols, values);
 	}
 
 
@@ -82,7 +82,7 @@ void SolverHypre::setMatrElement(int i, int j, double** matrDim)
 
 void SolverHypre::addMatrElement(int i, int j, double** matrDim)
 {
-	int row;
+	HYPRE_Int row;
 
 	for (int ii = 0; ii < blockDim; ++ii)
 	{
@@ -92,7 +92,7 @@ void SolverHypre::addMatrElement(int i, int j, double** matrDim)
 			values[jj] = matrDim[ii][jj];
 			cols[jj] = jj + j*blockDim;
 		}
-		HYPRE_IJMatrixAddToValues(A, 1, &blockDim, &row, cols, values);
+		HYPRE_IJMatrixAddToValues(A, 1, (HYPRE_Int*)&blockDim, &row, cols, values);
 	}
 
 }
@@ -127,18 +127,18 @@ void SolverHypre::setParameter(const char* name, int val)
 
 void SolverHypre::printToFile(const char* fileName)
 {
-	int n = local_size;
-	int nc = 1;
+	HYPRE_Int n = local_size;
+	HYPRE_Int nc = 1;
 	double * x = new double[n];
-	int * cols = new int[n];
+	HYPRE_Int * cols = new HYPRE_Int[n];
 	FILE * fp = fopen(fileName, "w");
 	for (int i = 0; i < n; i++) {
 		cols[i] = ilower + i;
 	}
 
-	for (int row = 0; row < n; row++) {
+	for (HYPRE_Int row = 0; row < n; row++) {
 		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, &row, x);
-		for (int i = 0; i < nc; i++) {
+		for (HYPRE_Int i = 0; i < nc; i++) {
 			fprintf(fp, "%25.16e  ", x[i]);
 		}
 		fprintf(fp, "\n");

@@ -17,7 +17,7 @@
 #define HYPRE_RELEASE_BUGS hypre-support@llnl.gov
 
 /* Use long long int for HYPRE_Int */
-/* #undef HYPRE_BIGINT */
+#define HYPRE_BIGINT
 
 /* Compile without MPI */
 /* #undef HYPRE_SEQUENTIAL */

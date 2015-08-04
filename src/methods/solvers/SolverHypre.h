@@ -1,5 +1,6 @@
 #pragma once
 #include "MatrixSolver.h"
+#include "HYPRE_utilities.h"
 class SolverHypre :
 	public MatrixSolver
 {
@@ -24,7 +25,7 @@ protected:
 	void initMatrVectors();
 
 protected:
-	int* cols;
+	HYPRE_Int* cols;
 	double* values;
 	HYPRE_Solver solver, precond;
 	HYPRE_Int ilower, iupper, local_size;

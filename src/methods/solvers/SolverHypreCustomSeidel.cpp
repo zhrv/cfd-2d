@@ -42,8 +42,8 @@ int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 		step++;
 		for (int i = ilower; i <= iupper; i++)
 		{
-			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, &size, &cols, &values);
-			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, &size, &cols, &values);
+			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, (HYPRE_Int*)&size, (HYPRE_Int**)&cols, &values);
+			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, (HYPRE_Int*)&size, (HYPRE_Int**)&cols, &values);
 			tmp = 0.0;
 			aii = 0;
 			for (int k = 0; k < size; k++) {
@@ -64,8 +64,8 @@ int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 		err = 0.0;
 		for (int i = ilower; i <= iupper; i++)
 		{
-			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, &size, &cols, &values);
-			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, &size, &cols, &values);
+			HYPRE_ParCSRMatrixGetRow(parcsr_A, i, (HYPRE_Int*)&size, (HYPRE_Int**)&cols, &values);
+			HYPRE_ParCSRMatrixRestoreRow(parcsr_A, i, (HYPRE_Int*)&size, (HYPRE_Int**)&cols, &values);
 			tmp = 0.0;
 			for (int k = 0; k < size; k++) {
 				tmp += values[k] * x[cols[k]];
@@ -107,7 +107,7 @@ void SolverHypreCustomSeidel::init(int cellsCount, int blockDimension)
 	iupper = n - 1;
 	local_size = iupper - ilower + 1;
 
-	cols	= new int[blockDim];
+	cols	= new HYPRE_Int[blockDim];
 	values	= new double[local_size];
 	x		= new double[local_size];
 	b		= new double[local_size];

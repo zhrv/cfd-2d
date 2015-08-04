@@ -21,7 +21,7 @@ int SolverHypreBoomerAmg::solve(double eps, int& maxIter)
 		}
 
 		
-		HYPRE_IJVectorSetValues(xx, local_size, rows, x);
+		HYPRE_IJVectorSetValues(xx, local_size, (HYPRE_Int*)rows, x);
 
 		free(rows);
 	}
@@ -78,7 +78,7 @@ int SolverHypreBoomerAmg::solve(double eps, int& maxIter)
 
 		/* Run info - needed logging turned on */
 		int initMaxIter = maxIter;
-		HYPRE_BoomerAMGGetNumIterations(solver, &maxIter);
+		HYPRE_BoomerAMGGetNumIterations(solver, (HYPRE_Int*)&maxIter);
 		HYPRE_BoomerAMGGetFinalRelativeResidualNorm(solver, &final_res_norm);
 		if (initMaxIter <= maxIter) {
 			result |= MatrixSolver::RESULT_ERR_MAX_ITER;
@@ -97,7 +97,7 @@ int SolverHypreBoomerAmg::solve(double eps, int& maxIter)
 			rows[i] = ilower + i;
 
 		/* get the local solution */
-		HYPRE_IJVectorGetValues(xx, local_size, rows, x);
+		HYPRE_IJVectorGetValues(xx, local_size, (HYPRE_Int*)rows, x);
 
 		delete[] rows;
 	}
