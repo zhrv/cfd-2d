@@ -168,7 +168,6 @@
     <ClCompile Include="src\global.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mesh\grid.cpp" />
-    <ClCompile Include="src\mesh\MeshLoader.cpp" />
     <ClCompile Include="src\mesh\triangle\triangle.c" />
     <ClCompile Include="src\methods\decomp.cpp" />
     <ClCompile Include="src\methods\fem_dg_implicit.cpp" />
@@ -200,7 +199,6 @@
     <ClInclude Include="src\mesh\MeshReaderSalomeUnv.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\mesh\grid.h" />
-    <ClInclude Include="src\mesh\MeshLoader.h" />
     <ClInclude Include="src\mesh\triangle\triangle.h" />
     <ClInclude Include="src\methods\decomp.h" />
     <ClInclude Include="src\methods\fem_dg.h" />

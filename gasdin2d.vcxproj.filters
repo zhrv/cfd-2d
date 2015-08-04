@@ -66,9 +66,6 @@
     <ClCompile Include="src\methods\solvers\SolverHypreFlexGmresPrecAMG.cpp">
       <Filter>Solvers\HYPRE</Filter>
     </ClCompile>
-    <ClCompile Include="src\mesh\MeshLoader.cpp">
-      <Filter>Mesh</Filter>
-    </ClCompile>
     <ClCompile Include="src\methods\solvers\CSR.cpp">
       <Filter>Solvers</Filter>
     </ClCompile>
@@ -160,9 +157,6 @@
       <Filter>Solvers</Filter>
     </ClInclude>
     <ClInclude Include="src\mesh\grid.h">
-      <Filter>Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mesh\MeshLoader.h">
       <Filter>Mesh</Filter>
     </ClInclude>
     <ClInclude Include="src\mesh\MeshReader.h">

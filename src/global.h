@@ -28,6 +28,24 @@ struct Point
 {
 	double x;
 	double y;
+
+	Point() : x(0.0), y(0.0) {}
+	Point(double ax, double ay) : x(ax), y(ay) {}
+	inline void operator *= (double q) { x *= q; y *= q; }
+	inline void operator /= (double q) { x /= q; y /= q; }
+	
+	inline void operator  = (double q) { x = q;  y = q; }
+	inline void operator  = (Point p) { x = p.x;  y = p.y; }
+	
+	inline void operator += (Point p) { x += p.x; y += p.y; }
+	inline void operator -= (Point p) { x -= p.x; y -= p.y; }
+	
+	inline void operator += (double q) { x += q; y += q; }
+	inline void operator -= (double q) { x -= q; y -= q; }
+	
+	friend inline double operator * (Point p1, Point p2) { return p1.x*p2.x + p1.y*p2.y; }
+	friend inline Point operator + (Point p1, Point p2) { return Point(p1.x + p2.x, p1.y + p2.y); }
+	friend inline Point operator - (Point p1, Point p2) { return Point(p1.x - p2.x, p1.y - p2.y); }
 };
 
 
