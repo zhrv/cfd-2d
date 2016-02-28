@@ -84,7 +84,7 @@ protected:
 	/**
 	 *	Получение значения вектора базовых функций
 	 */
-	VECTOR getF(int iCell, Point pt);
+	VECTOR& getF(int iCell, Point pt);
 
 	double getF(int i, int iCell, Point pt) { VECTOR & f = getF(iCell, pt); return f[i]; }
 

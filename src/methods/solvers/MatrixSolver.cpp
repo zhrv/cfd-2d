@@ -1,6 +1,6 @@
 #include "MatrixSolver.h"
 #include "global.h"
-#include "SolverHypreBoomerAMG.h"
+#include "SolverHypreBoomerAmg.h"
 #include "SolverHyprePcg.h"
 #include "SolverHypreGmres.h"
 #include "SolverHypreFlexGmres.h"

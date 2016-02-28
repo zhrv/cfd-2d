@@ -18,3 +18,7 @@ x64*/*
 *.opensdf
 *.sdf
 *.suo
+*.kdev4
+/.kdev4
+/build
+/run

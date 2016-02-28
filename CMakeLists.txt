@@ -3,17 +3,31 @@ project(cfd_2d)
 
 # необходимо прописать путь к библиотеке MPI
 set(MPI_INCLUDE "/usr/include/mpich")
-set(MPI_LIB "${CONTRIB_DIR}/boxlib/lib")
+set(MPI_LIB "/usr/lib/mpich")
 
 set(CONTRIB_DIR "${CMAKE_SOURCE_DIR}/contrib")
 
+set(HYPRE_INCLUDE "${CONTRIB_DIR}/hypre/include")
+set(HYPRE_LIB "${CONTRIB_DIR}/hypre/lib")
+
+set(METIS_INCLUDE "${CONTRIB_DIR}/metis/include")
+set(METIS_LIB "${CONTRIB_DIR}/metis/lib")
+
+
 include_directories(
 		${MPI_INCLUDE}
-		src src/methods
-		src/methods/solvers/
+		${HYPRE_INCLUDE}
+		${METIS_INCLUDE}
+		src
+		src/methods
+		src/methods/solvers
 		src/mesh
 		src/tinyxml)
-link_directories(${MPI_LIB})
+link_directories(
+		${MPI_LIB}
+		${HYPRE_LIB}
+		${METIS_LIB}
+)
 
 set(METHODS_SRC 
 		src/methods/decomp.cpp
@@ -47,8 +61,8 @@ set(MESH_SRC
 )
 
 set(TINYXML_SRC
-		/src/tinyxml/tinystr.cpp
-		/src/tinyxml/tinyxml.cpp
+		src/tinyxml/tinystr.cpp
+		src/tinyxml/tinyxml.cpp
 )
 
 add_executable(	cfd-2d 
@@ -58,7 +72,8 @@ add_executable(	cfd-2d
 		${SOLVERS_SRC}
 		${METHODS_SRC}
 		${MESH_SRC}
+		${TINYXML_SRC}
 )
 
-target_link_libraries(cfd-2d  mpi)
+target_link_libraries(cfd-2d  mpi HYPRE metis)
 install(TARGETS cfd-2d RUNTIME DESTINATION bin)

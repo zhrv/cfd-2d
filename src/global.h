@@ -7,13 +7,14 @@
 #include <stdlib.h>
 #include <string>
 #include "mpi.h"
+#include <math.h>
 
 #ifdef _WIN32
 	#include <direct.h>
 	#define MK_DIR(name) _mkdir("mesh");
 #else
 	#include <sys/stat.h>
-	#define MK_DIR(name) mkdir(name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	#define MK_DIR(name) mkdir("mesh", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 
 

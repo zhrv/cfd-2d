@@ -4,6 +4,8 @@
 #include "HYPRE_krylov.h"
 #include "HYPRE.h"
 #include "HYPRE_parcsr_ls.h"
+#include <cmath>
+#include <math.h>
 
 int SolverHypreFlexGmres::solve(double eps, int& maxIter)
 {
@@ -70,7 +72,7 @@ int SolverHypreFlexGmres::solve(double eps, int& maxIter)
 		if (initMaxIter <= maxIter) {
 			result |= MatrixSolver::RESULT_ERR_MAX_ITER;
 		}
-		if (final_res_norm >= eps || !isfinite(final_res_norm)) {
+		if (final_res_norm >= eps || !std::isfinite(final_res_norm)) {
 			result |= MatrixSolver::RESULT_ERR_CONVERG;
 		}
 

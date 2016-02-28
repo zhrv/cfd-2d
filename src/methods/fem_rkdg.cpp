@@ -1438,7 +1438,7 @@ void FEM_RKDG::convertConsToPar(int iCell, Param & par)
 
 
 
-VECTOR FEM_RKDG::getF(int iCell, Point pt)
+VECTOR& FEM_RKDG::getF(int iCell, Point pt)
 {
 	if (FUNC_COUNT == 3 )
 	{
