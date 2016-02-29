@@ -1,5 +1,5 @@
-# cfd-2d
-Automatically exported from code.google.com/p/cfd-2d
+# CFD-2D
+Двухмерный код для моделирования течений газа.
 
 # Основная цель проекта
 
