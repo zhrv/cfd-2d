@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.6)
 project(cfd_2d)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+
 # необходимо прописать путь к библиотеке MPI
 set(MPI_INCLUDE "/usr/include/mpich")
 set(MPI_LIB "/usr/lib/mpich")
@@ -63,6 +66,8 @@ set(MESH_SRC
 set(TINYXML_SRC
 		src/tinyxml/tinystr.cpp
 		src/tinyxml/tinyxml.cpp
+		src/tinyxml/tinyxmlerror.cpp
+		src/tinyxml/tinyxmlparser.cpp
 )
 
 add_executable(	cfd-2d 
