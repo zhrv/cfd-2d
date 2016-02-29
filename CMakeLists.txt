@@ -10,9 +10,16 @@ set(MPI_LIB "/usr/lib/mpich")
 
 set(CONTRIB_DIR "${CMAKE_SOURCE_DIR}/contrib")
 
+#
+#  http://acts.nersc.gov/hypre/
+#
 set(HYPRE_INCLUDE "${CONTRIB_DIR}/hypre/include")
 set(HYPRE_LIB "${CONTRIB_DIR}/hypre/lib")
 
+
+#
+#  http://glaros.dtc.umn.edu/gkhome/metis/metis/download
+#
 set(METIS_INCLUDE "${CONTRIB_DIR}/metis/include")
 set(METIS_LIB "${CONTRIB_DIR}/metis/lib")
 
@@ -32,7 +39,7 @@ link_directories(
 		${METIS_LIB}
 )
 
-set(METHODS_SRC 
+set(METHODS_SRC
 		src/methods/decomp.cpp
 		src/methods/solver.cpp
 		src/methods/fvm_tvd.cpp
@@ -70,8 +77,8 @@ set(TINYXML_SRC
 		src/tinyxml/tinyxmlparser.cpp
 )
 
-add_executable(	cfd-2d 
-		src/main.cpp 
+add_executable(	cfd-2d
+		src/main.cpp
 		src/global.cpp
 		src/bnd_cond.cpp
 		${SOLVERS_SRC}
