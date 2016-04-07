@@ -249,8 +249,8 @@ void FVM_TVD::calcGrad()
 	memset(gradP, 0, nc*sizeof(Vector));
 	memset(gradU, 0, nc*sizeof(Vector));
 	memset(gradV, 0, nc*sizeof(Vector));
-	//return;
-	for (int iEdge = 0; iEdge < ne; iEdge++)
+	
+    for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
 		int c1	= grid.edges[iEdge].c1;
@@ -339,7 +339,6 @@ void FVM_TVD::run()
 			fv = 0.0;
 			fe = 0.0;
 			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++)
-			//for (int iGP = 0; iGP < 1; iGP++)
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
@@ -393,7 +392,7 @@ void FVM_TVD::run()
 			fv = 0.0;
 			fe = 0.0;
 			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
-			{
+            {
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
 				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
@@ -621,26 +620,26 @@ void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL,
 		fv = fr*VI+PI*n.y;
 		fe = (RI*(EI+0.5*(UI*UI+VI*VI))+PI)*UN;
 	}
-	//{	// LAX-FRIEDRIX FLUX
-	//	double unl = pL.u*n.x+pL.v*n.y;
-	//	double unr = pR.u*n.x+pR.v*n.y;
-	//	double rol, rul, rvl, rel,  ror, rur, rvr, rer;
-	//	double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
-	//	rol = pL.r;
-	//	rul = pL.r*pL.u;
-	//	rvl = pL.r*pL.v;
-	//	rel = pL.r*pL.E;
-	//	ror = pR.r;
-	//	rur = pR.r*pR.u;
-	//	rvr = pR.r*pR.v;
-	//	rer = pR.r*pR.E;
-	//	double frl = rol*unl;
-	//	double frr = ror*unr;
-	//	fr = 0.5*(frr+frl								- alpha*(ror-rol));
-	//	fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
-	//	fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
-	//	fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
-	//}
+// 	{	// LAX-FRIEDRIX FLUX
+// 		double unl = pL.u*n.x+pL.v*n.y;
+// 		double unr = pR.u*n.x+pR.v*n.y;
+// 		double rol, rul, rvl, rel,  ror, rur, rvr, rer;
+// 		double alpha = _max_(fabs(unl)+sqrt(GAM*pL.p/pL.r), fabs(unr)+sqrt(GAM*pR.p/pR.r));
+// 		rol = pL.r;
+// 		rul = pL.r*pL.u;
+// 		rvl = pL.r*pL.v;
+// 		rel = pL.r*pL.E;
+// 		ror = pR.r;
+// 		rur = pR.r*pR.u;
+// 		rvr = pR.r*pR.v;
+// 		rer = pR.r*pR.E;
+// 		double frl = rol*unl;
+// 		double frr = ror*unr;
+// 		fr = 0.5*(frr+frl								- alpha*(ror-rol));
+// 		fu = 0.5*(frr*pR.u+frl*pL.u + (pR.p+pL.p)*n.x	- alpha*(rur-rul));
+// 		fv = 0.5*(frr*pR.v+frl*pL.v + (pR.p+pL.p)*n.y	- alpha*(rvr-rvl));
+// 		fe = 0.5*((rer+pR.p)*unr + (rel+pL.p)*unl		- alpha*(rer-rel));
+// 	}
 }
 
 
