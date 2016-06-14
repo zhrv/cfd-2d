@@ -1,0 +1,1897 @@
+#include "heat_dg_implicit.h"
+#include "tinyxml.h"
+#include "global.h"
+#include <ctime>
+#include <cfloat>
+#include "LimiterDG.h"
+#include "MatrixSolver.h"
+
+#define POW_2(x) ((x)*(x))
+
+
+void HEAT_DG_IMPLICIT::init(char * xmlFileName)
+{
+    TiXmlDocument doc(xmlFileName);
+    bool loadOkay = doc.LoadFile(TIXML_ENCODING_UTF8);
+    if (!loadOkay)
+    {
+        log("ERROR: %s\n", doc.ErrorDesc());
+        exit(doc.ErrorId());
+    }
+
+    TiXmlNode* task = 0;
+    TiXmlElement* el = 0;
+    TiXmlNode* node0 = 0;
+    TiXmlNode* node1 = 0;
+    task = doc.FirstChild("task");
+
+    int steadyVal = 1;
+    node0 = task->FirstChild("control");
+    node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
+    node0->FirstChild("SIGMA")->ToElement()->Attribute("value", &SIGMA);
+    node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
+    node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
+    node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
+    node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
+    node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
+
+    const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
+
+
+    // чтение параметров о МАТЕРИАЛАХ
+    node0 = task->FirstChild("materials");
+    node0->ToElement()->Attribute("count", &matCount);;
+    materials = new Material[matCount];
+    TiXmlNode* matNode = node0->FirstChild("material");
+    for (int i = 0; i < matCount; i++)
+    {
+        Material & mat = materials[i];
+        matNode->ToElement()->Attribute("id", &mat.id);
+        node1 = matNode->FirstChild("name");
+        el = node1->ToElement();
+        mat.name = el->GetText();
+        node1 = matNode->FirstChild("parameters");
+        node1->FirstChild("M")->ToElement()->Attribute("value", &mat.M);
+        node1->FirstChild("Cp")->ToElement()->Attribute("value", &mat.Cp);
+        node1->FirstChild("K")->ToElement()->Attribute("value", &mat.K);
+        node1->FirstChild("ML")->ToElement()->Attribute("value", &mat.ML);
+        matNode = matNode->NextSibling("material");
+    }
+
+    // чтение параметров о РЕГИОНАХ
+    double maxP = 0.0;
+    double maxR = 0.0;
+    double maxT = 0.0;
+    double maxU = 0.0;
+
+    node0 = task->FirstChild("regions");
+    node0->ToElement()->Attribute("count", &regCount);
+    regions = new Region[regCount];
+    TiXmlNode* regNode = node0->FirstChild("region");
+    for (int i = 0; i < regCount; i++)
+    {
+        Region & reg = regions[i];
+        regNode->ToElement()->Attribute("id", &reg.id);
+        regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
+        regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
+
+        node1 = regNode->FirstChild("parameters");
+        node1->FirstChild("Vx")->ToElement()->Attribute("value", &reg.par.u);
+        node1->FirstChild("Vy")->ToElement()->Attribute("value", &reg.par.v);
+        node1->FirstChild("T")->ToElement()->Attribute("value", &reg.par.T);
+        node1->FirstChild("P")->ToElement()->Attribute("value", &reg.par.p);
+
+        Material& mat = materials[reg.matId];
+        mat.URS(reg.par, 2);	// r=r(p,T)
+        mat.URS(reg.par, 1);	// e=e(p,r)
+        reg.par.ML = mat.ML;
+
+        regNode = regNode->NextSibling("region");
+
+        if (reg.par.p > maxP) maxP = reg.par.p;
+        if (reg.par.r > maxR) maxR = reg.par.r;
+        if (reg.par.T > maxT) maxT = reg.par.T;
+        if (reg.par.U2() > maxU) maxU = reg.par.U2();
+    }
+
+    maxU = sqrt(maxU);
+
+    // параметры обезразмеривания
+    L_ = 1.0;
+    R_ = maxR;					// характерная плотность = начальная плотность
+    P_ = maxP;					// характерное давление = начальное давление 
+    T_ = maxT;					// характерная температура = начальная температура
+    U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
+    E_ = POW_2(U_);			// характерная энергия  = U_**2
+    CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+    TIME_ = L_ / U_;			// характерное время
+    MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
+    KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
+    CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+
+
+    // Обезразмеривание всех параметров
+    TAU /= TIME_;
+    TMAX /= TIME_;
+
+    for (int i = 0; i < regCount; i++) {
+        Region &reg = regions[i];
+        Param &par = reg.par;
+
+        Material& mat = materials[reg.matId];
+        mat.URS(reg.par, 2);	// r=r(p,T)
+        mat.URS(reg.par, 1);	// e=e(p,r)
+
+        par.p /= P_;
+        par.u /= U_;
+        par.v /= U_;
+        par.T /= T_;
+
+        par.r /= R_;
+        par.e /= E_;
+        par.cz /= U_;
+        par.ML /= MU_;
+        par.E = par.e + par.U2()*0.5;
+
+        int zhrv = 0;
+    }
+
+    Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+    for (int i = 0; i < matCount; i++)
+    {
+        Material & mat = materials[i];
+        mat.Cp /= CV_;
+        mat.K /= KP_;
+        mat.ML /= MU_;
+    }
+
+
+
+    // чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+    node0 = task->FirstChild("boundaries");
+    node0->ToElement()->Attribute("count", &bCount);
+    boundaries = new Boundary[bCount];
+    TiXmlNode* bNode = node0->FirstChild("boundCond");
+    for (int i = 0; i < bCount; i++)
+    {
+        Boundary & b = boundaries[i];
+        bNode->ToElement()->Attribute("edgeType", &b.edgeType);
+        const char * str = bNode->FirstChild("type")->ToElement()->GetText();
+        if (strcmp(str, "BOUND_WALL") == 0)
+        {
+            b.parCount = 0;
+            b.par = NULL;
+            b.type = Boundary::BOUND_WALL;
+        }
+        else
+        if (strcmp(str, "BOUND_OUTLET") == 0)
+        {
+            b.parCount = 0;
+            b.par = NULL;
+            b.type = Boundary::BOUND_OUTLET;
+        }
+        else
+        if (strcmp(str, "BOUND_INLET") == 0)
+        {
+            b.parCount = 4;
+            b.par = new double[4];
+            b.type = Boundary::BOUND_INLET;
+
+            node1 = bNode->FirstChild("parameters");
+            node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
+            node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
+            node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
+            node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
+        }
+        else {
+            log("ERROR: unsupported boundary condition type '%s'", str);
+            EXIT(1);
+        }
+
+        bNode = bNode->NextSibling("boundCond");
+    }
+
+
+    node0 = task->FirstChild("mesh");
+    const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
+    grid.initFromFiles((char*)fName);
+
+    memAlloc();
+
+
+    // инициализация решателя
+    node0 = task->FirstChild("solver");
+    const char * solverName = node0->ToElement()->Attribute("type");
+    //solverMtx = new SolverZeidel();
+    solverMtx = MatrixSolver::create(solverName);
+    solverMtx->init(grid.cCount, MATR_DIM);
+    log("Solver type: %s.\n", solverMtx->getName());
+
+    node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
+    node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
+    if (strstr(solverName, "HYPRE") != NULL) {
+        node1 = node0->FirstChild("hypre");
+
+        int tmp = 0;
+        node1->FirstChild("printLevel")->ToElement()->Attribute("value", &tmp);
+        solverMtx->setParameter("PRINT_LEVEL", tmp);
+        node1->FirstChild("krylovDim")->ToElement()->Attribute("value", &tmp);
+        solverMtx->setParameter("KRYLOV_DIM", tmp);
+    }
+
+
+
+
+    calcGaussPar();
+
+    calcMassMatr();
+
+
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Region & reg = getRegion(i);
+        convertParToCons(i, reg.par);
+    }
+
+    calcTimeStep();
+    //log("TAU_MIN = %25.16e\n", TAU_MIN);
+
+    save(0);
+}
+
+void HEAT_DG_IMPLICIT::calcMassMatr()
+{
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        double **	A = matrA[iCell];
+        for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+            for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+                A[i][j] = 0.0;
+                for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                    A[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
+                               * getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
+                }
+                A[i][j] *= cellJ[iCell];
+            }
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::calcGaussPar()
+{
+
+    // для ячеек
+    if (GP_CELL_COUNT == 4) {
+        for (int i = 0; i < grid.cCount; i++) {
+
+            double a = 1.0 / 3.0;
+            double b = 1.0 / 5.0;
+            double c = 3.0 / 5.0;
+            double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+            double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+            double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+            double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+            double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+            double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+            double a1 = x1 - x3;
+            double a2 = y1 - y3;
+            double b1 = x2 - x3;
+            double b2 = y2 - y3;
+            double c1 = x3;
+            double c2 = y3;
+
+            cellGW[i][0] = -27.0 / 48.0;
+            cellGP[i][0].x = a1*a + b1*a + c1;
+            cellGP[i][0].y = a2*a + b2*a + c2;
+
+            cellGW[i][1] = 25.0 / 48.0;
+            cellGP[i][1].x = a1*c + b1*b + c1;
+            cellGP[i][1].y = a2*c + b2*b + c2;
+
+            cellGW[i][2] = 25.0 / 48.0;
+            cellGP[i][2].x = a1*b + b1*c + c1;
+            cellGP[i][2].y = a2*b + b2*c + c2;
+
+            cellGW[i][3] = 25.0 / 48.0;
+            cellGP[i][3].x = a1*b + b1*b + c1;
+            cellGP[i][3].y = a2*b + b2*b + c2;
+
+            //cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
+            cellJ[i] = 0.5*(a1*b2 - a2*b1);
+            if (cellJ[i] <= 0) {
+                int zhrv = 0;
+            }
+        }
+    }
+    else if (GP_CELL_COUNT == 3) {
+        for (int i = 0; i < grid.cCount; i++) {
+            double a = 1.0 / 6.0;
+            double b = 2.0 / 3.0;
+            double x1 = grid.nodes[grid.cells[i].nodesInd[0]].x;
+            double y1 = grid.nodes[grid.cells[i].nodesInd[0]].y;
+            double x2 = grid.nodes[grid.cells[i].nodesInd[1]].x;
+            double y2 = grid.nodes[grid.cells[i].nodesInd[1]].y;
+            double x3 = grid.nodes[grid.cells[i].nodesInd[2]].x;
+            double y3 = grid.nodes[grid.cells[i].nodesInd[2]].y;
+            double a1 = x1 - x3;
+            double a2 = y1 - y3;
+            double b1 = x2 - x3;
+            double b2 = y2 - y3;
+            double c1 = x3;
+            double c2 = y3;
+
+            cellGW[i][0] = 1.0 / 6.0;
+            cellGP[i][0].x = a1*a + b1*a + c1;
+            cellGP[i][0].y = a2*a + b2*a + c2;
+
+            cellGW[i][1] = 1.0 / 6.0;
+            cellGP[i][1].x = a1*a + b1*b + c1;
+            cellGP[i][1].y = a2*a + b2*b + c2;
+
+            cellGW[i][2] = 1.0 / 6.0;
+            cellGP[i][2].x = a1*b + b1*a + c1;
+            cellGP[i][2].y = a2*b + b2*a + c2;
+
+            cellJ[i] = a1*b2 - a2*b1;
+
+
+        }
+    }
+
+
+    // для ребер
+    if (GP_EDGE_COUNT == 3) {
+        for (int i = 0; i < grid.eCount; i++) {
+            double gp1 = -3.0 / 5.0;
+            double gp2 = 0.0;
+            double gp3 = 3.0 / 5.0;
+            double x1 = grid.nodes[grid.edges[i].n1].x;
+            double y1 = grid.nodes[grid.edges[i].n1].y;
+            double x2 = grid.nodes[grid.edges[i].n2].x;
+            double y2 = grid.nodes[grid.edges[i].n2].y;
+
+            edgeGW[i][0] = 5.0 / 9.0;
+            edgeGP[i][0].x = ((x1 + x2) + gp1*(x2 - x1)) / 2.0;
+            edgeGP[i][0].y = ((y1 + y2) + gp1*(y2 - y1)) / 2.0;
+
+            edgeGW[i][1] = 8.0 / 9.0;
+            edgeGP[i][1].x = (x1 + x2) / 2.0;
+            edgeGP[i][1].y = (y1 + y2) / 2.0;
+
+            edgeGW[i][2] = 5.0 / 9.0;
+            edgeGP[i][2].x = ((x1 + x2) + gp3*(x2 - x1)) / 2.0;
+            edgeGP[i][2].y = ((y1 + y2) + gp3*(y2 - y1)) / 2.0;
+
+            edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+
+        }
+    }
+    else if (GP_EDGE_COUNT == 2) {
+        for (int i = 0; i < grid.eCount; i++) {
+            double gp1 = -1.0 / sqrt(3.0);
+            double gp2 = 1.0 / sqrt(3.0);
+            double x1 = grid.nodes[grid.edges[i].n1].x;
+            double y1 = grid.nodes[grid.edges[i].n1].y;
+            double x2 = grid.nodes[grid.edges[i].n2].x;
+            double y2 = grid.nodes[grid.edges[i].n2].y;
+
+            edgeGW[i][0] = 1.0;
+            edgeGP[i][0].x = (x1 + x2) / 2.0 + gp1*(x2 - x1) / 2.0;
+            edgeGP[i][0].y = (y1 + y2) / 2.0 + gp1*(y2 - y1) / 2.0;
+
+            edgeGW[i][1] = 1.0;
+            edgeGP[i][1].x = (x1 + x2) / 2.0 + gp2*(x2 - x1) / 2.0;
+            edgeGP[i][1].y = (y1 + y2) / 2.0 + gp2*(y2 - y1) / 2.0;
+
+            edgeJ[i] = sqrt(POW_2(x2 - x1) + POW_2(y2 - y1))*0.5;
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::memAlloc()
+{
+    int n = grid.cCount;
+    cTau = new double[n];
+
+    u = new double*[n];
+    qx = new double*[n];
+    qy = new double*[n];
+
+    cellGP = new Point*[n];
+    cellGW = new double*[n];
+    cellJ = new double[n];
+
+    edgeGW = new double*[grid.eCount];
+    edgeJ  = new double[grid.eCount];
+    edgeGP = new Point*[grid.eCount];
+
+    matrA		= new double**[n];
+    matrInvA	= new double**[n];
+
+    for (int i = 0; i < n; i++) {
+        u[i] = new double[BASE_FUNC_COUNT];
+        qx[i] = new double[BASE_FUNC_COUNT];
+        qy[i] = new double[BASE_FUNC_COUNT];
+
+        cellGP[i] = new Point[GP_CELL_COUNT];
+        cellGW[i] = new double[GP_CELL_COUNT];
+
+        matrA[i] = allocMtx(BASE_FUNC_COUNT);
+        matrInvA[i] = allocMtx(BASE_FUNC_COUNT);
+
+    }
+
+    for (int i = 0; i < grid.eCount; i++) {
+        edgeGP[i] = new Point[GP_EDGE_COUNT];
+        edgeGW[i] = new double[GP_EDGE_COUNT];
+    }
+
+    tmpArr = new double[n];
+    tmpArr1 = new double[n];
+    tmpArr2 = new double[n];
+    tmpCFL = new double[n];
+    tmpArrInt = new int[n];
+
+    fields = new double**[4];
+    fields[FIELD_U]  = u;
+    fields[FIELD_QX] = qx;
+    fields[FIELD_QY] = qy;
+
+    matrSmall = allocMtx(BASE_FUNC_COUNT);
+    matrSmall2 = allocMtx(BASE_FUNC_COUNT);
+    matrBig = allocMtx(MATR_DIM);
+    matrBig2 = allocMtx(MATR_DIM);
+
+}
+
+void HEAT_DG_IMPLICIT::memFree()
+{
+    int n = grid.cCount;
+
+    for (int i = 0; i < n; i++) {
+        delete[] u[i];
+        delete[] qx[i];
+        delete[] qy[i];
+
+        delete[] cellGP[i];
+        delete[] cellGW[i];
+
+        freeMtx(matrA[i], BASE_FUNC_COUNT);
+        freeMtx(matrInvA[i], BASE_FUNC_COUNT);
+    }
+    delete[] cTau;
+
+    delete[] u;
+    delete[] qx;
+    delete[] qy;
+
+    delete[] cellGP;
+    delete[] cellGW;
+    delete[] cellJ;
+
+    delete[] matrA;
+    delete[] matrInvA;
+
+    for (int i = 0; i < grid.eCount; i++) {
+        delete[] edgeGP[i];
+        delete[] edgeGW[i];
+    }
+    delete[] edgeGW;
+    delete[] edgeJ;
+    delete[] edgeGP;
+
+    delete[] tmpArr;
+    delete[] tmpArr1;
+    delete[] tmpArr2;
+    delete[] tmpCFL;
+
+    delete[] fields;
+
+    freeMtx(matrSmall, BASE_FUNC_COUNT);
+    freeMtx(matrSmall2, BASE_FUNC_COUNT);
+    freeMtx(matrBig, MATR_DIM);
+    freeMtx(matrBig2, MATR_DIM);
+
+    delete[] tmpArr;
+    delete[] tmpArr1;
+    delete[] tmpArr2;
+    delete[] tmpArrInt;
+
+
+}
+
+Region & HEAT_DG_IMPLICIT::getRegionByCellType(int type)
+{
+    for (int i = 0; i < regCount; i++)
+    {
+        if (regions[i].cellType == type) return regions[i];
+    }
+    log("ERROR: unknown cell type %d...\n", type);
+    EXIT(1);
+}
+
+
+Region   &	HEAT_DG_IMPLICIT::getRegion(int iCell)
+{
+    return getRegionByCellType(grid.cells[iCell].type);
+}
+
+Material &	HEAT_DG_IMPLICIT::getMaterial(int iCell)
+{
+    Region & reg = getRegion(iCell);
+    return materials[reg.matId];
+}
+
+void HEAT_DG_IMPLICIT::convertParToCons(int iCell, Param & par)
+{
+    memset(u[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+    memset(qx[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+    memset(qy[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+    u[iCell][0] = par.T;
+}
+
+void HEAT_DG_IMPLICIT::convertConsToPar(int iCell, Param & par) {
+    double fT = getField(FIELD_U, iCell, grid.cells[iCell].c);
+
+    par.T = fT;
+    par.u = 0;
+    par.v = 0;
+    par.E = 0;
+    par.e = 0;
+    par.r = 0;
+    par.p = 0;
+    par.cz = 0;
+    par.ML = 0;
+}
+
+
+
+double HEAT_DG_IMPLICIT::getField(int fldId, int iCell, double x, double y)
+{
+    double *fld = fields[fldId][iCell];
+    double result = 0.0;
+    for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+        result += fld[i] * getF(i, iCell, x, y);
+    }
+    return result;
+}
+
+double HEAT_DG_IMPLICIT::getField(int fldId, int iCell, Point p)
+{
+    return getField(fldId, iCell, p.x, p.y);
+}
+
+void HEAT_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y)
+{
+    fRO = getField(FIELD_U, iCell, x, y);
+    fRU = getField(FIELD_QX, iCell, x, y);
+    fRV = getField(FIELD_QY, iCell, x, y);
+}
+
+void HEAT_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p)
+{
+    getFields(fRO, fRU, fRV, fRE, iCell, p.x, p.y);
+}
+
+double HEAT_DG_IMPLICIT::getF(int id, int iCell, Point p)
+{
+    return getF(id, iCell, p.x, p.y);
+}
+
+double HEAT_DG_IMPLICIT::getF(int id, int iCell, double x, double y)
+{
+    Point &c = grid.cells[iCell].c;
+    double &hx = grid.cells[iCell].HX;
+    double &hy = grid.cells[iCell].HY;
+
+    switch (id) {
+        case 0:
+            return 1.0;
+            break;
+        case 1:
+            return (x - c.x) / hx;
+            break;
+        case 2:
+            return (y - c.y) / hy;
+            break;
+        case 3:
+            return (x - c.x)*(x - c.x) / hx / hx;
+            break;
+        case 4:
+            return (y - c.y)*(y - c.y) / hy / hy;
+            break;
+        case 5:
+            return (x - c.x)*(y - c.y) / hx / hy;
+            break;
+        default:
+            return 0.0;
+            break;
+    }
+}
+
+double HEAT_DG_IMPLICIT::getDfDx(int id, int iCell, Point p)
+{
+    return getDfDx(id, iCell, p.x, p.y);
+}
+
+double HEAT_DG_IMPLICIT::getDfDx(int id, int iCell, double x, double y)
+{
+    Point &c = grid.cells[iCell].c;
+    double &hx = grid.cells[iCell].HX;
+    double &hy = grid.cells[iCell].HY;
+
+    switch (id) {
+        case 0:
+            return 0.0;
+            break;
+        case 1:
+            return 1.0 / hx;
+            break;
+        case 2:
+            return 0.0;
+            break;
+        case 3:
+            return 2.0*(x - c.x) / hx / hx;
+            break;
+        case 4:
+            return 0.0;
+            break;
+        case 5:
+            return (y - c.y) / hx / hy;
+            break;
+        default:
+            return 0.0;
+            break;
+    }
+}
+
+double HEAT_DG_IMPLICIT::getDfDy(int id, int iCell, Point p)
+{
+    return getDfDy(id, iCell, p.x, p.y);
+}
+
+double HEAT_DG_IMPLICIT::getDfDy(int id, int iCell, double x, double y)
+{
+    Point &c = grid.cells[iCell].c;
+    double &hx = grid.cells[iCell].HX;
+    double &hy = grid.cells[iCell].HY;
+
+    switch (id) {
+        case 0:
+            return 0.0;
+            break;
+        case 1:
+            return 0.0;
+            break;
+        case 2:
+            return 1.0 / hy;
+            break;
+        case 3:
+            return 0.0;
+            break;
+        case 4:
+            return 2.0*(y - c.y) / hy / hy;
+            break;
+        case 5:
+            return (x - c.x) / hx / hy;
+            break;
+        default:
+            return 0.0;
+            break;
+    }
+}
+
+void HEAT_DG_IMPLICIT::calcTimeStep()
+{
+    double tauMin = 1.0e+20;
+    for (int iCell = 0; iCell < grid.cCount; iCell++)
+    {
+        if (STEADY) {
+            Param p;
+            convertConsToPar(iCell, p);
+            double tmp = 0.5*grid.cells[iCell].S/(sqrt(p.u*p.u+p.v*p.v)+p.cz+FLT_EPSILON);
+            cTau[iCell] = _min_(CFL*tmp, TAU);
+            if (cTau[iCell] < tauMin) tauMin = cTau[iCell];
+        } else {
+            cTau[iCell] = TAU;
+        }
+    }
+    if (STEADY)	TAU_MIN = tauMin;
+}
+
+void HEAT_DG_IMPLICIT::save(int step)
+{
+    char fName[50];
+
+    sprintf(fName, "res_%010d.vtk", step);
+    FILE * fp = fopen(fName, "w");
+    fprintf(fp, "# vtk DataFile Version 2.0\n");
+    fprintf(fp, "GASDIN data file\n");
+    fprintf(fp, "ASCII\n");
+    fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+
+    fprintf(fp, "POINTS %d float\n", grid.nCount);
+    for (int i = 0; i < grid.nCount; i++)
+    {
+        fprintf(fp, "%f %f %f  ", grid.nodes[i].x*L_, grid.nodes[i].y*L_, 0.0);
+        if (i + 1 % 8 == 0) fprintf(fp, "\n");
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "CELLS %d %d\n", grid.cCount, 4 * grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        fprintf(fp, "3 %d %d %d\n", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
+    }
+    fprintf(fp, "\n");
+
+    fprintf(fp, "CELL_TYPES %d\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
+    fprintf(fp, "\n");
+
+    fprintf(fp, "CELL_DATA %d\nSCALARS Density float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", p.r*R_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", p.p*P_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        Material &mat = getMaterial(i);
+        mat.URS(p, 1);
+        fprintf(fp, "%25.16f ", p.T*T_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", sqrt(p.u*p.u + p.v*p.v) / p.cz);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "VECTORS Velosity float\n");
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f %25.16f %25.16f ", p.u*U_, p.v*U_, 0.0);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS Total_energy float 1\nLOOKUP_TABLE default\n");
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", p.E*E_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Material &mat = getMaterial(i);
+        double gam = mat.getGamma();
+        double agam = gam - 1.0;
+        Param p;
+        convertConsToPar(i, p);
+        double M2 = (p.u*p.u + p.v*p.v) / (p.cz*p.cz);
+        fprintf(fp, "%25.16e ", p.p*::pow(1.0 + 0.5*M2*agam, gam / agam)*P_);
+        if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        fprintf(fp, "%25.16f ", cTau[i]*TIME_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fclose(fp);
+    printf("File '%s' saved...\n", fName);
+
+}
+
+int HEAT_DG_IMPLICIT::getLimitedCellsCount() {
+    int n = 0;
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
+    }
+    return n;
+}
+
+void HEAT_DG_IMPLICIT::remediateLimCells()
+{
+//    for (int iCell = 0; iCell < grid.cCount; iCell++)
+//    {
+//        if (cellIsLim(iCell))
+//        {
+//            // пересчитываем по соседям
+//            double sRO = 0.0;
+//            double sRU = 0.0;
+//            double sRV = 0.0;
+//            double sRE = 0.0;
+//            double S = 0.0;
+//            for (int i = 0; i < grid.cells[iCell].eCount; i++)
+//            {
+//                int		iEdge = grid.cells[iCell].edgesInd[i];
+//                int		j = grid.edges[iEdge].c2;
+//                if (j == iCell)	{
+//                    //std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+//                    j = grid.edges[iEdge].c1;
+//                }
+//                if (j >= 0) {
+//                    double  s = grid.cells[j].S;
+//                    S += s;
+//                    sRO += getField(FIELD_RO, j, grid.cells[j].c) * s;
+//                    sRU += getField(FIELD_RO, j, grid.cells[j].c) * s;
+//                    sRV += getField(FIELD_RO, j, grid.cells[j].c) * s;
+//                    sRE += getField(FIELD_RO, j, grid.cells[j].c) * s;
+//                }
+//            }
+//            if (S >= TAU*TAU) {
+//                memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+//                memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+//                memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+//                memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+//
+//                ro[iCell][0] = sRO / S;
+//                ru[iCell][0] = sRU / S;
+//                rv[iCell][0] = sRV / S;
+//                re[iCell][0] = sRE / S;
+//            }
+//            // после 0x20 итераций пробуем вернуть ячейку в счет
+//            grid.cells[iCell].flag += 0x010000;
+//            if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+//        }
+//    }
+}
+
+
+void HEAT_DG_IMPLICIT::decCFL()
+{
+    if (CFL > 0.01) {
+        CFL *= 0.75;
+        if (CFL < 0.01) CFL = 0.01;
+        log(" CFL Number has been decreased : %25.25e \n", CFL);
+    }
+    //log(" <<< CFL Number has been decreased : %25.25e \n", CFL);
+}
+
+void HEAT_DG_IMPLICIT::incCFL()
+{
+    if (CFL < maxCFL) {
+        CFL *= scaleCFL;
+        if (CFL > maxCFL) CFL = maxCFL;
+        log(" CFL Number has been increased : %25.25e \n", CFL);
+    }
+}
+
+double **HEAT_DG_IMPLICIT::allocMtx4()
+{
+    double		**tempMtx4 = new double*[4];
+    for (int i = 0; i < 4; ++i) tempMtx4[i] = new double[4];
+    return tempMtx4;
+}
+void   HEAT_DG_IMPLICIT::freeMtx4(double **mtx4)
+{
+    for (int i = 0; i < 4; ++i)
+        delete[] mtx4[i];
+    delete[] mtx4;
+}
+void HEAT_DG_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
+{
+    double sum;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            sum = 0;
+            for (int k = 0; k < 4; ++k)
+                sum += srcA4[i][k] * srcB4[k][j];
+            dst4[i][j] = sum;
+        }
+    }
+}
+void HEAT_DG_IMPLICIT::clearMtx4(double **mtx4)
+{
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            mtx4[i][j] = 0;
+}
+
+void HEAT_DG_IMPLICIT::multMtxToVal(double **dst, double x, int N)
+{
+    for (int i = 0; i < N; ++i)
+    {
+        for (int j = 0; j < N; ++j)
+        {
+            dst[i][j] *= x;
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::fillMtx(double** dst, double x, int N)
+{
+    for (int i = 0; i < N; ++i)
+    {
+        for (int j = 0; j < N; ++j)
+        {
+            dst[i][j] = x;
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::eigenValues(double** dst4, double c, double u, double nx, double v, double ny)
+{
+    clearMtx4(dst4);
+    double qn = u*nx + v*ny;
+    dst4[0][0] = qn - c;
+    dst4[1][1] = qn;
+    dst4[2][2] = qn + c;
+    dst4[3][3] = qn;
+}
+void HEAT_DG_IMPLICIT::rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H)
+{
+    double qn = u*nx + v*ny;
+    double q2 = u*u + v*v;
+    double lx = -ny;
+    double ly = nx;
+    double ql = u*lx + v*ly;
+    dst4[0][0] = 1.0;			dst4[0][1] = 1.0;		dst4[0][2] = 1.0;			dst4[0][3] = 0.0;
+    dst4[1][0] = u - c*nx;	dst4[1][1] = u;		dst4[1][2] = u + c*nx;	dst4[1][3] = lx;
+    dst4[2][0] = v - c*ny;	dst4[2][1] = v;		dst4[2][2] = v + c*ny;	dst4[2][3] = ly;
+    dst4[3][0] = H - qn*c;	dst4[3][1] = q2 / 2;	dst4[3][2] = H + qn*c;	dst4[3][3] = ql;
+}
+void HEAT_DG_IMPLICIT::leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny)
+{
+    double qn = u*nx + v*ny;
+    double q2 = u*u + v*v;
+    double lx = -ny;
+    double ly = nx;
+    double ql = u*lx + v*ly;
+    double g1 = GAM - 1.0;
+    double c2 = c*c;
+    dst4[0][0] = 0.5*(0.5*q2*g1 / c2 + qn / c);	dst4[0][1] = -0.5*(g1*u / c2 + nx / c);	dst4[0][2] = -0.5*(g1*v / c2 + ny / c);	dst4[0][3] = 0.5*g1 / c2;
+    dst4[1][0] = 1 - 0.5*q2*g1 / c2;			dst4[1][1] = g1*u / c2;				dst4[1][2] = g1*v / c2;				dst4[1][3] = -g1 / c2;
+    dst4[2][0] = 0.5*(0.5*q2*g1 / c2 - qn / c);	dst4[2][1] = -0.5*(g1*u / c2 - nx / c);	dst4[2][2] = -0.5*(g1*v / c2 - ny / c);	dst4[2][3] = 0.5*g1 / c2;
+    dst4[3][0] = -ql;						dst4[3][1] = lx;					dst4[3][2] = ly;					dst4[3][3] = 0;
+}
+
+void HEAT_DG_IMPLICIT::calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+    double		**tempMtx4 = allocMtx4();
+
+    //egnVal4 +.
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            dst4[i][j] = egnVal4[i][j] > 0 ? egnVal4[i][j] : 0;
+
+    multMtx4(tempMtx4, rightEgnVecl4, dst4);
+    multMtx4(dst4, tempMtx4, leftEgnVecl4);
+    //multMtxToVal(dst4, 0.5, 4);
+    freeMtx4(tempMtx4);
+}
+void HEAT_DG_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+    double		**tempMtx4 = allocMtx4();
+
+    //egnVal4 -.
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            dst4[i][j] = egnVal4[i][j] < 0 ? egnVal4[i][j] : 0;
+
+    multMtx4(tempMtx4, rightEgnVecl4, dst4);
+    multMtx4(dst4, tempMtx4, leftEgnVecl4);
+    //multMtxToVal(dst4, 0.5, 4);
+    freeMtx4(tempMtx4);
+}
+
+void HEAT_DG_IMPLICIT::_calcA(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4)
+{
+    double		**tempMtx4 = allocMtx4();
+
+    multMtx4(tempMtx4, rightEgnVecl4, egnVal4);
+    multMtx4(dst4, tempMtx4, leftEgnVecl4);
+    freeMtx4(tempMtx4);
+}
+
+void HEAT_DG_IMPLICIT::calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H)
+{
+    double **rightEgnVecl4 = allocMtx4();
+    double **egnVal4 = allocMtx4();
+    double **leftEgnVecl4 = allocMtx4();
+
+    eigenValues(egnVal4, c, u, nx, v, ny);
+    rightEigenVector(rightEgnVecl4, c, u, nx, v, ny, H);
+    leftEigenVector(leftEgnVecl4, c, GAM, u, nx, v, ny);
+    _calcA(dst4, rightEgnVecl4, egnVal4, leftEgnVecl4);
+
+
+    freeMtx4(rightEgnVecl4);
+    freeMtx4(egnVal4);
+    freeMtx4(leftEgnVecl4);
+}
+
+void HEAT_DG_IMPLICIT::calcAx(double **dst4, double c, double GAM, double u, double v, double H)
+{
+    calcA(dst4, c, GAM, u, 1.0, v, 0.0, H);
+}
+
+void HEAT_DG_IMPLICIT::calcAy(double **dst4, double c, double GAM, double u, double v, double H)
+{
+    calcA(dst4, c, GAM, u, 0.0, v, 1.0, H);
+}
+
+void HEAT_DG_IMPLICIT::calcAx_(double **dst4, Param par, double GAM)
+{
+    double AGAM = GAM - 1.0;
+    dst4[0][0] = 0.0;
+    dst4[0][1] = 1.0;
+    dst4[0][2] = 0.0;
+    dst4[0][3] = 0.0;
+
+    dst4[1][0] = -POW_2(par.u) + 0.5*par.U2()*AGAM;
+    dst4[1][1] = 2.0*par.u - par.u*AGAM;
+    dst4[1][2] = -par.v*AGAM;
+    dst4[1][3] = AGAM;
+
+    dst4[2][0] = -par.u*par.v;
+    dst4[2][1] = par.v;
+    dst4[2][2] = par.u;
+    dst4[2][3] = 0.0;
+
+    dst4[3][0] = par.U2()*par.u*AGAM - par.E*par.u*GAM;
+    dst4[3][1] = -POW_2(par.u)*AGAM + par.E*GAM - 0.5*par.U2()*AGAM;
+    dst4[3][2] = par.u*par.v*AGAM;
+    dst4[3][3] = par.u*GAM;
+}
+
+void HEAT_DG_IMPLICIT::calcAy_(double **dst4, Param par, double GAM)
+{
+    double AGAM = GAM - 1.0;
+    dst4[0][0] = 0.0;
+    dst4[0][1] = 0.0;
+    dst4[0][2] = 1.0;
+    dst4[0][3] = 0.0;
+
+    dst4[1][0] = -par.u*par.v;
+    dst4[1][1] = par.v;
+    dst4[1][2] = par.u;
+    dst4[1][3] = 0.0;
+
+    dst4[2][0] = -POW_2(par.u) + (par.r*par.E + 0.5*par.U2())*AGAM;
+    dst4[2][1] = 2.0*par.u + (par.r*par.E - par.u)*AGAM;
+    dst4[2][2] = -par.v*AGAM;
+    dst4[2][3] = AGAM;
+
+    dst4[3][0] = par.U2()*par.u*AGAM - par.E*par.u*GAM;
+    dst4[3][1] = -POW_2(par.u)*AGAM + par.E*GAM - 0.5*par.U2()*AGAM;
+    dst4[3][2] = par.u*par.v*AGAM;
+    dst4[3][3] = par.u*GAM;
+}
+
+void HEAT_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
+{
+    double WI, UN, UT;
+    //double unl = pL.u*n.x+pL.v*n.y;
+    //double unr = pR.u*n.x+pR.v*n.y;
+    //double utl = pL.u*n.y-pL.v*n.x;
+    //double utr = pR.u*n.y-pR.v*n.x;
+    //rim_orig(average.r, average.e, average.p, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+    //	
+    //double UI = UN*n.x+UT*n.y;
+    //double VI = UN*n.y-UT*n.x;
+
+    //average.u = UI;
+    //average.v = VI;
+
+    roe_orig(average.r, average.e, average.p, average.u, average.v, WI,
+             pL.r, pL.p, pL.u, pL.v, 0.0,
+             pR.r, pR.p, pR.u, pR.v, 0.0, GAM);
+
+    average.cz = sqrt(GAM*average.p / average.r);
+    average.E = average.e + 0.5*(average.u*average.u + average.v*average.v);
+}
+
+
+void HEAT_DG_IMPLICIT::consToPar(double fRO, double fRU, double fRV, double fRE, Param& par)
+{
+    par.r = fRO;
+    par.u = fRU / fRO;
+    par.v = fRV / fRO;
+    par.E = fRE / fRO;
+    par.e = par.E - par.U2()*0.5;
+}
+
+void HEAT_DG_IMPLICIT::calcMatrWithTau()
+{
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+        fillMtx(matrBig, 0.0, MATR_DIM);
+
+
+        for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+            for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+                matrSmall[i][j] = matrA[iCell][i][j] / cTau[iCell];
+            }
+        }
+
+        for (int ii = 0; ii < FIELD_COUNT; ii++) {
+            addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
+        }
+        //for (int ii = 0; ii < FIELD_COUNT; ii++) {
+        //	addSmallMatrToBigMatr(matrBig, matrA[iCell], ii, ii);
+        //}
+
+        solverMtx->addMatrElement(iCell, iCell, matrBig);
+
+    }
+}
+
+void HEAT_DG_IMPLICIT::calcIntegral()
+{
+    double fRO, fRU, fRV, fRE;
+    double FR, FU, FV, FE;
+    double **mx = allocMtx4();
+    double **my = allocMtx4();
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+        fillMtx(matrBig, 0.0, MATR_DIM);
+
+        for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+            Point& p = cellGP[iCell][iGP];
+            double w = cellGW[iCell][iGP];
+            getFields(fRO, fRU, fRV, fRE, iCell, p);
+            Param par;
+            consToPar(fRO, fRU, fRV, fRE, par);
+            Material& mat = getMaterial(iCell);
+            mat.URS(par, 0); // p=p(r,e)
+            double H = par.E + par.p / par.r;
+            calcA(mx, par.cz, getGAM(iCell), par.u, 1.0, par.v, 0.0, H);
+            calcA(my, par.cz, getGAM(iCell), par.u, 0.0, par.v, 1.0, H);
+            //calcAx_(my, par, getGAM(iCell));
+            for (int i = 0; i < FIELD_COUNT; i++) {
+                for (int j = 0; j < FIELD_COUNT; j++) {
+                    for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                        for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                            matrSmall[ii][jj] = -mx[i][j] * getDfDx(jj, iCell, p);
+                            matrSmall[ii][jj] -= my[i][j] * getDfDy(jj, iCell, p);
+                            matrSmall[ii][jj] *= getF(ii, iCell, p);
+                            matrSmall[ii][jj] *= w;
+                        }
+                    }
+                    addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                }
+            }
+
+        }
+
+        multMtxToVal(matrBig, cellJ[iCell] * SIGMA, MATR_DIM);
+
+        solverMtx->addMatrElement(iCell, iCell, matrBig);
+    }
+
+    freeMtx4(mx);
+    freeMtx4(my);
+
+}
+
+void HEAT_DG_IMPLICIT::calcMatrFlux()
+{
+    double **eigenMtx4, **rEigenVector4, **lEigenVector4;
+    double **Amtx4P, **Amtx4M, **mtx4;
+
+    mtx4 = allocMtx4();
+    eigenMtx4 = allocMtx4();
+    rEigenVector4 = allocMtx4();
+    lEigenVector4 = allocMtx4();
+    Amtx4P = allocMtx4();
+    Amtx4M = allocMtx4();
+
+
+    double fRO1, fRU1, fRV1, fRE1, fRO2, fRU2, fRV2, fRE2;
+    Param par1, par2;
+
+    //int mSize = BASE_FUNC_COUNT * 4;
+
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge& edge = grid.edges[iEdge];
+        Vector&	n = grid.edges[iEdge].n;
+        int c1 = edge.c1;
+        int c2 = edge.c2;
+
+        if (c2 >= 0) {
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+
+                Param average;
+                calcRoeAverage(average, par1, par2, getGAM(c1), n);
+
+
+                double H = average.E + average.p / average.r;
+                eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+                rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+                calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+                for (int i = 0; i < FIELD_COUNT; i++) {
+                    for (int j = 0; j < FIELD_COUNT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+                                matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c2, p) * getF(jj, c1, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c1, c1, matrBig);
+            solverMtx->addMatrElement(c1, c2, matrBig2);
+
+
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+
+                Param average;
+                calcRoeAverage(average, par1, par2, getGAM(c1), n);
+                double H = average.E + average.p / average.r;
+
+                eigenValues(eigenMtx4, average.cz, average.u, -n.x, average.v, -n.y);
+                rightEigenVector(rEigenVector4, average.cz, average.u, -n.x, average.v, -n.y, H);
+                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, -n.x, average.v, -n.y);
+                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+                calcAM(Amtx4M, rEigenVector4, eigenMtx4, lEigenVector4);
+                for (int i = 0; i < FIELD_COUNT; i++) {
+                    for (int j = 0; j < FIELD_COUNT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c2, p) * getF(jj, c2, p) * w;
+                                matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c1, p) * getF(jj, c2, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c2, c2, matrBig);
+            solverMtx->addMatrElement(c2, c1, matrBig2);
+
+        }
+        else {
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+
+                boundaryCond(iEdge, par1, par2);
+
+                Param average;
+                calcRoeAverage(average, par1, par2, getGAM(c1), n);
+
+                double H = average.E + average.p / average.r;
+
+                eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+                rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+                for (int i = 0; i < FIELD_COUNT; i++) {
+                    for (int j = 0; j < FIELD_COUNT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                    }
+                }
+
+            }
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c1, c1, matrBig);
+
+        }
+    }
+    freeMtx4(eigenMtx4);
+    freeMtx4(rEigenVector4);
+    freeMtx4(lEigenVector4);
+    freeMtx4(Amtx4P);
+    freeMtx4(Amtx4M);
+    freeMtx4(mtx4);
+}
+
+void HEAT_DG_IMPLICIT::calcRHS()
+{
+    /* volume integral */
+
+    //const int arrSize = BASE_FUNC_COUNT * 4;
+
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+        for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+            double sRO = 0.0;
+            double sRU = 0.0;
+            double sRV = 0.0;
+            double sRE = 0.0;
+            for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                Point& p = cellGP[iCell][iGP];
+                double w = cellGW[iCell][iGP];
+                double fRO, fRU, fRV, fRE;
+                getFields(fRO, fRU, fRV, fRE, iCell, p);
+                Param par;
+                consToPar(fRO, fRU, fRV, fRE, par);
+                Material& mat = getMaterial(iCell);
+                mat.URS(par, 0); // p=p(r,e)
+
+                double FR = par.r*par.u;
+                double FU = FR*par.u + par.p;
+                double FV = FR*par.v;
+                double FE = (fRE + par.p)*par.u;
+
+                double GR = par.r*par.v;
+                double GU = GR*par.u;
+                double GV = GR*par.v + par.p;
+                double GE = (fRE + par.p)*par.v;
+
+                double dFdx = getDfDx(iBF, iCell, p) * w;
+                double dFdy = getDfDy(iBF, iCell, p) * w;
+
+                sRO += (FR*dFdx + GR*dFdy);
+                sRU += (FU*dFdx + GU*dFdy);
+                sRV += (FV*dFdx + GV*dFdy);
+                sRE += (FE*dFdx + GE*dFdy);
+            }
+            sRO *= cellJ[iCell];
+            sRU *= cellJ[iCell];
+            sRV *= cellJ[iCell];
+            sRE *= cellJ[iCell];
+
+            int shift = 0;
+            tmpArr[shift + iBF] = sRO; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = sRU; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = sRV; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = sRE; //shift += BASE_FUNC_COUNT;
+        }
+
+        solverMtx->addRightElement(iCell, tmpArr);
+    }
+
+    /* surf integral */
+
+    memset(tmpCFL, 0, grid.cCount*sizeof(double));
+
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        memset(tmpArr1, 0, sizeof(double)*MATR_DIM);
+        memset(tmpArr2, 0, sizeof(double)*MATR_DIM);
+
+        int c1 = grid.edges[iEdge].c1;
+        int c2 = grid.edges[iEdge].c2;
+        if (c2 >= 0) {
+            for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+                double sRO1 = 0.0;
+                double sRU1 = 0.0;
+                double sRV1 = 0.0;
+                double sRE1 = 0.0;
+                double sRO2 = 0.0;
+                double sRU2 = 0.0;
+                double sRV2 = 0.0;
+                double sRE2 = 0.0;
+                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                    double fRO, fRU, fRV, fRE;
+                    double FR, FU, FV, FE;
+
+                    Point& p = edgeGP[iEdge][iGP];
+                    double w = edgeGW[iEdge][iGP];
+
+                    getFields(fRO, fRU, fRV, fRE, c1, p);
+                    Param par1;
+                    consToPar(fRO, fRU, fRV, fRE, par1);
+                    Material& mat1 = getMaterial(c1);
+                    mat1.URS(par1, 0); // p=p(r,e)
+
+                    getFields(fRO, fRU, fRV, fRE, c2, p);
+                    Param par2;
+                    consToPar(fRO, fRU, fRV, fRE, par2);
+                    Material& mat2 = getMaterial(c2);
+                    mat2.URS(par2, 0); // p=p(r,e)
+
+                    calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
+
+                    // вычисляем спектральный радиус для вычисления шага по времени
+                    if (STEADY) {
+                        double u1 = sqrt(par1.U2()) + par1.cz;
+                        double u2 = sqrt(par2.U2()) + par2.cz;
+                        double lambda = _max_(u1, u2);
+                        lambda *= w;
+                        lambda *= edgeJ[iEdge];
+                        tmpCFL[c1] += lambda;
+                        tmpCFL[c2] += lambda;
+                    }
+
+                    double cGP1 = w * getF(iBF, c1, p);
+                    double cGP2 = w * getF(iBF, c2, p);
+
+                    sRO1 += FR*cGP1;
+                    sRU1 += FU*cGP1;
+                    sRV1 += FV*cGP1;
+                    sRE1 += FE*cGP1;
+
+                    sRO2 += FR*cGP2;
+                    sRU2 += FU*cGP2;
+                    sRV2 += FV*cGP2;
+                    sRE2 += FE*cGP2;
+                }
+
+                sRO1 *= edgeJ[iEdge];
+                sRU1 *= edgeJ[iEdge];
+                sRV1 *= edgeJ[iEdge];
+                sRE1 *= edgeJ[iEdge];
+
+                int shift = 0;
+                tmpArr1[shift + iBF] = -sRO1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRU1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRV1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRE1; //shift += BASE_FUNC_COUNT;
+
+                sRO2 *= edgeJ[iEdge];
+                sRU2 *= edgeJ[iEdge];
+                sRV2 *= edgeJ[iEdge];
+                sRE2 *= edgeJ[iEdge];
+
+                shift = 0;
+                tmpArr2[shift + iBF] = sRO2; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = sRU2; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = sRV2; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = sRE2; //shift += BASE_FUNC_COUNT;
+            }
+
+            solverMtx->addRightElement(c1, tmpArr1);
+            solverMtx->addRightElement(c2, tmpArr2);
+        }
+        else {
+            for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+                double sRO1 = 0.0;
+                double sRU1 = 0.0;
+                double sRV1 = 0.0;
+                double sRE1 = 0.0;
+                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                    double fRO, fRU, fRV, fRE;
+                    double FR, FU, FV, FE;
+
+                    Point& p = edgeGP[iEdge][iGP];
+                    double w = edgeGW[iEdge][iGP];
+
+                    getFields(fRO, fRU, fRV, fRE, c1, p);
+                    Param par1;
+                    consToPar(fRO, fRU, fRV, fRE, par1);
+                    Material& mat = getMaterial(c1);
+                    mat.URS(par1, 0); // p=p(r,e)
+
+                    Param par2;
+                    boundaryCond(iEdge, par1, par2);
+
+                    calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
+
+                    // вычисляем спектральный радиус для вычисления шага по времени
+                    if (STEADY) {
+                        double u1 = sqrt(par1.u*par1.u + par1.v*par1.v) + par1.cz;
+                        double u2 = sqrt(par2.u*par2.u + par2.v*par2.v) + par2.cz;
+                        double lambda = _max_(u1, u2);
+                        lambda *= w;
+                        lambda *= edgeJ[iEdge];
+                        tmpCFL[c1] += lambda;
+                    }
+
+                    double cGP1 = w * getF(iBF, c1, p);
+
+                    sRO1 += FR*cGP1;
+                    sRU1 += FU*cGP1;
+                    sRV1 += FV*cGP1;
+                    sRE1 += FE*cGP1;
+
+                }
+
+                sRO1 *= edgeJ[iEdge];
+                sRU1 *= edgeJ[iEdge];
+                sRV1 *= edgeJ[iEdge];
+                sRE1 *= edgeJ[iEdge];
+
+                int shift = 0;
+                tmpArr1[shift + iBF] = -sRO1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRU1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRV1; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = -sRE1; //shift += BASE_FUNC_COUNT;
+
+            }
+
+            solverMtx->addRightElement(c1, tmpArr1);
+        }
+    }
+}
+
+
+void HEAT_DG_IMPLICIT::run()
+{
+    //double __GAM = 1.4;
+
+    //// инициализируем портрет матрицы
+    //log("Matrix structure initialization:\n");
+    //CSRMatrix::DELTA = 65536;
+    //for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+    //	int		c1 = grid.edges[iEdge].c1;
+    //	int		c2 = grid.edges[iEdge].c2;
+    //	solverMtx->createMatrElement(c1, c1);
+    //	if (c2 >= 0){
+    //		solverMtx->createMatrElement(c1, c2);
+    //		solverMtx->createMatrElement(c2, c2);
+    //		solverMtx->createMatrElement(c2, c1);
+    //	}
+    //	if (iEdge % 100 == 0) {
+    //		log("\tfor edge: %d\n", iEdge);
+    //	}
+    //}
+    //solverMtx->initCSR();
+    //log("\tcomplete...\n");
+
+    int solverErr = 0;
+    double t = 0.0;
+    int step = 0;
+    long totalCalcTime = 0;
+    while (t < TMAX && step < STEP_MAX) {
+        long timeStart, timeEnd;
+        timeStart = clock();
+
+        if (!solverErr) step++;
+
+        if (STEADY) {
+            calcTimeStep();
+        }
+        else {
+            t += TAU;
+        }
+
+        long tmStart = clock();
+        solverErr = 0;
+        solverMtx->zero();
+
+        /* Заполняем правую часть */
+        calcRHS();
+
+        /* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
+        if (STEADY) {
+            double minTau = DBL_MAX;
+            for (int iCell = 0; iCell < grid.cCount; iCell++)
+            {
+                //Param p;
+                //convertConsToPar(iCell, p);
+                cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
+                if (cTau[iCell] < minTau) minTau = cTau[iCell];
+            }
+            //log("MIN_TAU = %25.15e\n", minTau); 
+        }
+
+        /* Заполняем элементы матрицы */
+        calcMatrWithTau();		// вычисляем матрицы перед производной по времени
+        calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
+        calcMatrFlux();			// Вычисляем потоковые величины 
+
+
+
+        /* Решаем СЛАУ */
+        int maxIter = SOLVER_ITER;
+        double eps = SOLVER_EPS;
+
+        solverErr = solverMtx->solve(eps, maxIter);
+
+        if (solverErr == MatrixSolver::RESULT_OK) {
+
+            //if (SMOOTHING) smoothingDelta(solverMtx->x);
+
+            for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+            {
+                Cell &cell = grid.cells[cellIndex];
+
+                //if (cellIsLim(cellIndex))	continue;
+                for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
+                    for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
+                        fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
+                    }
+                }
+            }
+
+
+//            if (limiter != NULL) {
+//                limiter->run();
+//            }
+
+//            for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+//            {
+//                Cell &cell = grid.cells[cellIndex];
+//
+//                Param par;
+//                convertConsToPar(cellIndex, par);
+//                if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+//                if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+//                if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+//                if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+//                if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+//                if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+//                if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
+//
+//                double fRO, fRU, fRV, fRE;
+//                for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+//
+//                    fRO = getField(FIELD_RO, cellIndex, cellGP[cellIndex][iGP]);
+//                    fRU = getField(FIELD_RU, cellIndex, cellGP[cellIndex][iGP]);
+//                    fRV = getField(FIELD_RV, cellIndex, cellGP[cellIndex][iGP]);
+//                    fRE = getField(FIELD_RE, cellIndex, cellGP[cellIndex][iGP]);
+//                    consToPar(fRO, fRU, fRV, fRE, par);
+//                    if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+//                    if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+//                    if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+//                    if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+//                    if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+//                    if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+//                    if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
+//                }
+//
+//                for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
+//                    int edgInd = cell.edgesInd[iEdge];
+//                    for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                        fRO = getField(FIELD_RO, cellIndex, edgeGP[edgInd][iGP]);
+//                        fRU = getField(FIELD_RU, cellIndex, edgeGP[edgInd][iGP]);
+//                        fRV = getField(FIELD_RV, cellIndex, edgeGP[edgInd][iGP]);
+//                        fRE = getField(FIELD_RE, cellIndex, edgeGP[edgInd][iGP]);
+//                        consToPar(fRO, fRU, fRV, fRE, par);
+//                        if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
+//                        if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
+//                        if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
+//                        if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
+//                        if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
+//                        if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
+//                        if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
+//                    }
+//                }
+//
+//
+//            }
+//            remediateLimCells();
+//
+//            int limCells = getLimitedCellsCount();
+//            if (STEADY && (limCells >= maxLimCells)) decCFL();
+
+            timeEnd = clock();
+            totalCalcTime += (timeEnd - timeStart);
+            if (step % FILE_SAVE_STEP == 0)
+            {
+                save(step);
+            }
+            if (step % PRINT_STEP == 0)
+            {
+                calcLiftForce();
+                if (!STEADY) {
+
+                    log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+                }
+                else {
+                    log("step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+                }
+            }
+
+            if (STEADY && (step % stepCFL == 0)) incCFL();
+        }
+        else {
+            if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
+                log("Solver error: residual condition not considered.\n");
+            }
+            if (solverErr & MatrixSolver::RESULT_ERR_MAX_ITER) {
+                log("Solver error: max iterations done.\n");
+            }
+            if (STEADY) {
+                decCFL();
+            }
+            else {
+                solverErr = 0;
+            }
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
+{
+    if (FLUX == FLUX_GODUNOV) {	// GODUNOV FLUX
+        double RI, EI, PI, UI, VI, WI, UN, UT;
+        //double unl = pL.u*n.x+pL.v*n.y;
+        //double unr = pR.u*n.x+pR.v*n.y;
+        //rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
+
+        double unl = pL.u*n.x + pL.v*n.y;
+        double unr = pR.u*n.x + pR.v*n.y;
+        double utl = pL.u*n.y - pL.v*n.x;
+        double utr = pR.u*n.y - pR.v*n.x;
+        rim_orig(RI, EI, PI, UN, UT, WI, pL.r, pL.p, unl, utl, 0, pR.r, pR.p, unr, utr, 0, GAM);
+
+        UI = UN*n.x + UT*n.y;
+        VI = UN*n.y - UT*n.x;
+
+        fr = RI*UN;
+        fu = fr*UI + PI*n.x;
+        fv = fr*VI + PI*n.y;
+        fe = (RI*(EI + 0.5*(UI*UI + VI*VI)) + PI)*UN;
+    }
+    if (FLUX == FLUX_LAX) {	// LAX-FRIEDRIX FLUX
+        double unl = pL.u*n.x + pL.v*n.y;
+        double unr = pR.u*n.x + pR.v*n.y;
+        double rol, rul, rvl, rel, ror, rur, rvr, rer;
+        double alpha = _max_(fabs(unl) + sqrt(GAM*pL.p / pL.r), fabs(unr) + sqrt(GAM*pR.p / pR.r));
+        //pL.getToCons(rol, rul, rvl, rel);
+        //pR.getToCons(ror, rur, rvr, rer);
+        rol = pL.r;
+        rul = pL.r*pL.u;
+        rvl = pL.r*pL.v;
+        rel = pL.p / (GAM - 1.0) + 0.5*pL.r*(pL.u*pL.u + pL.v*pL.v);
+        ror = pR.r;
+        rur = pR.r*pR.u;
+        rvr = pR.r*pR.v;
+        rer = pR.p / (GAM - 1.0) + 0.5*pR.r*(pR.u*pR.u + pR.v*pR.v);
+        double frl = rol*unl;
+        double frr = ror*unr;
+        fr = 0.5*(frr + frl - alpha*(ror - rol));
+        fu = 0.5*(frr*pR.u + frl*pL.u + (pR.p + pL.p)*n.x - alpha*(rur - rul));
+        fv = 0.5*(frr*pR.v + frl*pL.v + (pR.p + pL.p)*n.y - alpha*(rvr - rvl));
+        fe = 0.5*((rer + pR.p)*unr + (rel + pL.p)*unl - alpha*(rer - rel));
+    }
+}
+
+void HEAT_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
+{
+    int iBound = -1;
+    for (int i = 0; i < bCount; i++)
+    {
+        if (grid.edges[iEdge].type == boundaries[i].edgeType)
+        {
+            iBound = i;
+            break;
+        }
+    }
+    if (iBound < 0)
+    {
+        log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+        EXIT(1);
+    }
+    Boundary& b = boundaries[iBound];
+    int c1 = grid.edges[iEdge].c1;
+    Material& m = getMaterial(c1);
+    switch (b.type)
+    {
+        case Boundary::BOUND_INLET:
+            pR.T = b.par[0];		//!< температура
+            pR.p = b.par[1];		//!< давление
+            pR.u = b.par[2];		//!< первая компонента вектора скорости
+            pR.v = b.par[3];		//!< вторая компонента вектора скорости
+
+            m.URS(pR, 2);
+            m.URS(pR, 1);
+            break;
+
+        case Boundary::BOUND_OUTLET:
+            pR = pL;
+            break;
+
+        case Boundary::BOUND_WALL:
+            pR = pL;
+            double Un = pL.u*grid.edges[iEdge].n.x + pL.v*grid.edges[iEdge].n.y;
+            Vector V;
+            V.x = grid.edges[iEdge].n.x*Un*2.0;
+            V.y = grid.edges[iEdge].n.y*Un*2.0;
+            pR.u = pL.u - V.x;
+            pR.v = pL.v - V.y;
+            break;
+    }
+}
+
+void HEAT_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int j)
+{
+
+    int ii = i * BASE_FUNC_COUNT;
+    int jj = j * BASE_FUNC_COUNT;
+    for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
+        for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
+            mB[ii + i1][jj + j1] += mS[i1][j1];
+        }
+    }
+}
+
+void HEAT_DG_IMPLICIT::done()
+{
+}
+
+void HEAT_DG_IMPLICIT::calcLiftForce()
+{
+    const double width = 1.0; // предполагаемая ширина профиля по z.
+    Param		 par;
+    Fx = Fy = 0.0;
+    for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
+    {
+        if (grid.edges[iEdge].type == Edge::TYPE_WALL)
+        {
+            int			cellIndex = grid.edges[iEdge].c1;
+            double		nx = grid.edges[iEdge].n.x;
+            double		ny = grid.edges[iEdge].n.y;
+            if (cellIndex < 0) {
+                cellIndex = grid.edges[iEdge].c2;
+                nx *= -1.0;
+                ny *= -1.0;
+            }
+            convertConsToPar(cellIndex, par);
+            Fx += par.p*P_*width*grid.edges[iEdge].l*nx;
+            Fy += par.p*P_*width*grid.edges[iEdge].l*ny;
+        }
+    }
+}

@@ -48,6 +48,8 @@ set(METHODS_SRC
 		src/methods/fem_dg_implicit.cpp
 		src/methods/LimiterDG.cpp
 		src/methods/LimiterDGCockburn.cpp
+		src/methods/heat_dg_implicit.h
+		src/methods/heat_dg_implicit.cpp
 )
 
 set(SOLVERS_SRC

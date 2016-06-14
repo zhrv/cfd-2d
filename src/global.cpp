@@ -3,7 +3,7 @@
 
 FILE * hLog;
 
-double Material::gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
+double Material::gR = 8.314472;	// пїЅ2 пїЅпїЅ пїЅ-2 пїЅ-1 пїЅпїЅпїЅпїЅ-1
 
 
 void Material::URS(Param &par, int flag)
@@ -19,7 +19,7 @@ void Material::URS(Param &par, int flag)
 	
 	case 1:		// e=e(r,p)
 		par.e = par.p/(par.r*(gam-1));
-		par.T = par.e/Cv;				// TODO: проверить правильность
+		par.T = par.e/Cv;				// TODO: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		break;
 	
 	case 2:		// r=r(T,p)
@@ -52,11 +52,28 @@ void EXIT(int err)
 	exit(err);
 }
 
+double** allocMtx(int N)
+{
+    double **m;
+    m = new double*[N];
+    for (int i = 0; i < N; i++)
+        m[i] = new double[N];
+
+    return m;
+}
+
+void freeMtx(double** m, int N)
+{
+    for (int i = 0; i < N; i++)
+        delete[] m[i];
+    delete[] m;
+}
+
 
 
 /**
- *	Решение задачи о распаде произвольного разрыва
- *	(с) ИПМ им. М.В.Келдыша РАН, Тишкин, Никишин, Змитренко
+ *	пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+ *	(пїЅ) пїЅпїЅпїЅ пїЅпїЅ. пїЅ.пїЅ.пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
  *
  *	c==========================================================
  *	C    Nikichine
@@ -410,7 +427,7 @@ void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 
 	double AGAM  =  (GAM-1.0);
 
-	// Схема ROE
+	// пїЅпїЅпїЅпїЅпїЅ ROE
 	
 	double fG = GAM;
 
