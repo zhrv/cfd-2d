@@ -19,7 +19,7 @@ Method* Solver::initMethod(char* fileName)
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
 	if (!loadOkay)
 	{
-		log("ERROR: %s\n", doc.ErrorDesc());
+		log((char*)"ERROR: %s\n", doc.ErrorDesc());
 		exit(doc.ErrorId());
 	}
 	
@@ -57,7 +57,7 @@ Method* Solver::initMethod(char* fileName)
 	}
 	else
 	{
-		log("ERROR: unknown method '%s'.\n", methodName);
+		log((char*)"ERROR: unknown method '%s'.\n", methodName);
 		exit(-1);
 	}
 
