@@ -92,7 +92,7 @@ int SolverHyprePcg::solve(double eps, int& maxIter)
 		}
 		if (final_res_norm >= eps || !std::isfinite(final_res_norm)) {
 			result |= MatrixSolver::RESULT_ERR_CONVERG;
-			log("HYPRE PCG solver errror: Final Relative Residual Norm = %e; Config Error = %e\n", final_res_norm, eps);
+			log((char*)"HYPRE PCG solver errror: Final Relative Residual Norm = %e; Config Error = %e\n", final_res_norm, eps);
 		}
 		//if (myid == 0)
 		//{

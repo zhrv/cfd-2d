@@ -20,7 +20,7 @@ LimiterDGCockburn::LimiterDGCockburn(FEM_DG *mthd, Grid *grid, double **ro, doub
 
 LimiterDGCockburn::~LimiterDGCockburn()
 {
-	// TODO: очистка памяти
+	// TODO: пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 }
 
 
@@ -79,7 +79,7 @@ void LimiterDGCockburn::initLimiterParameters()
 		matrR[i] = new double[4];
 	}
 
-	// находим угол и коэффициенты разложения
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	for (int iCell = 0; iCell < cellsCount; iCell++)
 	{
 		int n0 = grid->cells[iCell].neigh[0];
@@ -97,10 +97,10 @@ void LimiterDGCockburn::initLimiterParameters()
 				limLmN[iCell][m].x = limLm[iCell][m].x / tmp;
 				limLmN[iCell][m].y = limLm[iCell][m].y / tmp;
 				choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limPm[iCell][m], m);
-				if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log("ERROR!!!\n");
+				if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log((char*)"ERROR!!!\n");
 			}
 			else {
-				log("error: LimiterDGCockburn::initLimiterParameters() __getEdgeByCells return -1");
+				log((char*)"error: LimiterDGCockburn::initLimiterParameters() __getEdgeByCells return -1");
 			}
 		}
 		int zhrv = 0;
@@ -166,7 +166,7 @@ void LimiterDGCockburn::run()
 
 
 	//return;
-	for (int iCell = 0; iCell < cellsCount; iCell++) // цикл по ячейкам
+	for (int iCell = 0; iCell < cellsCount; iCell++) // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	{
 		int n0 = grid->cells[iCell].neigh[0];
 		int n1 = grid->cells[iCell].neigh[1];
@@ -188,9 +188,9 @@ void LimiterDGCockburn::run()
 
 		double ROc, RUc, RVc, REc;
 		method->getFields(ROc, RUc, RVc, REc, iCell, grid->cells[iCell].c.x, grid->cells[iCell].c.y);
-		for (int m = 0; m < 3; m++) // цикл по направлениям
+		for (int m = 0; m < 3; m++) // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		{
-			// вычисляем приращения
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			double ROm, RUm, RVm, REm;
 			double RO1, RU1, RV1, RE1;
 			double RO2, RU2, RV2, RE2;
@@ -209,7 +209,7 @@ void LimiterDGCockburn::run()
 			deltaU2[m][2] = limAlfa[iCell][m][0] * (RV1 - RVc) + limAlfa[iCell][m][1] * (RV2 - RVc);
 			deltaU2[m][3] = limAlfa[iCell][m][0] * (RE1 - REc) + limAlfa[iCell][m][1] * (RE2 - REc);
 
-			// скорости по направлению
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			double un, ut, c, utmp, vtmp;
 			double nx = limLmN[iCell][m].x;
 			double ny = limLmN[iCell][m].y;
@@ -219,7 +219,7 @@ void LimiterDGCockburn::run()
 			ut = utmp*ny - vtmp*nx;
 			c = sqrt(GAM*AGAM*(REc / ROc - (utmp*utmp + vtmp*vtmp) / 2.0));
 
-			// поворачиваем скорости
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			utmp = deltaU1[m][1] * nx + deltaU1[m][2] * ny;
 			vtmp = deltaU1[m][1] * ny - deltaU1[m][2] * nx;
 			deltaU1[m][1] = utmp;
@@ -230,7 +230,7 @@ void LimiterDGCockburn::run()
 			deltaU2[m][1] = utmp;
 			deltaU2[m][2] = vtmp;
 
-			// переходим к инвариантам
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			getMatrLR(matrL, matrR, un, ut, c);
 			memset(deltaS1, 0, 4 * sizeof(double));
 			memset(deltaS2, 0, 4 * sizeof(double));
@@ -247,14 +247,14 @@ void LimiterDGCockburn::run()
 				deltaS2[3] += matrL[3][k] * deltaU2[m][k];
 			}
 
-			// лимитируем инварианты
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			deltaS1[0] = MINMOD_B(deltaS1[0], LIMITER_ALFA*deltaS2[0]);
 			deltaS1[1] = MINMOD_B(deltaS1[1], LIMITER_ALFA*deltaS2[1]);
 			deltaS1[2] = MINMOD_B(deltaS1[2], LIMITER_ALFA*deltaS2[2]);
 			deltaS1[3] = MINMOD_B(deltaS1[3], LIMITER_ALFA*deltaS2[3]);
 
 
-			// переходим к консервативным
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			memset(deltaU1[m], 0, 4 * sizeof(double));
 			for (int k = 0; k < 4; k++)
 			{
@@ -264,7 +264,7 @@ void LimiterDGCockburn::run()
 				deltaU1[m][3] += matrR[3][k] * deltaS1[k];
 			}
 
-			// поворачиваем скорости обратно
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			utmp = deltaU1[m][1] * nx + deltaU1[m][2] * ny;
 			vtmp = deltaU1[m][1] * ny - deltaU1[m][2] * nx;
 			deltaU1[m][1] = utmp;
@@ -272,13 +272,13 @@ void LimiterDGCockburn::run()
 		}
 
 		double pos, neg;
-		for (int k = 0; k < 4; k++) // цикл по компонентам {RO,RU,RV,RE}
+		for (int k = 0; k < 4; k++) // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {RO,RU,RV,RE}
 		{
 
 			double & d1n = deltaU1[0][k];
 			double & d2n = deltaU1[1][k];
 			double & d3n = deltaU1[2][k];
-			// делаем поправки для приращений
+			// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			if (abs(deltaU1[0][k] + deltaU1[1][k] + deltaU1[2][k]) > EPS)
 			{
 				pos = 0; neg = 0;
@@ -307,7 +307,7 @@ void LimiterDGCockburn::run()
 				deltaU1[1][k] = thetaP * MAX(0.0, deltaU1[1][k]) - thetaM * MAX(0.0, -deltaU1[1][k]);
 				deltaU1[2][k] = thetaP * MAX(0.0, deltaU1[2][k]) - thetaM * MAX(0.0, -deltaU1[2][k]);
 			}
-			// вычисляем отлимитированные коэффициенты разложения
+			// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 			double& xb0 = grid->cells[iCell].c.x;
 			double& yb0 = grid->cells[iCell].c.y;
 			double& xm1 = limPm[iCell][0].x;
@@ -378,7 +378,7 @@ void LimiterDGCockburn::run()
 }
 
 /*!
-Вычисление вектора площади
+пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 */
 double LimiterDGCockburn::triSquare(Point p0, Point p1, Point p2)
 {
@@ -421,29 +421,29 @@ void LimiterDGCockburn::choiseDirection(int& nn1, int& nn2, double& a1, double& 
 		return;
 	}
 	else {
-		log(" ERROR: choiseDirection()\n");
-		log("N0 = %d, N1 = %d, N2 = %d, N3 = %d, pm.x = %f, pm.y = %f, m = %d\n", n0, n1, n2, n3, pm.x, pm.y, mm);
-		log("p0.x = %f, p0.y = %f\n", grid->cells[n0].c.x, grid->cells[n0].c.y);
-		log("p1.x = %f, p1.y = %f\n", grid->cells[n1].c.x, grid->cells[n1].c.y);
-		log("p2.x = %f, p2.y = %f\n", grid->cells[n2].c.x, grid->cells[n2].c.y);
-		log("p3.x = %f, p3.y = %f\n", grid->cells[n3].c.x, grid->cells[n3].c.y);
-		log("\n\n");
+		log((char*)" ERROR: choiseDirection()\n");
+		log((char*)"N0 = %d, N1 = %d, N2 = %d, N3 = %d, pm.x = %f, pm.y = %f, m = %d\n", n0, n1, n2, n3, pm.x, pm.y, mm);
+		log((char*)"p0.x = %f, p0.y = %f\n", grid->cells[n0].c.x, grid->cells[n0].c.y);
+		log((char*)"p1.x = %f, p1.y = %f\n", grid->cells[n1].c.x, grid->cells[n1].c.y);
+		log((char*)"p2.x = %f, p2.y = %f\n", grid->cells[n2].c.x, grid->cells[n2].c.y);
+		log((char*)"p3.x = %f, p3.y = %f\n", grid->cells[n3].c.x, grid->cells[n3].c.y);
+		log((char*)"\n\n");
 		for (int m = 0; m < 3; m++)
 		{
 			nn1 = nn[m];
 			nn2 = nn[(m + 1) % 3];
-			log("nn1 = %d, nn2 = %d\n", nn1, nn2);
+			log((char*)"nn1 = %d, nn2 = %d\n", nn1, nn2);
 			if (nn1 >= 0 && nn2 >= 0)
 			{
 				double D = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
 				double D1 = (pm.x - grid->cells[n0].c.x)*(grid->cells[nn2].c.y - grid->cells[n0].c.y) - (pm.y - grid->cells[n0].c.y)*(grid->cells[nn2].c.x - grid->cells[n0].c.x);
 				double D2 = (grid->cells[nn1].c.x - grid->cells[n0].c.x)*(pm.y - grid->cells[n0].c.y) - (grid->cells[nn1].c.y - grid->cells[n0].c.y)*(pm.x - grid->cells[n0].c.x);
 
-				log("D = %f, D1 = %f, D2 = %f\n", D, D1, D2);
+				log((char*)"D = %f, D1 = %f, D2 = %f\n", D, D1, D2);
 
 				a1 = D1 / D; if (abs(a1)<EPS) a1 = 0.0;
 				a2 = D2 / D; if (abs(a2)<EPS) a2 = 0.0;
-				log("a1 = %f, a2 = %f\n", a1, a2);
+				log((char*)"a1 = %f, a2 = %f\n", a1, a2);
 				//if (a1>=0.0 && a2>=0.0) return;
 			}
 		}
@@ -457,9 +457,9 @@ int LimiterDGCockburn::__getEdgeByCells(int c1, int c2)
 	{
 		Edge &edge = grid->edges[iEdge];
 		if ((edge.c1 == c1 && edge.c2 == c2) || (edge.c1 == c2 && edge.c2 == c1)) return iEdge;
-		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // если одна из ячеек граничная.
+		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 	}
-	log("LimiterDGCockburn::__getEdgeByCells(int c1, int c2) : edge index not found");
+	log((char*)"LimiterDGCockburn::__getEdgeByCells(int c1, int c2) : edge index not found");
 	return -1;
 }
 

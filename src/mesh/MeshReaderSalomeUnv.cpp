@@ -24,7 +24,7 @@ int MeshReaderSalomeUnv::find_edge(int n1, int n2)
 
 void MeshReaderSalomeUnv::read(Grid * g)
 {
-	// ÷òåíèå ôàéëà â êîíòåéíåðû
+	// Ñ‡Ñ‚ÐµÐ½Ð¸Ðµ Ñ„Ð°Ð¹Ð»Ð° Ð² ÐºÐ¾Ð½Ñ‚ÐµÐ¹Ð½ÐµÑ€Ñ‹
 	ifstream fin(fileName);
 	if (fin.is_open()) {
 
@@ -36,19 +36,19 @@ void MeshReaderSalomeUnv::read(Grid * g)
 		fin.close();
 	}
 	else {
-		throw Exception("File '%s' opening error.", Exception::FILE_OPENING_ERROR);
+		throw Exception((char*)"File '%s' opening error.", Exception::FILE_OPENING_ERROR);
 	}
 
 	/* 
-	 *  Óïàêîâêà äàííûõ â êëàññ Grid
+	 *  Ð£Ð¿Ð°ÐºÐ¾Ð²ÐºÐ° Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð² ÐºÐ»Ð°ÑÑ Grid
 	 */
 
 	int i;
 
-	log("Building mesh structure:\n");
+	log((char*)"Building mesh structure:\n");
 
 	// nodes
-	log("\t- nodes;\n");
+	log((char*)"\t- nodes;\n");
 	g->nCount = points.size();
 	g->nodes = new Point[g->nCount];
 	i = 0;
@@ -58,7 +58,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 		p.y = it->y;
 	}
 
-	log("\t- cells;\n");
+	log((char*)"\t- cells;\n");
 	g->cCount = cells.size();
 	g->cells = new Cell[g->cCount];
 	map<int, ind_set> node_cells;
@@ -115,7 +115,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 		}
 	}
 
-	log("\t- edges;\n");
+	log((char*)"\t- edges;\n");
 	g->eCount = 0;
 	for (int i = 0; i < g->cCount; i++)
 	{
@@ -125,7 +125,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 			if (p > -1)
 			{
 				for (int k = 0; k < 3; k++)
-				{ // óáèðàåì ó ñîñåäà íîìåð ýòîé ÿ÷åéêè, ÷òîáû ãðàíü íå ïîâòîðÿëàñü
+				{ // ÑƒÐ±Ð¸Ñ€Ð°ÐµÐ¼ Ñƒ ÑÐ¾ÑÐµÐ´Ð° Ð½Ð¾Ð¼ÐµÑ€ ÑÑ‚Ð¾Ð¹ ÑÑ‡ÐµÐ¹ÐºÐ¸, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð³Ñ€Ð°Ð½ÑŒ Ð½Ðµ Ð¿Ð¾Ð²Ñ‚Ð¾Ñ€ÑÐ»Ð°ÑÑŒ
 					if (neigh[p][k] == i) neigh[p][k] = -1;
 				}
 				g->eCount++;
@@ -158,13 +158,13 @@ void MeshReaderSalomeUnv::read(Grid * g)
 				g->edges[iEdge].cCount = 3;
 				g->edges[iEdge].c = new Point[g->edges[iEdge].cCount];
 				double _sqrt3 = 1.0 / sqrt(3.0);
-				// öåíòð ðåáðà
+				// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 				g->edges[iEdge].c[0].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0;
 				g->edges[iEdge].c[0].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0;
-				// ïåðâàÿ òî÷êà Ãàóññà
+				// Ð¿ÐµÑ€Ð²Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 				g->edges[iEdge].c[1].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
 				g->edges[iEdge].c[1].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
-				// âòîðàÿ òî÷êà Ãàóññà
+				// Ð²Ñ‚Ð¾Ñ€Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 				g->edges[iEdge].c[2].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
 				g->edges[iEdge].c[2].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
 				g->edges[iEdge].n.x = g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y;
@@ -177,7 +177,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 				cfi[i]++;
 				g->edges[iEdge].cnl1 = fabs(g->edges[iEdge].n.x*(g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c1].c.x) + g->edges[iEdge].n.y*(g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c1].c.y));
 
-				// êîððåêöèÿ íàïðàâëåíèé íîðìàëåé
+				// ÐºÐ¾Ñ€Ñ€ÐµÐºÑ†Ð¸Ñ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ð¹ Ð½Ð¾Ñ€Ð¼Ð°Ð»ÐµÐ¹
 				Vector vc;
 				vc.x = g->cells[i].c.x - g->edges[iEdge].c[0].x;
 				vc.y = g->cells[i].c.y - g->edges[iEdge].c[0].y;
@@ -206,7 +206,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 						elements[edges[jEdge][0]] = element(iEdge, element::TYPE_EDGE);
 					}
 					else {
-						throw Exception("Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE);
+						throw Exception((char*)"Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE);
 					}
 				}
 
@@ -216,7 +216,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 		}
 	}
 
-	log("\t- bounds;\n");
+	log((char*)"\t- bounds;\n");
 	for (bnd_map::iterator it = bounds.begin(); it != bounds.end(); it++) {
 		char name[64];
 		strcpy(name, it->first.c_str());
@@ -230,7 +230,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 					g->edges[iEdge].type = Edge::TYPE_NAMED;
 				}
 				else {
-					throw Exception("Wrong edge's index when boundary parsing...", -1);
+					throw Exception((char*)"Wrong edge's index when boundary parsing...", -1);
 				}
 				break;
 			case element::TYPE_CELL:
@@ -240,7 +240,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 					g->cells[iCell].type = -1;
 				}
 				else {
-					throw Exception("Wrong edge's index when boundary parsing...", -1);
+					throw Exception((char*)"Wrong edge's index when boundary parsing...", -1);
 				}
 				break;
 			}
@@ -259,7 +259,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 
 	delete[] neigh;
 	delete[] cfi;
-	log("  complete...\n");
+	log((char*)"  complete...\n");
 
 }
 
@@ -288,31 +288,31 @@ void MeshReaderSalomeUnv::read_block(string_list * sl, ifstream& fin)
 
 void MeshReaderSalomeUnv::parse_block_164(string_list sl, Grid * g)
 {
-	log("UNV reader: Block 167 skipped...");
+	log((char*)"UNV reader: Block 167 skipped...");
 	
 	long time_start, time_end;
 	time_start = clock();
 
 	time_end = clock();
-	log("\tTime: %d\n", time_end - time_start);
+	log((char*)"\tTime: %d\n", time_end - time_start);
 }
 
 
 void MeshReaderSalomeUnv::parse_block_2420(string_list sl, Grid * g)
 {
-	log("UNV reader: Block 2420 skipped...");
+	log((char*)"UNV reader: Block 2420 skipped...");
 
 	long time_start, time_end;
 	time_start = clock();
 
 	time_end = clock();
-	log("\tTime: %d\n", time_end - time_start);
+	log((char*)"\tTime: %d\n", time_end - time_start);
 }
 
 
 void MeshReaderSalomeUnv::parse_block_2411(string_list sl, Grid * g)
 {
-	log("UNV reader: Parsing block 2411...");
+	log((char*)"UNV reader: Parsing block 2411...");
 
 	long time_start, time_end;
 	time_start = clock();
@@ -330,13 +330,13 @@ void MeshReaderSalomeUnv::parse_block_2411(string_list sl, Grid * g)
 	}
 
 	time_end = clock();
-	log("\tTime: %d\n", time_end-time_start);
+	log((char*)"\tTime: %d\n", time_end-time_start);
 }
 
 
 void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 {
-	log("UNV reader: Parsing block 2412...");
+	log((char*)"UNV reader: Parsing block 2412...");
 
 	long time_start, time_end;
 	time_start = clock();
@@ -356,7 +356,7 @@ void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 		p.push_back(tmp[1]);
 		p.push_back(tmp[5]);
 		switch (tmp[1]) {
-		case 11: // ðåáðî
+		case 11: // Ñ€ÐµÐ±Ñ€Ð¾
 			sscanf(it->c_str(), "%d %d %d", &tmp[6], &tmp[7], &tmp[8]); it++;
 			sscanf(it->c_str(), "%d %d", &tmp[9], &tmp[10]); it++;
 			tmp[9]--;
@@ -366,7 +366,7 @@ void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 			edges.push_back(p);
 			break;
 
-		case 41: // òðåóãîëüíèê
+		case 41: // Ñ‚Ñ€ÐµÑƒÐ³Ð¾Ð»ÑŒÐ½Ð¸Ðº
 			sscanf(it->c_str(), "%d %d %d", &tmp[6], &tmp[7], &tmp[8]); it++;
 			tmp[6]--;
 			tmp[7]--;
@@ -386,13 +386,13 @@ void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 	elements.resize(maxInd+1);
 
 	time_end = clock();
-	log("\tTime: %d\n", time_end - time_start);
+	log((char*)"\tTime: %d\n", time_end - time_start);
 }
 
 
 void MeshReaderSalomeUnv::parse_block_2467(string_list sl, Grid * g)
 {
-	log("UNV reader: Parsing block 2467...");
+	log((char*)"UNV reader: Parsing block 2467...");
 
 	long time_start, time_end;
 	time_start = clock();
@@ -406,7 +406,7 @@ void MeshReaderSalomeUnv::parse_block_2467(string_list sl, Grid * g)
 		char bnd_name[128];
 		sscanf(it->c_str(), "%d %d %d %d %d %d %d %d", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5], &tmp[6], &tmp[7]); it++;
 		int n = tmp[7];
-		sscanf(it->c_str(), "%s", &bnd_name); it++;
+		sscanf(it->c_str(), "%s", bnd_name); it++; //TODO &bnd_name
 		p.clear();
 		for (int i = 0; i < n/2; i++) {
 			sscanf(it->c_str(), "%d %d %d %d %d %d %d %d", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5], &tmp[6], &tmp[7]); it++;
@@ -421,7 +421,7 @@ void MeshReaderSalomeUnv::parse_block_2467(string_list sl, Grid * g)
 	}
 
 	time_end = clock();
-	log("\tTime: %d\n", time_end - time_start);
+	log((char*)"\tTime: %d\n", time_end - time_start);
 }
 
 

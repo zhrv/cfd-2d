@@ -23,19 +23,19 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 		node = bNode->FirstChild("parameters");
 
 		node1 = node->FirstChild("Vx");
-		if (!node1) throw Exception("Parameter 'Vx' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
+		if (!node1) throw Exception((char*)"Parameter 'Vx' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
 		node1->ToElement()->Attribute("value", &b->par[0]);
 
 		node1 = node->FirstChild("Vy");
-		if (!node1) throw Exception("Parameter 'Vy' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
+		if (!node1) throw Exception((char*)"Parameter 'Vy' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
 		node1->ToElement()->Attribute("value", &b->par[1]);
 
 		node1 = node->FirstChild("T");
-		if (!node1) throw Exception("Parameter 'T' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
+		if (!node1) throw Exception((char*)"Parameter 'T' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
 		node1->ToElement()->Attribute("value", &b->par[2]);
 
 		node1 = node->FirstChild("P");
-		if (!node1) throw Exception("Parameter 'P' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
+		if (!node1) throw Exception((char*)"Parameter 'P' isn't specified  for BOUND_INLET.", Exception::TYPE_BOUND_NOPAR);
 		node1->ToElement()->Attribute("value", &b->par[3]);
 
 	}
@@ -62,7 +62,7 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 	}
 
 	if (!b) {
-		throw Exception("Unknown boundary type '%s' specified.", Exception::TYPE_BOUND_UNKNOWN);
+		throw Exception((char*)"Unknown boundary type '%s' specified.", Exception::TYPE_BOUND_UNKNOWN);
 	}
 
 	const char * name = bNode->FirstChild("name")->ToElement()->GetText();
@@ -80,7 +80,7 @@ void CFDBndInlet::run(int iEdge, Param& pL, Param& pR)
 	pR.p = par[3];
 }
 
-void CFDBndOutlet::run(int iEdge, Param& pL, Param& pR) // @todo исправить - необходимо учитывать шаг сетки
+void CFDBndOutlet::run(int iEdge, Param& pL, Param& pR) // @todo РёСЃРїСЂР°РІРёС‚СЊ - РЅРµРѕР±С…РѕРґРёРјРѕ СѓС‡РёС‚С‹РІР°С‚СЊ С€Р°Рі СЃРµС‚РєРё
 {
 	pR = pL;
 }

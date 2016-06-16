@@ -1,13 +1,13 @@
 #include <solver.h>
-#include <method.h>
+//#include <method.h>
 #include <fvm_tvd.h>
 #include <fvm_tvd_implicit.h>
 #include <fem_rkdg.h>
 #include <fem_dg_implicit.h>
 #include <heat_dg_implicit.h>
 #include <decomp.h>
-#include "tinyxml.h"
-#include <string.h>
+//#include "tinyxml.h"
+//#include <string.h>
 
 
 

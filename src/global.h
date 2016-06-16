@@ -188,7 +188,9 @@ struct Param
 	double cz;		//!< скорость звука
 	double T;		//!< температура
 	double ML;		//!< динамическая вязкость
-	
+
+	double Qt[2];   //!< тепловой поток (для модуля теплопроводности)
+
 	inline double U2() { return  u*u + v*v; }
 	inline double magU() { return sqrt(U2()); }
 };
@@ -295,6 +297,7 @@ extern double** allocMtx(int N);
 
 extern void freeMtx(double** m, int N);
 
+extern void copyMtx(double** dest, double** src, int N);
 
 
 /**

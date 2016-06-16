@@ -15,7 +15,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	bool loadOkay = doc.LoadFile(TIXML_ENCODING_UTF8);
 	if (!loadOkay)
 	{
-		log("ERROR: %s\n", doc.ErrorDesc());
+		log((char*)"ERROR: %s\n", doc.ErrorDesc());
 		exit(doc.ErrorId());
 	}
 
@@ -222,7 +222,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
 		}
 		else {
-			log("ERROR: unsupported boundary condition type '%s'", str);
+			log((char*)"ERROR: unsupported boundary condition type '%s'", str);
 			EXIT(1);
 		}
 
@@ -239,10 +239,10 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	// инициализация лимитера
 	limiter = LimiterDG::create(limiterName, this);
 	if (limiter != NULL) {
-		log("Limiter: %s\n", limiter->getName());
+		log((char*)"Limiter: %s\n", limiter->getName());
 	}
 	else {
-		log("Without limiter\n");
+		log((char*)"Without limiter\n");
 	}
 
 	// инициализация решателя
@@ -251,7 +251,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	//solverMtx = new SolverZeidel();
 	solverMtx = MatrixSolver::create(solverName);
 	solverMtx->init(grid.cCount, MATR_DIM);
-	log("Solver type: %s.\n", solverMtx->getName());
+	log((char*)"Solver type: %s.\n", solverMtx->getName());
 
 	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
 	node0->FirstChild("epsilon")->ToElement()->Attribute("value", &SOLVER_EPS);
@@ -556,7 +556,7 @@ Region & FEM_DG_IMPLICIT::getRegionByCellType(int type)
 	{
 		if (regions[i].cellType == type) return regions[i];
 	}
-	log("ERROR: unknown cell type %d...\n", type);
+	log((char*)"ERROR: unknown cell type %d...\n", type);
 	EXIT(1);
 }
 
@@ -793,7 +793,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -802,7 +802,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -813,7 +813,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -853,7 +853,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		fprintf(fp, "%25.16f ", cTau[i]*TIME_);
@@ -926,7 +926,7 @@ void FEM_DG_IMPLICIT::decCFL()
 	if (CFL > 0.01) {
 		CFL *= 0.75;
 		if (CFL < 0.01) CFL = 0.01;
-		log(" CFL Number has been decreased : %25.25e \n", CFL);
+		log((char*)" CFL Number has been decreased : %25.25e \n", CFL);
 	}
 	//log(" <<< CFL Number has been decreased : %25.25e \n", CFL);
 }
@@ -936,7 +936,7 @@ void FEM_DG_IMPLICIT::incCFL()
 	if (CFL < maxCFL) {
 		CFL *= scaleCFL;
 		if (CFL > maxCFL) CFL = maxCFL;
-		log(" CFL Number has been increased : %25.25e \n", CFL);
+		log((char*)" CFL Number has been increased : %25.25e \n", CFL);
 	}
 }
 
@@ -1794,10 +1794,10 @@ void FEM_DG_IMPLICIT::run()
 				calcLiftForce();
 				if (!STEADY) {
 
-					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+					log((char*)"step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
 				}
 				else {
-					log("step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+					log((char*)"step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
 				}
 			}
 
@@ -1805,10 +1805,10 @@ void FEM_DG_IMPLICIT::run()
 		}
 		else {
 			if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
-				log("Solver error: residual condition not considered.\n");
+				log((char*)"Solver error: residual condition not considered.\n");
 			}
 			if (solverErr & MatrixSolver::RESULT_ERR_MAX_ITER) {
-				log("Solver error: max iterations done.\n");
+				log((char*)"Solver error: max iterations done.\n");
 			}
 			if (STEADY) {
 				decCFL();
@@ -1879,7 +1879,7 @@ void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	}
 	if (iBound < 0)
 	{
-		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+		log((char*)"ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
 		EXIT(1);
 	}
 	Boundary& b = boundaries[iBound];

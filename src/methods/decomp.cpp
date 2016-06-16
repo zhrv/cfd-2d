@@ -38,7 +38,7 @@ void Decomp::init(char * xmlFileName)
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
 	if (!loadOkay)
 	{
-		log("ERROR: %s\n", doc.ErrorDesc());
+		log((char*)"ERROR: %s\n", doc.ErrorDesc());
 		exit(doc.ErrorId());
 	}
 	
@@ -57,7 +57,7 @@ void Decomp::init(char * xmlFileName)
 	//const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	//grid.initFromFiles((char*)fName);
 
-	/* Чтение данных сетки. */
+	/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ. */
 	node0 = task->FirstChild("mesh");
 	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
 	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
@@ -70,13 +70,13 @@ void Decomp::run()
 {
 	char fName[128];
 
-	log("Decomposition to %d processors started...\n", procCount);
-	log(" Initial grid info:\n");
-	log("  cells count:     %d\n", grid.cCount);
-	log("  edges count:     %d\n", grid.eCount);
-	log("  nodes count:     %d\n", grid.nCount);
+	log((char*)"Decomposition to %d processors started...\n", procCount);
+	log((char*)" Initial grid info:\n");
+	log((char*)"  cells count:     %d\n", grid.cCount);
+	log((char*)"  edges count:     %d\n", grid.eCount);
+	log((char*)"  nodes count:     %d\n", grid.nCount);
 
-	// декомпозиция области средствами METIS
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ METIS
 	int n = grid.cCount;
 	int m = grid.eCount;
 	int ncon = 1;
@@ -100,7 +100,7 @@ void Decomp::run()
 			}
 			xadj[i + 1] = jj;
 		}
-		// TODO: подключить х64 версию METIS
+		// TODO: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ64 пїЅпїЅпїЅпїЅпїЅпїЅ METIS
 		METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
 		delete[] xadj;
 		delete[] adjncy;
@@ -141,10 +141,10 @@ void Decomp::run()
 
 	fclose(fp);
 
-	log(" Written file 'parts.vtk'...\n");
+	log((char*)" Written file 'parts.vtk'...\n");
 
-	// формирование файлов c данными сетки для каждого процессора
-	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ c пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	MK_DIR('mesh'); // @todo: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	MK_DIR('vtk_data');  
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
@@ -187,7 +187,7 @@ void Decomp::run()
 		}
 		procCellEx.clear();
 
-		// сортировка фиктивных ячеек в порядке убывания процессора
+		// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		int exCnt = pm.cCountEx - pm.cCount;
 
 		pm.recvCount.resize(procCount);

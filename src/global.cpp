@@ -69,7 +69,11 @@ void freeMtx(double** m, int N)
     delete[] m;
 }
 
-
+void copyMtx(double** dest, double** src, int N)
+{
+	for (int i = 0; i < N; i++)
+		memcpy(dest[i], src[i], sizeof(double)*N);
+}
 
 /**
  *	������� ������ � ������� ������������� �������
@@ -542,7 +546,7 @@ void inverseMatr_(double** a_src, double **am, int N)
 		fmaxval = a[maxind][i];
 		if (fmaxval == 0)
 		{
-			log("ERROR! Determinant of mass matrix is zero...\n");
+			log((char*)"ERROR! Determinant of mass matrix is zero...\n");
 			return;
 		}
 		if (i != maxind)

@@ -40,7 +40,7 @@ MatrixSolver* MatrixSolver::create(const char* solverName)
 		return new SolverZeidel();
 	}
 	else {
-		log("ERROR (SolverFactory): wrong solver name, used HYPRE Flexible GMRES solver...\n");
+		log((char*)"ERROR (SolverFactory): wrong solver name, used HYPRE Flexible GMRES solver...\n");
 		return new SolverHypreFlexGmres();
 	}
 }
@@ -161,7 +161,7 @@ int SolverJacobi::solve(double eps, int& maxIter)
 			}
 			if (fabs(aii) <= eps*eps) 
 			{
-				log("JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
+				log((char*)"JACOBI_SOLVER: error: a[%d, %d] = 0\n", i, i);
 				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
 			}
 			//x[i] = (-tmp+b[i])/aii;
@@ -182,7 +182,7 @@ int SolverJacobi::solve(double eps, int& maxIter)
 	}
 	if (step >= maxIter)
 	{
-		log("JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		log((char*)"JACOBI_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
 		maxIter = step;
 		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}

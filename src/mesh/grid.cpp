@@ -47,18 +47,18 @@ int Grid::findEdge(int n1, int n2)
 	return -1;
 }
 
-//Grid::initFromFiles: çàãðóçêà ñåòêè èç ôàéëà fName.
+//Grid::initFromFiles: Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° ÑÐµÑ‚ÐºÐ¸ Ð¸Ð· Ñ„Ð°Ð¹Ð»Ð° fName.
 void Grid::initFromFiles(char* fName) 
 {
 	char str[50];
 	FILE *fp;
 	int tmp; 
 
-	// ÷èòàåì äàííûå îá ÓÇËÀÕ
+	// Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾Ð± Ð£Ð—Ð›ÐÐ¥
 	sprintf(str, "%s.node", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
-		log("Can not open file '%s'\n", str);
+		log((char*)"Can not open file '%s'\n", str);
 		EXIT(1);
 	}
 	fscanf(fp, "%d %d %d %d", &nCount, &tmp, &tmp, &tmp);
@@ -69,11 +69,11 @@ void Grid::initFromFiles(char* fName)
 	}
 	fclose(fp);
 
-	// ÷èòàåì äàííûå î ß×ÅÉÊÀÕ
+	// Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾ Ð¯Ð§Ð•Ð™ÐšÐÐ¥
 	sprintf(str, "%s.ele", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
-		log("Can not open file '%s'\n", str);
+		log((char*)"Can not open file '%s'\n", str);
 		EXIT(1);
 	}
 	fscanf(fp, "%d %d %d", &cCount, &tmp, &tmp);
@@ -99,11 +99,11 @@ void Grid::initFromFiles(char* fName)
 	}
 	fclose(fp);
 
-	// ôîðìèðóåì äàííûå î ÐÅÁÐÀÕ
+	// Ñ„Ð¾Ñ€Ð¼Ð¸Ñ€ÑƒÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾ Ð Ð•Ð‘Ð ÐÐ¥
 	sprintf(str, "%s.neigh", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
-		log("Can not open file '%s'\n", str);
+		log((char*)"Can not open file '%s'\n", str);
 		EXIT(1);
 	}
 	fscanf(fp, "%d %d", &tmp, &tmp);
@@ -130,7 +130,7 @@ void Grid::initFromFiles(char* fName)
 			if (p > -1) 
 			{
 				for (int k = 0; k < 3; k++) 
-				{ // óáèðàåì ó ñîñåäà íîìåð ýòîé ÿ÷åéêè, ÷òîáû ãðàíü íå ïîâòîðÿëàñü
+				{ // ÑƒÐ±Ð¸Ñ€Ð°ÐµÐ¼ Ñƒ ÑÐ¾ÑÐµÐ´Ð° Ð½Ð¾Ð¼ÐµÑ€ ÑÑ‚Ð¾Ð¹ ÑÑ‡ÐµÐ¹ÐºÐ¸, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð³Ñ€Ð°Ð½ÑŒ Ð½Ðµ Ð¿Ð¾Ð²Ñ‚Ð¾Ñ€ÑÐ»Ð°ÑÑŒ
 					if (neigh[p][k] == i) neigh[p][k] = -1;
 				}
 				eCount++;
@@ -160,13 +160,13 @@ void Grid::initFromFiles(char* fName)
 				edges[iEdge].cCount = 3;
 				edges[iEdge].c      = new Point[edges[iEdge].cCount];
 				double _sqrt3 = 1.0/sqrt(3.0);
-				// öåíòð ðåáðà
+				// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 				edges[iEdge].c[0].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0;
 				edges[iEdge].c[0].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0;
-				// ïåðâà¤ òî÷êà vàóññà
+				// Ð¿ÐµÑ€Ð²Ð°Â¤ Ñ‚Ð¾Ñ‡ÐºÐ° vÐ°ÑƒÑÑÐ°
 				edges[iEdge].c[1].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0-_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
 				edges[iEdge].c[1].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0-_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
-				// âòîðà¤ òî÷êà vàóññà
+				// Ð²Ñ‚Ð¾Ñ€Ð°Â¤ Ñ‚Ð¾Ñ‡ÐºÐ° vÐ°ÑƒÑÑÐ°
 				edges[iEdge].c[2].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0+_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
 				edges[iEdge].c[2].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0+_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
 
@@ -201,11 +201,11 @@ void Grid::initFromFiles(char* fName)
 		
 	}
 	
-	// ÷òåíèå äàííûõ î ãðàíè÷íûõ ãðàíÿõ
+	// Ñ‡Ñ‚ÐµÐ½Ð¸Ðµ Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð¾ Ð³Ñ€Ð°Ð½Ð¸Ñ‡Ð½Ñ‹Ñ… Ð³Ñ€Ð°Ð½ÑÑ…
 	sprintf(str, "%s.poly", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
-		log("Can not open file '%s'\n", str);
+		log((char*)"Can not open file '%s'\n", str);
 		EXIT(1);
 	}
 	int bndCount;
@@ -280,14 +280,14 @@ void Grid::readMeshFiles()
 	sprintf(fName, "mesh/mesh.%04d.proc", p);
 	FILE * fp = fopen(fName, "r");
 	if (!fp) {
-		log("Can not open file '%s'\n", fName);
+		log((char*)"Can not open file '%s'\n", fName);
 		EXIT(1);
 	}
 
-	log("Reading mesh part structure:\n");
+	log((char*)"Reading mesh part structure:\n");
 
 	// Nodes
-	log("\t- nodes;\n");
+	log((char*)"\t- nodes;\n");
 	fscanf(fp, "%d %d", &nCount, &nCountEx);
 	nodes = new Point[nCountEx];
 	for (int i = 0; i < nCountEx; i++)
@@ -296,14 +296,14 @@ void Grid::readMeshFiles()
 	}
 
 	// Cells
-	log("\t- cells;\n");
+	log((char*)"\t- cells;\n");
 	fscanf(fp, "%d %d", &cCount, &cCountEx);
 	cells = new Cell[cCountEx];
 	for (int i = 0; i < cCountEx; i++)
 	{
 		cells[i].nCount = 3;
 		cells[i].nodesInd = new int[cells[i].nCount];
-		fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), &(cells[i].typeName));
+		fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), (cells[i].typeName)); //TODO &(cells[i].typeName)
 		cells[i].c.x = (nodes[cells[i].nodesInd[0]].x + nodes[cells[i].nodesInd[1]].x + nodes[cells[i].nodesInd[2]].x) / 3.0;
 		cells[i].c.y = (nodes[cells[i].nodesInd[0]].y + nodes[cells[i].nodesInd[1]].y + nodes[cells[i].nodesInd[2]].y) / 3.0;
 		cells[i].HX = _max_(fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[1]].x),
@@ -323,14 +323,14 @@ void Grid::readMeshFiles()
 	}
 
 	// Edges
-	log("\t- edges;\n");
+	log((char*)"\t- edges;\n");
 	fscanf(fp, "%d %d", &eCount, &eCountEx);
 	edges = new Edge[eCountEx];
 	for (int i = 0; i < eCountEx; i++)
 	{
 		fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
 		if (edges[i].type != 0) {
-			fscanf(fp, "%s", &(edges[i].typeName));
+			fscanf(fp, "%s", (edges[i].typeName)); // TODO &(edges[i].typeName)
 		}
 		else {
 			strcpy(edges[i].typeName, "");
@@ -371,22 +371,22 @@ void Grid::readMeshFiles()
 			e.c2 = -1;
 		}
 		else {
-			log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
+			log((char*)"ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
 			EXIT(1);
 		}
 		e.cCount = 3;
 		e.c = new Point[e.cCount];
 		double _sqrt3 = 1.0 / sqrt(3.0);
-		// öåíòð ðåáðà
+		// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 		e.c[0].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0;
 		e.c[0].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0;
-		// ïåðâàÿ òî÷êà Ãàóññà
+		// Ð¿ÐµÑ€Ð²Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 		e.c[1].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 - _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
 		e.c[1].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 - _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// âòîðàÿ òî÷êà Ãàóññà
+		// Ð²Ñ‚Ð¾Ñ€Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 		e.c[2].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 + _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
 		e.c[2].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 + _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// íîðìàëü è äëèíà ðåáðà
+		// Ð½Ð¾Ñ€Ð¼Ð°Ð»ÑŒ Ð¸ Ð´Ð»Ð¸Ð½Ð° Ñ€ÐµÐ±Ñ€Ð°
 		e.n.x = nodes[e.n2].y - nodes[e.n1].y;
 		e.n.y = nodes[e.n1].x - nodes[e.n2].x;
 		e.l = sqrt(e.n.x*e.n.x + e.n.y*e.n.y);
@@ -399,7 +399,7 @@ void Grid::readMeshFiles()
 		else {
 			e.cnl2 = 0.0;
 		}
-		// êîððåêöèÿ íàïðàâëåíèé íîðìàëåé
+		// ÐºÐ¾Ñ€Ñ€ÐµÐºÑ†Ð¸Ñ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ð¹ Ð½Ð¾Ñ€Ð¼Ð°Ð»ÐµÐ¹
 		Vector vc;
 		
 		vc.x = cells[e.c1].c.x - e.c[0].x;
@@ -445,7 +445,7 @@ void Grid::readMeshFiles()
 	fclose(fp);
 
 
-	log("  complete...\n");
+	log((char*)"  complete...\n");
 
 
 }
@@ -464,7 +464,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "POINT: %25.15e %25.15e\n", p.x, p.y);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = nCount; i < nCountEx; i++) {
 		Point & p = nodes[i];
 		fprintf(fp, "============================================================\n");
@@ -489,7 +489,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "TYPE: %s\n", c.typeName);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = cCount; i < cCountEx; i++) {
 		Cell & c = cells[i];
 		fprintf(fp, "============================================================\n");
@@ -519,7 +519,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "TYPE: %s\n", e.typeName);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = eCount; i < eCountEx; i++) {
 	}
 	fclose(fp);

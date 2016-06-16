@@ -5,7 +5,7 @@ class SolverHypreFlexGmres : public SolverHypre
 {
 public:
 	virtual int solve(double eps, int& maxIter);
-	virtual char* getName() { return "HYPRE Flexible GMRES"; }
+	virtual char* getName() { return (char*)"HYPRE Flexible GMRES"; }
 	void setParameter(const char* name, int val);
 private:
 	int KRYLOV_DIM = 30;
