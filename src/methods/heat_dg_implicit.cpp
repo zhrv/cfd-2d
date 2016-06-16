@@ -1092,35 +1092,6 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             solverMtx->addMatrElement(c2, c2, matrBig);
             solverMtx->addMatrElement(c2, c1, matrBig2);
         }
-        else {
-            // TODO: реализовать ГУ
-
-//            for (int i = 0; i < BASE_FUNC_COUNT; i++) {
-//                for (int j = 0; j < BASE_FUNC_COUNT; j++) {
-//                    mtxII[i][j]  = 0.0;
-//                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-//                        mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
-//                                       * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-//                    }
-//                    mtxII[i][j] *= edgeJ[iEdge];
-//                }
-//            }
-//
-//            fillMtx(matrBig, 0.0, MATR_DIM);
-//            fillMtx(matrBig2, 0.0, MATR_DIM);
-//
-//            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//            multMtxToVal(mtxTmp, n.x*0.5, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-//            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//            multMtxToVal(mtxTmp, n.y*0.5, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-//
-//            solverMtx->addMatrElement(c1, c1, matrBig);
-//
-        }
     }
 
 }
@@ -1146,9 +1117,6 @@ void HEAT_DG_IMPLICIT::calcRHS()
         if (c2 < 0) {
             memset(tmpArr, 0, sizeof(double)*MATR_DIM);
 
-            double sU[BASE_FUNC_COUNT];
-            double sQx[BASE_FUNC_COUNT];
-            double sQy[BASE_FUNC_COUNT];
             for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
                 Param p1, p2;
                 double fU  = getField(FIELD_U,  c1, edgeGP[iEdge][iGP]);
@@ -1167,7 +1135,9 @@ void HEAT_DG_IMPLICIT::calcRHS()
                 fQy = 0.5*(p1.Qt[1]+p2.Qt[1]);
 
                 for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-                    //sU[m] += ()*getF();
+                    tmpArr[ m ]                    += (fQx*n.x+fQy*n.y)*getF(m, c1, edgeGP[iEdge][iGP]);
+                    tmpArr[ m + BASE_FUNC_COUNT]   += fU*n.x*getF(m, c1, edgeGP[iEdge][iGP]);
+                    tmpArr[ m + BASE_FUNC_COUNT*2] += fU*n.y*getF(m, c1, edgeGP[iEdge][iGP]);
                 }
             }
 
