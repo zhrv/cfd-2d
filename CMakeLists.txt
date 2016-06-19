@@ -5,8 +5,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 
 # необходимо прописать путь к библиотеке MPI
-set(MPI_INCLUDE "/usr/include/mpich")
-set(MPI_LIB "/usr/lib/mpich")
+#set(MPI_INCLUDE "/usr/include/mpich")
+#set(MPI_LIB "/usr/lib/mpich")
+
+set(MPI_INCLUDE "/usr/include/openmpi")
+set(MPI_LIB "/usr/lib/openmpi/lib")
 
 set(CONTRIB_DIR "${CMAKE_SOURCE_DIR}/contrib")
 
@@ -83,11 +86,12 @@ add_executable(	cfd-2d
 		src/main.cpp
 		src/global.cpp
 		src/bnd_cond.cpp
+		src/bnd_cond_heat.cpp
 		${SOLVERS_SRC}
 		${METHODS_SRC}
 		${MESH_SRC}
 		${TINYXML_SRC}
 )
 
-target_link_libraries(cfd-2d  mpi HYPRE metis)
+target_link_libraries(cfd-2d  mpi mpi_cxx HYPRE metis)
 install(TARGETS cfd-2d RUNTIME DESTINATION bin)

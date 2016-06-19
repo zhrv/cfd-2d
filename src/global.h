@@ -322,4 +322,12 @@ extern void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI,
          double RB, double PB, double UB, double VB, double WB,
          double RE, double PE, double UE, double VE, double WE, double GAM);
 
+
+#define _SQR_(X) ((X)*(X))
+#define _MAG_(V) (_SQR_((V).x)+_SQR_((V).y))
+#define _LENGTH_(V) (sqrt(_MAG_((V))))
+
+
+
+
 #endif

@@ -5,6 +5,8 @@
 #include <cfloat>
 #include "LimiterDG.h"
 #include "MatrixSolver.h"
+#include "bnd_cond_heat.h"
+#include "MeshReader.h"
 
 #define POW_2(x) ((x)*(x))
 
@@ -27,15 +29,15 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
 
     int steadyVal = 1;
     node0 = task->FirstChild("control");
-    node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
-    node0->FirstChild("SIGMA")->ToElement()->Attribute("value", &SIGMA);
+//    node0->FirstChild("STEADY")->ToElement()->Attribute("value", &steadyVal);
+//    node0->FirstChild("SIGMA")->ToElement()->Attribute("value", &SIGMA);
     node0->FirstChild("TAU")->ToElement()->Attribute("value", &TAU);
     node0->FirstChild("TMAX")->ToElement()->Attribute("value", &TMAX);
     node0->FirstChild("STEP_MAX")->ToElement()->Attribute("value", &STEP_MAX);
     node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
     node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
 
-    const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
+//    const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
 
 
     // чтение параметров о МАТЕРИАЛАХ
@@ -53,7 +55,7 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
         node1 = matNode->FirstChild("parameters");
         node1->FirstChild("M")->ToElement()->Attribute("value", &mat.M);
         node1->FirstChild("Cp")->ToElement()->Attribute("value", &mat.Cp);
-        node1->FirstChild("K")->ToElement()->Attribute("value", &mat.K);
+//        node1->FirstChild("K")->ToElement()->Attribute("value", &mat.K);
         node1->FirstChild("ML")->ToElement()->Attribute("value", &mat.ML);
         matNode = matNode->NextSibling("material");
     }
@@ -74,6 +76,8 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
         regNode->ToElement()->Attribute("id", &reg.id);
         regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
         regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
+
+        reg.name = regNode->FirstChild("name")->ToElement()->GetText();
 
         node1 = regNode->FirstChild("parameters");
         node1->FirstChild("Vx")->ToElement()->Attribute("value", &reg.par.u);
@@ -147,54 +151,81 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
 
 
 
-    // чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
-    node0 = task->FirstChild("boundaries");
-    node0->ToElement()->Attribute("count", &bCount);
-    boundaries = new Boundary[bCount];
-    TiXmlNode* bNode = node0->FirstChild("boundCond");
-    for (int i = 0; i < bCount; i++)
-    {
-        Boundary & b = boundaries[i];
-        bNode->ToElement()->Attribute("edgeType", &b.edgeType);
-        const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-        if (strcmp(str, "BOUND_WALL") == 0)
-        {
-            b.parCount = 0;
-            b.par = NULL;
-            b.type = Boundary::BOUND_WALL;
-        }
-        else
-        if (strcmp(str, "BOUND_OUTLET") == 0)
-        {
-            b.parCount = 0;
-            b.par = NULL;
-            b.type = Boundary::BOUND_OUTLET;
-        }
-        else
-        if (strcmp(str, "BOUND_INLET") == 0)
-        {
-            b.parCount = 4;
-            b.par = new double[4];
-            b.type = Boundary::BOUND_INLET;
+//    // чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+//    node0 = task->FirstChild("boundaries");
+//    node0->ToElement()->Attribute("count", &bCount);
+//    boundaries = new Boundary[bCount];
+//    TiXmlNode* bNode = node0->FirstChild("boundCond");
+//    for (int i = 0; i < bCount; i++)
+//    {
+//        Boundary & b = boundaries[i];
+//        bNode->ToElement()->Attribute("edgeType", &b.edgeType);
+//        const char * str = bNode->FirstChild("type")->ToElement()->GetText();
+//        if (strcmp(str, "BOUND_WALL") == 0)
+//        {
+//            b.parCount = 0;
+//            b.par = NULL;
+//            b.type = Boundary::BOUND_WALL;
+//        }
+//        else
+//        if (strcmp(str, "BOUND_OUTLET") == 0)
+//        {
+//            b.parCount = 0;
+//            b.par = NULL;
+//            b.type = Boundary::BOUND_OUTLET;
+//        }
+//        else
+//        if (strcmp(str, "BOUND_INLET") == 0)
+//        {
+//            b.parCount = 4;
+//            b.par = new double[4];
+//            b.type = Boundary::BOUND_INLET;
+//
+//            node1 = bNode->FirstChild("parameters");
+//            node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
+//            node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
+//            node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
+//            node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
+//        }
+//        else {
+//            log((char*)"ERROR: unsupported boundary condition type '%s'", str);
+//            EXIT(1);
+//        }
+//
+//        bNode = bNode->NextSibling("boundCond");
+//    }
 
-            node1 = bNode->FirstChild("parameters");
-            node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
-            node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
-            node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
-            node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
+    /* Чтение параметров ГУ */
+    node0 = task->FirstChild("boundaries");
+    TiXmlNode* bNode = node0->FirstChild("boundCond");
+    while (bNode != NULL)
+    {
+        int edgeType;
+        bNode->ToElement()->Attribute("edgeType", &edgeType);
+
+        CFDBoundary * b;
+
+        try {
+            b = HeatBoundary::create(bNode, &grid);
         }
-        else {
-            log((char*)"ERROR: unsupported boundary condition type '%s'", str);
-            EXIT(1);
+        catch (Exception e) {
+            log((char*)"ERROR: %s\n", e.getMessage());
+            exit(e.getType());
         }
+
+        boundaries.push_back(b);
 
         bNode = bNode->NextSibling("boundCond");
     }
 
+    bCount = boundaries.size();
 
+    /* Чтение данных сетки. */
     node0 = task->FirstChild("mesh");
-    const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-    grid.initFromFiles((char*)fName);
+    const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+    const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+    MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+    mr->read(&grid);
 
     memAlloc();
 
@@ -229,7 +260,8 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
 
     for (int i = 0; i < grid.cCount; i++)
     {
-        Region & reg = getRegion(i);
+        Cell & c = grid.cells[i];
+        Region & reg = getRegion(c.typeName);
         convertParToCons(i, reg.par);
     }
 
@@ -526,10 +558,25 @@ Region & HEAT_DG_IMPLICIT::getRegionByCellType(int type)
     EXIT(1);
 }
 
+Region & HEAT_DG_IMPLICIT::getRegionByName(char* name)
+{
+    for (int i = 0; i < regCount; i++)
+    {
+        if (strcmp(regions[i].name.c_str(), name) == 0) return regions[i];
+    }
+    log((char*)"ERROR: unknown cell name '%d'...\n", name);
+    EXIT(1);
+}
 
 Region   &	HEAT_DG_IMPLICIT::getRegion(int iCell)
 {
-    return getRegionByCellType(grid.cells[iCell].type);
+    return getRegionByName(grid.cells[iCell].typeName);
+    //return getRegionByCellType(grid.cells[iCell].type);
+}
+
+Region & HEAT_DG_IMPLICIT::getRegion(char * name)
+{
+    return getRegionByName(name);
 }
 
 Material &	HEAT_DG_IMPLICIT::getMaterial(int iCell)
@@ -825,60 +872,60 @@ void HEAT_DG_IMPLICIT::save(int step)
 
 }
 
-int HEAT_DG_IMPLICIT::getLimitedCellsCount() {
-    int n = 0;
-    for (int iCell = 0; iCell < grid.cCount; iCell++) {
-        if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
-    }
-    return n;
-}
-
-void HEAT_DG_IMPLICIT::remediateLimCells()
-{
-//    for (int iCell = 0; iCell < grid.cCount; iCell++)
-//    {
-//        if (cellIsLim(iCell))
-//        {
-//            // пересчитываем по соседям
-//            double sRO = 0.0;
-//            double sRU = 0.0;
-//            double sRV = 0.0;
-//            double sRE = 0.0;
-//            double S = 0.0;
-//            for (int i = 0; i < grid.cells[iCell].eCount; i++)
-//            {
-//                int		iEdge = grid.cells[iCell].edgesInd[i];
-//                int		j = grid.edges[iEdge].c2;
-//                if (j == iCell)	{
-//                    //std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
-//                    j = grid.edges[iEdge].c1;
-//                }
-//                if (j >= 0) {
-//                    double  s = grid.cells[j].S;
-//                    S += s;
-//                    sRO += getField(FIELD_RO, j, grid.cells[j].c) * s;
-//                    sRU += getField(FIELD_RO, j, grid.cells[j].c) * s;
-//                    sRV += getField(FIELD_RO, j, grid.cells[j].c) * s;
-//                    sRE += getField(FIELD_RO, j, grid.cells[j].c) * s;
-//                }
-//            }
-//            if (S >= TAU*TAU) {
-//                memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-//                memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-//                memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-//                memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-//
-//                ro[iCell][0] = sRO / S;
-//                ru[iCell][0] = sRU / S;
-//                rv[iCell][0] = sRV / S;
-//                re[iCell][0] = sRE / S;
-//            }
-//            // после 0x20 итераций пробуем вернуть ячейку в счет
-//            grid.cells[iCell].flag += 0x010000;
-//            if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
-//        }
+//int HEAT_DG_IMPLICIT::getLimitedCellsCount() {
+//    int n = 0;
+//    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+//        if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
 //    }
-}
+//    return n;
+//}
+//
+//void HEAT_DG_IMPLICIT::remediateLimCells()
+//{
+////    for (int iCell = 0; iCell < grid.cCount; iCell++)
+////    {
+////        if (cellIsLim(iCell))
+////        {
+////            // пересчитываем по соседям
+////            double sRO = 0.0;
+////            double sRU = 0.0;
+////            double sRV = 0.0;
+////            double sRE = 0.0;
+////            double S = 0.0;
+////            for (int i = 0; i < grid.cells[iCell].eCount; i++)
+////            {
+////                int		iEdge = grid.cells[iCell].edgesInd[i];
+////                int		j = grid.edges[iEdge].c2;
+////                if (j == iCell)	{
+////                    //std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+////                    j = grid.edges[iEdge].c1;
+////                }
+////                if (j >= 0) {
+////                    double  s = grid.cells[j].S;
+////                    S += s;
+////                    sRO += getField(FIELD_RO, j, grid.cells[j].c) * s;
+////                    sRU += getField(FIELD_RO, j, grid.cells[j].c) * s;
+////                    sRV += getField(FIELD_RO, j, grid.cells[j].c) * s;
+////                    sRE += getField(FIELD_RO, j, grid.cells[j].c) * s;
+////                }
+////            }
+////            if (S >= TAU*TAU) {
+////                memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+////                memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+////                memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+////                memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
+////
+////                ro[iCell][0] = sRO / S;
+////                ru[iCell][0] = sRU / S;
+////                rv[iCell][0] = sRV / S;
+////                re[iCell][0] = sRE / S;
+////            }
+////            // после 0x20 итераций пробуем вернуть ячейку в счет
+////            grid.cells[iCell].flag += 0x010000;
+////            if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
+////        }
+////    }
+//}
 
 
 void HEAT_DG_IMPLICIT::decCFL()
@@ -900,38 +947,38 @@ void HEAT_DG_IMPLICIT::incCFL()
     }
 }
 
-double **HEAT_DG_IMPLICIT::allocMtx4()
-{
-    double		**tempMtx4 = new double*[4];
-    for (int i = 0; i < 4; ++i) tempMtx4[i] = new double[4];
-    return tempMtx4;
-}
-void   HEAT_DG_IMPLICIT::freeMtx4(double **mtx4)
-{
-    for (int i = 0; i < 4; ++i)
-        delete[] mtx4[i];
-    delete[] mtx4;
-}
-void HEAT_DG_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
-{
-    double sum;
-    for (int i = 0; i < 4; ++i)
-    {
-        for (int j = 0; j < 4; ++j)
-        {
-            sum = 0;
-            for (int k = 0; k < 4; ++k)
-                sum += srcA4[i][k] * srcB4[k][j];
-            dst4[i][j] = sum;
-        }
-    }
-}
-void HEAT_DG_IMPLICIT::clearMtx4(double **mtx4)
-{
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            mtx4[i][j] = 0;
-}
+//double **HEAT_DG_IMPLICIT::allocMtx4()
+//{
+//    double		**tempMtx4 = new double*[4];
+//    for (int i = 0; i < 4; ++i) tempMtx4[i] = new double[4];
+//    return tempMtx4;
+//}
+//void   HEAT_DG_IMPLICIT::freeMtx4(double **mtx4)
+//{
+//    for (int i = 0; i < 4; ++i)
+//        delete[] mtx4[i];
+//    delete[] mtx4;
+//}
+//void HEAT_DG_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
+//{
+//    double sum;
+//    for (int i = 0; i < 4; ++i)
+//    {
+//        for (int j = 0; j < 4; ++j)
+//        {
+//            sum = 0;
+//            for (int k = 0; k < 4; ++k)
+//                sum += srcA4[i][k] * srcB4[k][j];
+//            dst4[i][j] = sum;
+//        }
+//    }
+//}
+//void HEAT_DG_IMPLICIT::clearMtx4(double **mtx4)
+//{
+//    for (int i = 0; i < 4; ++i)
+//        for (int j = 0; j < 4; ++j)
+//            mtx4[i][j] = 0;
+//}
 
 void HEAT_DG_IMPLICIT::multMtxToVal(double **dst, double x, int N)
 {
@@ -1331,53 +1378,6 @@ void HEAT_DG_IMPLICIT::run()
                 solverErr = 0;
             }
         }
-    }
-}
-
-void HEAT_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
-{
-    int iBound = -1;
-    for (int i = 0; i < bCount; i++)
-    {
-        if (grid.edges[iEdge].type == boundaries[i].edgeType)
-        {
-            iBound = i;
-            break;
-        }
-    }
-    if (iBound < 0)
-    {
-        log((char*)"ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
-        EXIT(1);
-    }
-    Boundary& b = boundaries[iBound];
-    int c1 = grid.edges[iEdge].c1;
-    Material& m = getMaterial(c1);
-    switch (b.type)
-    {
-        case Boundary::BOUND_INLET:
-            pR.T = b.par[0];		//!< температура
-            pR.p = b.par[1];		//!< давление
-            pR.u = b.par[2];		//!< первая компонента вектора скорости
-            pR.v = b.par[3];		//!< вторая компонента вектора скорости
-
-            m.URS(pR, 2);
-            m.URS(pR, 1);
-            break;
-
-        case Boundary::BOUND_OUTLET:
-            pR = pL;
-            break;
-
-        case Boundary::BOUND_WALL:
-            pR = pL;
-            double Un = pL.u*grid.edges[iEdge].n.x + pL.v*grid.edges[iEdge].n.y;
-            Vector V;
-            V.x = grid.edges[iEdge].n.x*Un*2.0;
-            V.y = grid.edges[iEdge].n.y*Un*2.0;
-            pR.u = pL.u - V.x;
-            pR.v = pL.v - V.y;
-            break;
     }
 }
 

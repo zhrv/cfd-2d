@@ -35,6 +35,8 @@ public:
     void calcTimeStep();
 
     Region & getRegionByCellType(int type);
+    Region & getRegionByName(char* name);
+    Region & getRegion(char * name);
 
     Region   &	getRegion(int iCell);
     Material &	getMaterial(int iCell);
@@ -52,10 +54,10 @@ public:
 
     void save(int step);
 
-    inline void setCellFlagLim(int iCell){ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
-    inline bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
-    int getLimitedCellsCount();
-    void remediateLimCells();
+//    inline void setCellFlagLim(int iCell){ grid.cells[iCell].flag |= CELL_FLAG_LIM; }
+//    inline bool cellIsLim(int iCell)		{ return (grid.cells[iCell].flag & CELL_FLAG_LIM) > 0; }
+//    int getLimitedCellsCount();
+//    void remediateLimCells();
 
     void incCFL();
     void decCFL();
@@ -65,12 +67,12 @@ public:
     void calcMatrFlux();		//!< Вычисляем потоковые величины
     void calcRHS();				//!< Вычисляем столбец правых членов
 
-    void calcLiftForce();
+//    void calcLiftForce();
 
-    double** allocMtx4();
-    void freeMtx4(double **mtx4);
-    void multMtx4(double **dst4, double **srcA4, double **srcB4);
-    void clearMtx4(double **mtx4);
+//    double** allocMtx4();
+//    void freeMtx4(double **mtx4);
+//    void multMtx4(double **dst4, double **srcA4, double **srcB4);
+//    void clearMtx4(double **mtx4);
     void multMtxToVal(double **dst, double x, int N);
     void multMtxToVec(double *dst, double **mtx, double *vec, int N);
     void fillMtx(double** dst, double x, int N);
@@ -90,7 +92,7 @@ public:
 //    void consToPar(double fRO, double fRU, double fRV, double fRE, Param& par);
 //
 //    void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
-    void boundaryCond(int iEdge, Param& pL, Param& pR);
+//    void boundaryCond(int iEdge, Param& pL, Param& pR);
 
     void addSmallMatrToBigMatr(double **mB, double **mS, int i, int j);
 
@@ -124,7 +126,7 @@ private:
     int				bCount;
     Material	   *materials;
     Region		   *regions;
-    Boundary	   *boundaries;
+    CFDBoundaries	boundaries;
 
 
     double			***fields;
