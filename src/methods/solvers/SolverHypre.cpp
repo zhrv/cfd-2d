@@ -128,20 +128,20 @@ void SolverHypre::setParameter(const char* name, int val)
 void SolverHypre::printToFile(const char* fileName)
 {
 	HYPRE_Int n = local_size;
-	HYPRE_Int nc = 1;
+	HYPRE_Int nc = n;
 	double * x = new double[n];
 	HYPRE_Int * cols = new HYPRE_Int[n];
 	FILE * fp = fopen(fileName, "w");
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < nc; i++) {
 		cols[i] = ilower + i;
 	}
 
 	for (HYPRE_Int row = 0; row < n; row++) {
-		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, &row, x);
-		for (HYPRE_Int i = 0; i < nc; i++) {
-			fprintf(fp, "%25.16e  ", x[i]);
-		}
-		fprintf(fp, "\n");
+		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, cols, x);
+        for (HYPRE_Int i = 0; i < nc; i++) {
+            fprintf(fp, "%25.16e  ", x[i]);
+        }
+        fprintf(fp, "\n");
 	}
 	fprintf(fp, "\n\n=============================================================================================\n\n\n");
 	HYPRE_IJVectorGetValues(xx, local_size, cols, x);

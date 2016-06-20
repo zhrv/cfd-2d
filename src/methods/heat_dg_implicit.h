@@ -204,7 +204,7 @@ protected:
     const static int FIELD_COUNT = 3;
     const static int FIELD_U  = 0;
     const static int FIELD_QX = 1;
-    const static int FIELD_QY = 1;
+    const static int FIELD_QY = 2;
 
     const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
 

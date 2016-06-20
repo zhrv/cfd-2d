@@ -37,6 +37,7 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
     node0->FirstChild("FILE_OUTPUT_STEP")->ToElement()->Attribute("value", &FILE_SAVE_STEP);
     node0->FirstChild("LOG_OUTPUT_STEP")->ToElement()->Attribute("value", &PRINT_STEP);
 
+    STEADY = false;
 //    const char * limiterName = node0->FirstChild("LIMITER")->ToElement()->Attribute("value");
 
 
@@ -226,6 +227,52 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
     const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
     MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
     mr->read(&grid);
+
+    /* Определение ГУ для каждого ребра. */
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge & e = grid.edges[iEdge];
+        if (e.type == Edge::TYPE_INNER) {
+            e.bnd = NULL;
+            continue;
+        }
+        if (e.type == Edge::TYPE_NAMED) {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (strcmp(e.typeName, boundaries[i]->name) == 0)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log((char*)"ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+
+            e.bnd = boundaries[iBound];
+        }
+        else {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (e.type == boundaries[i]->edgeType)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log((char*)"ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+
+            e.bnd = boundaries[iBound];
+        }
+    }
+
 
     memAlloc();
 
@@ -475,7 +522,7 @@ void HEAT_DG_IMPLICIT::memAlloc()
     tmpCFL = new double[n];
     tmpArrInt = new int[n];
 
-    fields = new double**[4];
+    fields = new double**[3];
     fields[FIELD_U]  = u;
     fields[FIELD_QX] = qx;
     fields[FIELD_QY] = qy;
@@ -791,74 +838,15 @@ void HEAT_DG_IMPLICIT::save(int step)
     for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
     fprintf(fp, "\n");
 
-    fprintf(fp, "CELL_DATA %d\nSCALARS Density float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    fprintf(fp, "CELL_DATA %d\nSCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
     for (int i = 0; i < grid.cCount; i++)
     {
         Param p;
         convertConsToPar(i, p);
-        fprintf(fp, "%25.16f ", p.r*R_);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        fprintf(fp, "%25.16f ", p.p*P_);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        Material &mat = getMaterial(i);
-        mat.URS(p, 1);
         fprintf(fp, "%25.16f ", p.T*T_);
         if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
     }
 
-    fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        fprintf(fp, "%25.16f ", sqrt(p.u*p.u + p.v*p.v) / p.cz);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "VECTORS Velosity float\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        fprintf(fp, "%25.16f %25.16f %25.16f ", p.u*U_, p.v*U_, 0.0);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "SCALARS Total_energy float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        fprintf(fp, "%25.16f ", p.E*E_);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Material &mat = getMaterial(i);
-        double gam = mat.getGamma();
-        double agam = gam - 1.0;
-        Param p;
-        convertConsToPar(i, p);
-        double M2 = (p.u*p.u + p.v*p.v) / (p.cz*p.cz);
-        fprintf(fp, "%25.16e ", p.p*::pow(1.0 + 0.5*M2*agam, gam / agam)*P_);
-        if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
 
     fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
     for (int i = 0; i < grid.cCount; i++)
@@ -1017,18 +1005,18 @@ void HEAT_DG_IMPLICIT::fillMtx(double** dst, double x, int N)
 
 void HEAT_DG_IMPLICIT::calcMatrWithTau()
 {
-    for (int iCell = 0; iCell < grid.cCount; iCell++) {
-
-        fillMtx(matrBig, 0.0, MATR_DIM);
-
-
-        //for (int ii = 0; ii < FIELD_COUNT; ii++) {
-        //	addSmallMatrToBigMatr(matrBig, matrA[iCell], ii, ii);
-        //}
-
-        solverMtx->addMatrElement(iCell, iCell, matrBig);
-
-    }
+//    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+//
+//        fillMtx(matrBig, 0.0, MATR_DIM);
+//
+//
+//        //for (int ii = 0; ii < FIELD_COUNT; ii++) {
+//        //	addSmallMatrToBigMatr(matrBig, matrA[iCell], ii, ii);
+//        //}
+//
+//        solverMtx->addMatrElement(iCell, iCell, matrBig);
+//
+//    }
 }
 
 void HEAT_DG_IMPLICIT::calcIntegral()
@@ -1242,24 +1230,23 @@ void HEAT_DG_IMPLICIT::run()
         /* Заполняем правую часть */
         calcRHS();
 
-        /* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
-        if (STEADY) {
-            double minTau = DBL_MAX;
-            for (int iCell = 0; iCell < grid.cCount; iCell++)
-            {
-                //Param p;
-                //convertConsToPar(iCell, p);
-                cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
-                if (cTau[iCell] < minTau) minTau = cTau[iCell];
-            }
-            //log("MIN_TAU = %25.15e\n", minTau); 
-        }
+//        /* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
+//        if (STEADY) {
+//            double minTau = DBL_MAX;
+//            for (int iCell = 0; iCell < grid.cCount; iCell++)
+//            {
+//                //Param p;
+//                //convertConsToPar(iCell, p);
+//                cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
+//                if (cTau[iCell] < minTau) minTau = cTau[iCell];
+//            }
+//            //log("MIN_TAU = %25.15e\n", minTau);
+//        }
 
         /* Заполняем элементы матрицы */
         calcMatrWithTau();		// вычисляем матрицы перед производной по времени
         calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
         calcMatrFlux();			// Вычисляем потоковые величины 
-
 
 
         /* Решаем СЛАУ */
@@ -1268,6 +1255,7 @@ void HEAT_DG_IMPLICIT::run()
 
         solverErr = solverMtx->solve(eps, maxIter);
 
+        solverMtx->printToFile("matr.txt");
         if (solverErr == MatrixSolver::RESULT_OK) {
 
             //if (SMOOTHING) smoothingDelta(solverMtx->x);
