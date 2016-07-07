@@ -32,6 +32,7 @@ public:
 	virtual void createMatrElement(int i, int j);
 	virtual void initCSR();
 
+	virtual void setX(double*);
 	virtual int solve(double eps, int& maxIter) = 0;
 	virtual char* getName() = 0;
 

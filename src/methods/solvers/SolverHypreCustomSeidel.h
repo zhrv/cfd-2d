@@ -10,6 +10,8 @@ public:
 	virtual void init(int cellsCount, int blockDimension);
 	virtual void zero();
 
+	virtual void setX(double* x);
+
 	virtual int solve(double eps, int& maxIter);
 	virtual char* getName() { return (char*)"Seidel based on the HYPRE structures"; }
 

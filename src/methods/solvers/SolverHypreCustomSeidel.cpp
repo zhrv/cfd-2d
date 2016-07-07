@@ -17,6 +17,11 @@ SolverHypreCustomSeidel::~SolverHypreCustomSeidel()
 }
 
 
+void SolverHypreCustomSeidel::setX(double* x)
+{
+	MatrixSolver::setX(x);
+}
+
 int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 {
 	int result = MatrixSolver::RESULT_OK;
@@ -54,11 +59,11 @@ int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 					tmp += values[k] * x[cols[k]];
 				}
 			}
-			if (fabs(aii) <= eps*eps)
-			{
-				log((char*)"ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
-				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
-			}
+//			if (fabs(aii) <= eps*eps)
+//			{
+//				log((char*)"ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
+//				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
+//			}
 			x[i] = (-tmp + b[i]) / aii;
 		}
 		err = 0.0;

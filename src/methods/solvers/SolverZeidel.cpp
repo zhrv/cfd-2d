@@ -28,7 +28,7 @@ int SolverZeidel::solve(double eps, int& maxIter)
 			}
 			if (fabs(aii) <= eps*eps)
 			{
-				log((char*)"ZEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
+				log((char*)"SEIDEL_SOLVER: error: a[%d, %d] = 0\n", i, i);
 				return MatrixSolver::RESULT_ERR_ZERO_DIAG;
 			}
 			x[i] = (-tmp + b[i]) / aii;
@@ -47,7 +47,7 @@ int SolverZeidel::solve(double eps, int& maxIter)
 	}
 	if (step >= maxIter)
 	{
-		log((char*)"ZEIDEL_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
+		log((char*)"SEIDEL_SOLVER: (warning) maximum iterations done (%d); error: %e\n", step, err);
 		maxIter = step;
 		return MatrixSolver::RESULT_ERR_MAX_ITER;
 	}

@@ -1064,7 +1064,7 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
 
             for (int i = 0; i < BASE_FUNC_COUNT; i++) {
                 for (int j = 0; j < BASE_FUNC_COUNT; j++) {
-                    mtxII[i][j]  = 0.0;
+                    mtxII[i][j] = 0.0;
                     mtxKI[i][j] = 0.0;
                     for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
                         mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
@@ -1230,24 +1230,20 @@ void HEAT_DG_IMPLICIT::run()
         /* Заполняем правую часть */
         calcRHS();
 
-//        /* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
-//        if (STEADY) {
-//            double minTau = DBL_MAX;
-//            for (int iCell = 0; iCell < grid.cCount; iCell++)
-//            {
-//                //Param p;
-//                //convertConsToPar(iCell, p);
-//                cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
-//                if (cTau[iCell] < minTau) minTau = cTau[iCell];
-//            }
-//            //log("MIN_TAU = %25.15e\n", minTau);
-//        }
-
         /* Заполняем элементы матрицы */
-        calcMatrWithTau();		// вычисляем матрицы перед производной по времени
+//        calcMatrWithTau();		// вычисляем матрицы перед производной по времени
         calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-        calcMatrFlux();			// Вычисляем потоковые величины 
+        calcMatrFlux();			// Вычисляем потоковые величины
 
+        /* Задаем начальное приближение */
+        for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+        {
+            for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
+                for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
+                    solverMtx->x[ind++] = fields[iFld][cellIndex][iF];
+                }
+            }
+        }
 
         /* Решаем СЛАУ */
         int maxIter = SOLVER_ITER;
@@ -1267,7 +1263,7 @@ void HEAT_DG_IMPLICIT::run()
                 //if (cellIsLim(cellIndex))	continue;
                 for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
                     for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
-                        fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
+                        fields[iFld][cellIndex][iF] = solverMtx->x[ind++];
                     }
                 }
             }

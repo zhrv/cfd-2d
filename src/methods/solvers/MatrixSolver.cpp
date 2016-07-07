@@ -126,6 +126,11 @@ void MatrixSolver::addRightElement(int i, double* vectDim)
 	}
 }
 
+void MatrixSolver::setX(double* ax)
+{
+	memcpy(x, ax, sizeof(double)*a->n);
+}
+
 void MatrixSolver::printToFile(const char* fileName)
 {
 	a->printToFile(fileName);

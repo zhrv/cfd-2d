@@ -1690,13 +1690,13 @@ void FEM_DG_IMPLICIT::run()
 				cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
 				if (cTau[iCell] < minTau) minTau = cTau[iCell];
 			}
-			//log("MIN_TAU = %25.15e\n", minTau); 
+			//log("MIN_TAU = %25.15e\n", minTau);
 		}
 
 		/* Заполняем элементы матрицы */
 		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
 		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-		calcMatrFlux();			// Вычисляем потоковые величины 
+		calcMatrFlux();			// Вычисляем потоковые величины
 
 
 

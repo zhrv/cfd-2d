@@ -124,6 +124,26 @@ void SolverHypre::setParameter(const char* name, int val)
 	}
 }
 
+void SolverHypre::setX(double* x)
+{
+    {
+        int    *rows;
+
+        rows = (int*)calloc(local_size, sizeof(int));
+
+        for (int i = 0; i < local_size; i++)
+        {
+            rows[i] = ilower + i;
+            x[i] = 0.0;
+        }
+
+
+        HYPRE_IJVectorSetValues(xx, local_size, (HYPRE_Int*)rows, x);
+
+        free(rows);
+    }
+
+}
 
 void SolverHypre::printToFile(const char* fileName)
 {
@@ -136,17 +156,17 @@ void SolverHypre::printToFile(const char* fileName)
 		cols[i] = ilower + i;
 	}
 
-	for (HYPRE_Int row = 0; row < n; row++) {
-		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, cols, x);
-        for (HYPRE_Int i = 0; i < nc; i++) {
-            fprintf(fp, "%25.16e  ", x[i]);
-        }
-        fprintf(fp, "\n");
-	}
+//	for (HYPRE_Int row = 0; row < n; row++) {
+//		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, cols, x);
+//        for (HYPRE_Int i = 0; i < nc; i++) {
+//            fprintf(fp, "%25.16e  ", x[i]);
+//        }
+//        fprintf(fp, "\n");
+//	}
 	fprintf(fp, "\n\n=============================================================================================\n\n\n");
-	HYPRE_IJVectorGetValues(xx, local_size, cols, x);
+	HYPRE_IJVectorGetValues(bb, local_size, cols, x);
 	for (int i = 0; i < n; i++) {
-		fprintf(fp, "%25.16e  ", x[i]);
+		fprintf(fp, "%25.16e  \n", x[i]);
 	}
 
 	fclose(fp);

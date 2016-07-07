@@ -11,6 +11,8 @@ public:
 
 	virtual void zero();
 
+	virtual void setX(double* x);
+
 	virtual void setMatrElement(int i, int j, double** matrDim);
 	virtual void setRightElement(int i, double* vectDim);
 	virtual void addMatrElement(int i, int j, double** matrDim);
