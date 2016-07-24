@@ -63,7 +63,6 @@ public:
     void decCFL();
 
     void calcIntegral();		//!< вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-    void calcMatrWithTau();		//!< вычисляем матрицы перед производной по времени
     void calcMatrFlux();		//!< Вычисляем потоковые величины
     void calcRHS();				//!< Вычисляем столбец правых членов
 

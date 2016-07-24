@@ -17,5 +17,7 @@ public:
 
 	virtual void addRightElement(int i, double* vectDim);
 	virtual void setRightElement(int i, double* vectDim);
+
+	void printToFile(const char* fileName);
 };
 

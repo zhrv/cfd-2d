@@ -72,7 +72,7 @@ void HeatBndConst::run(int iEdge, Param& pL, Param& pR)
     double h = 2.0*_LENGTH_(ce);
     pR.T = par[0];
     // TODO calc grad(T)
-    pR.Qt[0] = pR.Qt[1] = (pR.T-pL.T)/(h*(n.x+n.y));
+    pR.Qt[0] = pR.Qt[1] = 0;//(pR.T-pL.T)/(h*(n.x+n.y));
 
 }
 

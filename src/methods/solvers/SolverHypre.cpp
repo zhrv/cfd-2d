@@ -156,13 +156,13 @@ void SolverHypre::printToFile(const char* fileName)
 		cols[i] = ilower + i;
 	}
 
-//	for (HYPRE_Int row = 0; row < n; row++) {
-//		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, cols, x);
-//        for (HYPRE_Int i = 0; i < nc; i++) {
-//            fprintf(fp, "%25.16e  ", x[i]);
-//        }
-//        fprintf(fp, "\n");
-//	}
+	for (HYPRE_Int row = 0; row < n; row++) {
+		HYPRE_IJMatrixGetValues(A, 1, &nc, &row, cols, x);
+        for (HYPRE_Int i = 0; i < nc; i++) {
+            fprintf(fp, "%25.16e  ", x[i]);
+        }
+        fprintf(fp, "\n");
+	}
 	fprintf(fp, "\n\n=============================================================================================\n\n\n");
 	HYPRE_IJVectorGetValues(bb, local_size, cols, x);
 	for (int i = 0; i < n; i++) {

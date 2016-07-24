@@ -101,6 +101,11 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
 
     maxU = sqrt(maxU);
 
+    //TODO
+    maxR = 1.0;
+    maxP = 1.0;
+    maxT = 1.0;
+
     // параметры обезразмеривания
     L_ = 1.0;
     R_ = maxR;					// характерная плотность = начальная плотность
@@ -332,12 +337,14 @@ void HEAT_DG_IMPLICIT::calcMassMatr()
                 for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
                     A[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
                                * getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
-                    Bx[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
-                               * getDfDx(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
-                    By[i][j] += cellGW[iCell][iGP] * getF(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
-                               * getDfDy(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
+                    Bx[i][j] += cellGW[iCell][iGP] * getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
+                               * getDfDx(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
+                    By[i][j] += cellGW[iCell][iGP] * getF(j, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
+                               * getDfDy(i, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y);
                 }
-                A[i][j] *= cellJ[iCell];
+                A[i][j]  *= cellJ[iCell];
+                Bx[i][j] *= cellJ[iCell];
+                By[i][j] *= cellJ[iCell];
             }
         }
     }
@@ -1003,22 +1010,6 @@ void HEAT_DG_IMPLICIT::fillMtx(double** dst, double x, int N)
 }
 
 
-void HEAT_DG_IMPLICIT::calcMatrWithTau()
-{
-//    for (int iCell = 0; iCell < grid.cCount; iCell++) {
-//
-//        fillMtx(matrBig, 0.0, MATR_DIM);
-//
-//
-//        //for (int ii = 0; ii < FIELD_COUNT; ii++) {
-//        //	addSmallMatrToBigMatr(matrBig, matrA[iCell], ii, ii);
-//        //}
-//
-//        solverMtx->addMatrElement(iCell, iCell, matrBig);
-//
-//    }
-}
-
 void HEAT_DG_IMPLICIT::calcIntegral()
 {
     for (int iCell = 0; iCell < grid.cCount; iCell++) {
@@ -1062,6 +1053,8 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
 
         if (c2 >= 0) {
 
+            /* C1 */
+
             for (int i = 0; i < BASE_FUNC_COUNT; i++) {
                 for (int j = 0; j < BASE_FUNC_COUNT; j++) {
                     mtxII[i][j] = 0.0;
@@ -1069,8 +1062,8 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
                     for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
                         mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
                                                           * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-                        mtxKI[i][j] += edgeGW[iEdge][iGP] * getF(i, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
-                                                          * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+                        mtxKI[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
+                                                          * getF(j, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
 
                     }
                     mtxII[i][j] *= edgeJ[iEdge];
@@ -1085,23 +1078,45 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             multMtxToVal(mtxTmp, n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
+
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
+
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
+
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
 
+
             solverMtx->addMatrElement(c1, c1, matrBig);
             solverMtx->addMatrElement(c1, c2, matrBig2);
 
+
+            /* C2 */
+
+            for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+                for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+                    mtxII[i][j] = 0.0;
+                    mtxKI[i][j] = 0.0;
+                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                        mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
+                                                          * getF(j, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+                        mtxKI[i][j] += edgeGW[iEdge][iGP] * getF(i, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
+                                                          * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+
+                    }
+                    mtxII[i][j] *= edgeJ[iEdge];
+                    mtxKI[i][j] *= edgeJ[iEdge];
+                }
+            }
 
             fillMtx(matrBig, 0.0, MATR_DIM);
             fillMtx(matrBig2, 0.0, MATR_DIM);
@@ -1110,22 +1125,54 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             multMtxToVal(mtxTmp, -n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
+
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
+
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
+
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
 
+
             solverMtx->addMatrElement(c2, c2, matrBig);
             solverMtx->addMatrElement(c2, c1, matrBig2);
+        }
+        else {
+            for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+                for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+                    mtxII[i][j] = 0.0;
+                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                        mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
+                                       * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+                    }
+                    mtxII[i][j] *= edgeJ[iEdge];
+                }
+            }
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+
+            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+            multMtxToVal(mtxTmp, 0.5*n.x, BASE_FUNC_COUNT);
+            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
+            addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
+
+            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+            multMtxToVal(mtxTmp, 0.5*n.y, BASE_FUNC_COUNT);
+            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
+            addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
+
+
+            solverMtx->addMatrElement(c1, c1, matrBig);
+
         }
     }
 
@@ -1158,22 +1205,27 @@ void HEAT_DG_IMPLICIT::calcRHS()
                 double fQx = getField(FIELD_QX, c1, edgeGP[iEdge][iGP]);
                 double fQy = getField(FIELD_QY, c1, edgeGP[iEdge][iGP]);
 
-                p1.T = fU;
+                p1.T     = fU;
                 p1.Qt[0] = fQx;
                 p1.Qt[1] = fQy;
 
 
                 edge.bnd->run(iEdge, p1, p2);
 
-                fU  = 0.5*(p1.T+p2.T);
-                fQx = 0.5*(p1.Qt[0]+p2.Qt[0]);
-                fQy = 0.5*(p1.Qt[1]+p2.Qt[1]);
+                fU  = 0.5*p2.T;
+                fQx = 0.5*p2.Qt[0];
+                fQy = 0.5*p2.Qt[1];
 
                 for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-                    tmpArr[ m ]                    += (fQx*n.x+fQy*n.y)*getF(m, c1, edgeGP[iEdge][iGP]);
-                    tmpArr[ m + BASE_FUNC_COUNT]   += fU*n.x*getF(m, c1, edgeGP[iEdge][iGP]);
-                    tmpArr[ m + BASE_FUNC_COUNT*2] += fU*n.y*getF(m, c1, edgeGP[iEdge][iGP]);
+                    double fw = getF(m, c1, edgeGP[iEdge][iGP])*edgeGW[iEdge][iGP];
+                    tmpArr[ m ]                    -= (fQx*n.x+fQy*n.y)*fw;
+                    tmpArr[ m + BASE_FUNC_COUNT]   -= fU*n.x*fw;
+                    tmpArr[ m + BASE_FUNC_COUNT*2] -= fU*n.y*fw;
                 }
+            }
+
+            for (int i = 0; i < MATR_DIM; i++) {
+                tmpArr[i] *= edgeJ[iEdge];
             }
 
             solverMtx->addRightElement(c1, tmpArr);
@@ -1251,14 +1303,14 @@ void HEAT_DG_IMPLICIT::run()
 
         solverErr = solverMtx->solve(eps, maxIter);
 
-        solverMtx->printToFile("matr.txt");
+        //solverMtx->printToFile("matr.txt");
         if (solverErr == MatrixSolver::RESULT_OK) {
 
             //if (SMOOTHING) smoothingDelta(solverMtx->x);
 
             for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
             {
-                Cell &cell = grid.cells[cellIndex];
+                //Cell &cell = grid.cells[cellIndex];
 
                 //if (cellIsLim(cellIndex))	continue;
                 for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
@@ -1337,13 +1389,7 @@ void HEAT_DG_IMPLICIT::run()
             }
             if (step % PRINT_STEP == 0)
             {
-                if (!STEADY) {
-
-                    log((char*)"step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
-                }
-                else {
-                    log((char*)"step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
-                }
+                log((char*)"step: %6d  time step: %.16f\tmax iter: %5d\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, timeEnd - timeStart, totalCalcTime);
             }
 
             if (STEADY && (step % stepCFL == 0)) incCFL();
