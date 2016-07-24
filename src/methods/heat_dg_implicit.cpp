@@ -645,12 +645,18 @@ void HEAT_DG_IMPLICIT::convertParToCons(int iCell, Param & par)
     memset(qx[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
     memset(qy[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
     u[iCell][0] = par.T;
+    qx[iCell][0] = par.Qt[0];
+    qy[iCell][1] = par.Qt[1];
 }
 
 void HEAT_DG_IMPLICIT::convertConsToPar(int iCell, Param & par) {
     double fT = getField(FIELD_U, iCell, grid.cells[iCell].c);
+    double fQx = getField(FIELD_QX, iCell, grid.cells[iCell].c);
+    double fQy = getField(FIELD_QY, iCell, grid.cells[iCell].c);
 
     par.T = fT;
+    par.Qt[0] = fQx;
+    par.Qt[1] = fQy;
     par.u = 0;
     par.v = 0;
     par.E = 0;
@@ -678,16 +684,16 @@ double HEAT_DG_IMPLICIT::getField(int fldId, int iCell, Point p)
     return getField(fldId, iCell, p.x, p.y);
 }
 
-void HEAT_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y)
+void HEAT_DG_IMPLICIT::getFields(double &fT, double &fQX, double &fQY, int iCell, double x, double y)
 {
-    fRO = getField(FIELD_U, iCell, x, y);
-    fRU = getField(FIELD_QX, iCell, x, y);
-    fRV = getField(FIELD_QY, iCell, x, y);
+    fT = getField(FIELD_U, iCell, x, y);
+    fQX = getField(FIELD_QX, iCell, x, y);
+    fQY = getField(FIELD_QY, iCell, x, y);
 }
 
-void HEAT_DG_IMPLICIT::getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p)
+void HEAT_DG_IMPLICIT::getFields(double &fT, double &fQX, double &fQY, int iCell, Point p)
 {
-    getFields(fRO, fRU, fRV, fRE, iCell, p.x, p.y);
+    getFields(fT, fQX, fQY, iCell, p.x, p.y);
 }
 
 double HEAT_DG_IMPLICIT::getF(int id, int iCell, Point p)
@@ -867,62 +873,6 @@ void HEAT_DG_IMPLICIT::save(int step)
 
 }
 
-//int HEAT_DG_IMPLICIT::getLimitedCellsCount() {
-//    int n = 0;
-//    for (int iCell = 0; iCell < grid.cCount; iCell++) {
-//        if ((grid.cells[iCell].flag & CELL_FLAG_LIM) > 0) n++;
-//    }
-//    return n;
-//}
-//
-//void HEAT_DG_IMPLICIT::remediateLimCells()
-//{
-////    for (int iCell = 0; iCell < grid.cCount; iCell++)
-////    {
-////        if (cellIsLim(iCell))
-////        {
-////            // пересчитываем по соседям
-////            double sRO = 0.0;
-////            double sRU = 0.0;
-////            double sRV = 0.0;
-////            double sRE = 0.0;
-////            double S = 0.0;
-////            for (int i = 0; i < grid.cells[iCell].eCount; i++)
-////            {
-////                int		iEdge = grid.cells[iCell].edgesInd[i];
-////                int		j = grid.edges[iEdge].c2;
-////                if (j == iCell)	{
-////                    //std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
-////                    j = grid.edges[iEdge].c1;
-////                }
-////                if (j >= 0) {
-////                    double  s = grid.cells[j].S;
-////                    S += s;
-////                    sRO += getField(FIELD_RO, j, grid.cells[j].c) * s;
-////                    sRU += getField(FIELD_RO, j, grid.cells[j].c) * s;
-////                    sRV += getField(FIELD_RO, j, grid.cells[j].c) * s;
-////                    sRE += getField(FIELD_RO, j, grid.cells[j].c) * s;
-////                }
-////            }
-////            if (S >= TAU*TAU) {
-////                memset(ro[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-////                memset(ru[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-////                memset(rv[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-////                memset(re[iCell], 0, sizeof(double)*BASE_FUNC_COUNT);
-////
-////                ro[iCell][0] = sRO / S;
-////                ru[iCell][0] = sRU / S;
-////                rv[iCell][0] = sRV / S;
-////                re[iCell][0] = sRE / S;
-////            }
-////            // после 0x20 итераций пробуем вернуть ячейку в счет
-////            grid.cells[iCell].flag += 0x010000;
-////            if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
-////        }
-////    }
-//}
-
-
 void HEAT_DG_IMPLICIT::decCFL()
 {
     if (CFL > 0.01) {
@@ -941,39 +891,6 @@ void HEAT_DG_IMPLICIT::incCFL()
         log((char*)" CFL Number has been increased : %25.25e \n", CFL);
     }
 }
-
-//double **HEAT_DG_IMPLICIT::allocMtx4()
-//{
-//    double		**tempMtx4 = new double*[4];
-//    for (int i = 0; i < 4; ++i) tempMtx4[i] = new double[4];
-//    return tempMtx4;
-//}
-//void   HEAT_DG_IMPLICIT::freeMtx4(double **mtx4)
-//{
-//    for (int i = 0; i < 4; ++i)
-//        delete[] mtx4[i];
-//    delete[] mtx4;
-//}
-//void HEAT_DG_IMPLICIT::multMtx4(double **dst4, double **srcA4, double **srcB4)
-//{
-//    double sum;
-//    for (int i = 0; i < 4; ++i)
-//    {
-//        for (int j = 0; j < 4; ++j)
-//        {
-//            sum = 0;
-//            for (int k = 0; k < 4; ++k)
-//                sum += srcA4[i][k] * srcB4[k][j];
-//            dst4[i][j] = sum;
-//        }
-//    }
-//}
-//void HEAT_DG_IMPLICIT::clearMtx4(double **mtx4)
-//{
-//    for (int i = 0; i < 4; ++i)
-//        for (int j = 0; j < 4; ++j)
-//            mtx4[i][j] = 0;
-//}
 
 void HEAT_DG_IMPLICIT::multMtxToVal(double **dst, double x, int N)
 {
@@ -1201,9 +1118,8 @@ void HEAT_DG_IMPLICIT::calcRHS()
 
             for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
                 Param p1, p2;
-                double fU  = getField(FIELD_U,  c1, edgeGP[iEdge][iGP]);
-                double fQx = getField(FIELD_QX, c1, edgeGP[iEdge][iGP]);
-                double fQy = getField(FIELD_QY, c1, edgeGP[iEdge][iGP]);
+                double fU, fQx, fQy;
+                getFields(fU, fQx, fQy, c1, edgeGP[iEdge][iGP]);
 
                 p1.T     = fU;
                 p1.Qt[0] = fQx;

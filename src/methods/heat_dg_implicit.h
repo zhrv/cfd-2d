@@ -17,8 +17,8 @@ public:
     void run();
     void done();
 
-    virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
-    virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
+    virtual void getFields(double &fT, double &fQX, double &fQY, int iCell, Point p);
+    virtual void getFields(double &fT, double &fQX, double &fQY, int iCell, double x, double y);
 
     virtual double getField(int fld, int iCell, Point p);
     virtual double getField(int fld, int iCell, double x, double y);
