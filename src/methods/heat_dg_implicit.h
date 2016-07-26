@@ -66,32 +66,9 @@ public:
     void calcMatrFlux();		//!< Вычисляем потоковые величины
     void calcRHS();				//!< Вычисляем столбец правых членов
 
-//    void calcLiftForce();
-
-//    double** allocMtx4();
-//    void freeMtx4(double **mtx4);
-//    void multMtx4(double **dst4, double **srcA4, double **srcB4);
-//    void clearMtx4(double **mtx4);
     void multMtxToVal(double **dst, double x, int N);
     void multMtxToVec(double *dst, double **mtx, double *vec, int N);
     void fillMtx(double** dst, double x, int N);
-
-//    void eigenValues(double** dst4, double c, double u, double nx, double v, double ny);
-//    void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);
-//    void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);
-//    void calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-//    void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-//    void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);
-//    void _calcA(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
-//    void calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H);
-//    void calcAx(double **dst4, double c, double GAM, double u, double v, double H);
-//    void calcAy(double **dst4, double c, double GAM, double u, double v, double H);
-//    void calcAx_(double **dst4, Param par, double GAM);
-//    void calcAy_(double **dst4, Param par, double GAM);
-//    void consToPar(double fRO, double fRU, double fRV, double fRE, Param& par);
-//
-//    void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
-//    void boundaryCond(int iEdge, Param& pL, Param& pR);
 
     void addSmallMatrToBigMatr(double **mB, double **mS, int i, int j);
 

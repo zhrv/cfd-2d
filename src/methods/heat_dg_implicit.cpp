@@ -56,7 +56,7 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
         node1 = matNode->FirstChild("parameters");
         node1->FirstChild("M")->ToElement()->Attribute("value", &mat.M);
         node1->FirstChild("Cp")->ToElement()->Attribute("value", &mat.Cp);
-//        node1->FirstChild("K")->ToElement()->Attribute("value", &mat.K);
+        node1->FirstChild("K")->ToElement()->Attribute("value", &mat.K);
         node1->FirstChild("ML")->ToElement()->Attribute("value", &mat.ML);
         matNode = matNode->NextSibling("material");
     }
@@ -931,13 +931,16 @@ void HEAT_DG_IMPLICIT::calcIntegral()
 {
     for (int iCell = 0; iCell < grid.cCount; iCell++) {
 
+        double k = getMaterial(iCell).K;
+
+
         fillMtx(matrBig, 0.0, MATR_DIM);
 
         for (int i = 0; i < BASE_FUNC_COUNT; i++) {
             for (int j = 0; j < BASE_FUNC_COUNT; j++) {
                 matrSmall[i][j]  = matrA[iCell][i][j] / cTau[iCell];
-                matrSmall1[i][j] = -matrBx[iCell][i][j];
-                matrSmall2[i][j] = -matrBy[iCell][i][j];
+                matrSmall1[i][j] = -k*matrBx[iCell][i][j];
+                matrSmall2[i][j] = -k*matrBy[iCell][i][j];
             }
         }
 
@@ -970,6 +973,12 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
 
         if (c2 >= 0) {
 
+            Material &mat1 = getMaterial(c1);
+            Material &mat2 = getMaterial(c2);
+
+            double k1 = mat1.K;
+            double k2 = mat2.K;
+
             /* C1 */
 
             for (int i = 0; i < BASE_FUNC_COUNT; i++) {
@@ -994,22 +1003,26 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
 
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
 
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
+            multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
 
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
+            multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
 
 
@@ -1041,22 +1054,26 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
+            multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
 
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
+            multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
 
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.x*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
 
             copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, -n.y*0.5, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
 
 
@@ -1064,6 +1081,9 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             solverMtx->addMatrElement(c2, c1, matrBig2);
         }
         else {
+            Material &mat1 = getMaterial(c1);
+            double k1 = mat1.K;
+
             for (int i = 0; i < BASE_FUNC_COUNT; i++) {
                 for (int j = 0; j < BASE_FUNC_COUNT; j++) {
                     mtxII[i][j] = 0.0;
@@ -1080,11 +1100,13 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, 0.5*n.x, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
 
             copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
             multMtxToVal(mtxTmp, 0.5*n.y, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
+            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
             addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
 
@@ -1113,6 +1135,9 @@ void HEAT_DG_IMPLICIT::calcRHS()
         int c1 = edge.c1;
         int c2 = edge.c2;
 
+        Material &mat1 = getMaterial(c1);
+        double k1 = mat1.K;
+
         if (c2 < 0) {
             memset(tmpArr, 0, sizeof(double)*MATR_DIM);
 
@@ -1135,8 +1160,8 @@ void HEAT_DG_IMPLICIT::calcRHS()
                 for (int m = 0; m < BASE_FUNC_COUNT; m++) {
                     double fw = getF(m, c1, edgeGP[iEdge][iGP])*edgeGW[iEdge][iGP];
                     tmpArr[ m ]                    -= (fQx*n.x+fQy*n.y)*fw;
-                    tmpArr[ m + BASE_FUNC_COUNT]   -= fU*n.x*fw;
-                    tmpArr[ m + BASE_FUNC_COUNT*2] -= fU*n.y*fw;
+                    tmpArr[ m + BASE_FUNC_COUNT]   -= k1*fU*n.x*fw;
+                    tmpArr[ m + BASE_FUNC_COUNT*2] -= k1*fU*n.y*fw;
                 }
             }
 
@@ -1153,27 +1178,6 @@ void HEAT_DG_IMPLICIT::calcRHS()
 
 void HEAT_DG_IMPLICIT::run()
 {
-    //double __GAM = 1.4;
-
-    //// инициализируем портрет матрицы
-    //log("Matrix structure initialization:\n");
-    //CSRMatrix::DELTA = 65536;
-    //for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-    //	int		c1 = grid.edges[iEdge].c1;
-    //	int		c2 = grid.edges[iEdge].c2;
-    //	solverMtx->createMatrElement(c1, c1);
-    //	if (c2 >= 0){
-    //		solverMtx->createMatrElement(c1, c2);
-    //		solverMtx->createMatrElement(c2, c2);
-    //		solverMtx->createMatrElement(c2, c1);
-    //	}
-    //	if (iEdge % 100 == 0) {
-    //		log("\tfor edge: %d\n", iEdge);
-    //	}
-    //}
-    //solverMtx->initCSR();
-    //log("\tcomplete...\n");
-
     int solverErr = 0;
     double t = 0.0;
     int step = 0;
@@ -1191,15 +1195,12 @@ void HEAT_DG_IMPLICIT::run()
             t += TAU;
         }
 
-        long tmStart = clock();
-        solverErr = 0;
         solverMtx->zero();
 
         /* Заполняем правую часть */
         calcRHS();
 
         /* Заполняем элементы матрицы */
-//        calcMatrWithTau();		// вычисляем матрицы перед производной по времени
         calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
         calcMatrFlux();			// Вычисляем потоковые величины
 
@@ -1219,83 +1220,16 @@ void HEAT_DG_IMPLICIT::run()
 
         solverErr = solverMtx->solve(eps, maxIter);
 
-        //solverMtx->printToFile("matr.txt");
         if (solverErr == MatrixSolver::RESULT_OK) {
-
-            //if (SMOOTHING) smoothingDelta(solverMtx->x);
 
             for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
             {
-                //Cell &cell = grid.cells[cellIndex];
-
-                //if (cellIsLim(cellIndex))	continue;
                 for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
                     for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
                         fields[iFld][cellIndex][iF] = solverMtx->x[ind++];
                     }
                 }
             }
-
-
-//            if (limiter != NULL) {
-//                limiter->run();
-//            }
-
-//            for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
-//            {
-//                Cell &cell = grid.cells[cellIndex];
-//
-//                Param par;
-//                convertConsToPar(cellIndex, par);
-//                if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-//                if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-//                if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-//                if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-//                if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-//                if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-//                if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
-//
-//                double fRO, fRU, fRV, fRE;
-//                for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-//
-//                    fRO = getField(FIELD_RO, cellIndex, cellGP[cellIndex][iGP]);
-//                    fRU = getField(FIELD_RU, cellIndex, cellGP[cellIndex][iGP]);
-//                    fRV = getField(FIELD_RV, cellIndex, cellGP[cellIndex][iGP]);
-//                    fRE = getField(FIELD_RE, cellIndex, cellGP[cellIndex][iGP]);
-//                    consToPar(fRO, fRU, fRV, fRE, par);
-//                    if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-//                    if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-//                    if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-//                    if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-//                    if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-//                    if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-//                    if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
-//                }
-//
-//                for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
-//                    int edgInd = cell.edgesInd[iEdge];
-//                    for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-//                        fRO = getField(FIELD_RO, cellIndex, edgeGP[edgInd][iGP]);
-//                        fRU = getField(FIELD_RU, cellIndex, edgeGP[edgInd][iGP]);
-//                        fRV = getField(FIELD_RV, cellIndex, edgeGP[edgInd][iGP]);
-//                        fRE = getField(FIELD_RE, cellIndex, edgeGP[edgInd][iGP]);
-//                        consToPar(fRO, fRU, fRV, fRE, par);
-//                        if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-//                        if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-//                        if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-//                        if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-//                        if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-//                        if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-//                        if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
-//                    }
-//                }
-//
-//
-//            }
-//            remediateLimCells();
-//
-//            int limCells = getLimitedCellsCount();
-//            if (STEADY && (limCells >= maxLimCells)) decCFL();
 
             timeEnd = clock();
             totalCalcTime += (timeEnd - timeStart);
@@ -1307,8 +1241,6 @@ void HEAT_DG_IMPLICIT::run()
             {
                 log((char*)"step: %6d  time step: %.16f\tmax iter: %5d\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, timeEnd - timeStart, totalCalcTime);
             }
-
-            if (STEADY && (step % stepCFL == 0)) incCFL();
         }
         else {
             if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
@@ -1341,5 +1273,6 @@ void HEAT_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, in
 
 void HEAT_DG_IMPLICIT::done()
 {
+    memFree();
 }
 
