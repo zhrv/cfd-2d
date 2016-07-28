@@ -59,9 +59,6 @@ public:
 //    int getLimitedCellsCount();
 //    void remediateLimCells();
 
-    void incCFL();
-    void decCFL();
-
     void calcIntegral();		//!< вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
     void calcMatrFlux();		//!< Вычисляем потоковые величины
     void calcRHS();				//!< Вычисляем столбец правых членов

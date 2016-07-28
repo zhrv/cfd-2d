@@ -216,6 +216,7 @@ struct Material
 	double		Cp;		//!< теплоемкость при постоянном давлении
 	double		ML;		//!< динамическая вязкость
 	double		K;		//!< коэффициент теплопроводности
+	double      rho;
 
 	void URS(Param &par, int flag);
 	inline double getGamma() { return Cp/(Cp-gR/M); }
