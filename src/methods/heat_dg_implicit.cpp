@@ -369,11 +369,8 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
     for (int i = 0; i < grid.cCount; i++)
     {
         Cell & c = grid.cells[i];
-//        Region & reg = getRegion(c.typeName);
-        Param par;
-        par.T = phi_init(c.c.x, c.c.y);
-        par.Qt[0] = phi_init_dx(c.c.x, c.c.y);
-        par.Qt[1] = phi_init_dy(c.c.x, c.c.y);
+        Region & reg = getRegion(c.typeName);
+        Param &par = reg.par;
         convertParToCons(i, par);
     }
 
@@ -921,37 +918,37 @@ void HEAT_DG_IMPLICIT::save(int step)
     fclose(fp);
     printf("File '%s' saved...\n", fName);
 
-    sprintf(fName, "err_%010d.txt", step);
-    fp = fopen(fName, "w");
-    double glob_err1 = 0.0;
-    double glob_err2 = 0.0;
-    double glob_err3 = 0.0;
-    fprintf(fp, "CELLS COUNT: %d\n", grid.cCount);
-    for (int iCell = 0; iCell < grid.cCount; iCell++) {
-        Cell &c = grid.cells[iCell];
-        double loc_err1 = 0.0;
-        double loc_err2 = 0.0;
-        double loc_err3 = 0.0;
-        for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-            double e = fabs(phi_exac(time, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
-                            - getField(FIELD_U, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)*T_);
-            loc_err1 += cellGW[iCell][iGP]*e;
-            loc_err2 += cellGW[iCell][iGP]*e*e;
-            loc_err3 += cellGW[iCell][iGP];
-        }
-        loc_err1 *= cellJ[iCell];
-        loc_err2 *= cellJ[iCell];
-        loc_err3 *= cellJ[iCell];
-        glob_err1 += loc_err1;
-        glob_err2 += loc_err2;
-        glob_err3 += loc_err3;
-        //loc_err = sqrt(loc_err);
-        fprintf(fp, "CELL#: %6d; S: %16.8e; ERR_L1: %16.8e; ERR_L2: %16.8e\n", iCell, c.S, loc_err1, loc_err2);
-    }
-    glob_err2 = sqrt(glob_err2);
-    fprintf(fp, "=======================================\n");
-    fprintf(fp, "ERR_L1: %16.8e\t\tERR_L2: %16.8e\t\tTEST: %16.8e\n", glob_err1, glob_err2, glob_err3);
-    fclose(fp);
+//    sprintf(fName, "err_%010d.txt", step);
+//    fp = fopen(fName, "w");
+//    double glob_err1 = 0.0;
+//    double glob_err2 = 0.0;
+//    double glob_err3 = 0.0;
+//    fprintf(fp, "CELLS COUNT: %d\n", grid.cCount);
+//    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+//        Cell &c = grid.cells[iCell];
+//        double loc_err1 = 0.0;
+//        double loc_err2 = 0.0;
+//        double loc_err3 = 0.0;
+//        for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+//            double e = fabs(phi_exac(time, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)
+//                            - getField(FIELD_U, iCell, cellGP[iCell][iGP].x, cellGP[iCell][iGP].y)*T_);
+//            loc_err1 += cellGW[iCell][iGP]*e;
+//            loc_err2 += cellGW[iCell][iGP]*e*e;
+//            loc_err3 += cellGW[iCell][iGP];
+//        }
+//        loc_err1 *= cellJ[iCell];
+//        loc_err2 *= cellJ[iCell];
+//        loc_err3 *= cellJ[iCell];
+//        glob_err1 += loc_err1;
+//        glob_err2 += loc_err2;
+//        glob_err3 += loc_err3;
+//        //loc_err = sqrt(loc_err);
+//        fprintf(fp, "CELL#: %6d; S: %16.8e; ERR_L1: %16.8e; ERR_L2: %16.8e\n", iCell, c.S, loc_err1, loc_err2);
+//    }
+//    glob_err2 = sqrt(glob_err2);
+//    fprintf(fp, "=======================================\n");
+//    fprintf(fp, "ERR_L1: %16.8e\t\tERR_L2: %16.8e\t\tTEST: %16.8e\n", glob_err1, glob_err2, glob_err3);
+//    fclose(fp);
 
 }
 
