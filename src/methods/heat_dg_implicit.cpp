@@ -143,6 +143,7 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
         Material& mat = materials[reg.matId];
         reg.par.r = mat.rho;
         //mat.URS(reg.par, 3);
+        reg.par.Qt[0] = reg.par.Qt[1] = 0.0;
 
         regNode = regNode->NextSibling("region");
 
@@ -1466,25 +1467,18 @@ void HEAT_DG_IMPLICIT::calcRHS()
                 p1.Qt[1] = fQy;
 
 
-//                edge.bnd->run(iEdge, p1, p2);
-                p2.T     = phi_exac(time, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-                p2.Qt[0] = phi_exac_dx(time, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-                p2.Qt[1] = phi_exac_dy(time, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+                edge.bnd->run(iEdge, p1, p2);
 
                 if (n.x+n.y >= 0) {
-                    fU  = 0.0;//0.5 * p2.T;
+                    fU  = p1.T;
                     fQx = p2.Qt[0];
                     fQy = p2.Qt[1];
                 }
                 else {
                     fU  = p2.T;
-                    fQx = 0.0;//p2.Qt[0];
-                    fQy = 0.0;//p2.Qt[1];
+                    fQx = p1.Qt[0];
+                    fQy = p1.Qt[1];
                 }
-
-                fU  = p2.T;
-                fQx = p2.Qt[0];
-                fQy = p2.Qt[1];
 
                 for (int m = 0; m < BASE_FUNC_COUNT; m++) {
                     double fw = getF(m, c1, edgeGP[iEdge][iGP])*edgeGW[iEdge][iGP];
