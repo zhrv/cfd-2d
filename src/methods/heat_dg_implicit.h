@@ -61,7 +61,6 @@ public:
 
     void calcIntegral();		//!< вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
     void calcMatrFlux();		//!< Вычисляем потоковые величины
-    void calcMatrFlux2();		//!< Вычисляем потоковые величины
     void calcRHS();				//!< Вычисляем столбец правых членов
 
     void multMtxToVal(double **dst, double x, int N);
