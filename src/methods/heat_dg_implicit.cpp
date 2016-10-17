@@ -826,64 +826,6 @@ void HEAT_DG_IMPLICIT::calcTimeStep()
     }
 }
 
-void HEAT_DG_IMPLICIT::save(int step)
-{
-    char fName[50];
-
-    sprintf(fName, "res_%010d.vtk", step);
-    FILE * fp = fopen(fName, "w");
-    fprintf(fp, "# vtk DataFile Version 2.0\n");
-    fprintf(fp, "GASDIN data file\n");
-    fprintf(fp, "ASCII\n");
-    fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
-
-    fprintf(fp, "POINTS %d float\n", grid.nCount);
-    for (int i = 0; i < grid.nCount; i++)
-    {
-        fprintf(fp, "%f %f %f  ", grid.nodes[i].x*L_, grid.nodes[i].y*L_, 0.0);
-        if (i + 1 % 8 == 0) fprintf(fp, "\n");
-    }
-    fprintf(fp, "\n");
-    fprintf(fp, "CELLS %d %d\n", grid.cCount, 4 * grid.cCount);
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        fprintf(fp, "3 %d %d %d\n", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
-    }
-    fprintf(fp, "\n");
-
-    fprintf(fp, "CELL_TYPES %d\n", grid.cCount);
-    for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
-    fprintf(fp, "\n");
-
-    fprintf(fp, "CELL_DATA %d\nSCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        Param p;
-        convertConsToPar(i, p);
-        fprintf(fp, "%16.8f ", p.T*T_);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-
-    fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        fprintf(fp, "%16.8f ", cTau[i]*TIME_);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "SCALARS CellID float 1\nLOOKUP_TABLE default\n");
-    for (int i = 0; i < grid.cCount; i++)
-    {
-        fprintf(fp, "%d ", i);
-        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
-    }
-
-    fclose(fp);
-    printf("File '%s' saved...\n", fName);
-
-}
-
 void HEAT_DG_IMPLICIT::multMtxToVal(double **dst, double x, int N)
 {
     for (int i = 0; i < N; ++i)
@@ -996,7 +938,7 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
                 for (int j = 0; j < BASE_FUNC_COUNT; j++) {
                     mtxII[i][j] = 0.0;
                     mtxKI[i][j] = 0.0;
-                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                    for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
                         mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
                                        * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
                         mtxKI[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
@@ -1011,16 +953,14 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             fillMtx(matrBig, 0.0, MATR_DIM);
             fillMtx(matrBig2, 0.0, MATR_DIM);
 
-            if (n.x+n.y>=0) {
+//            if (n.x+n.y>=0) {
                 copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
                 multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
 
                 copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
                 multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
@@ -1028,41 +968,31 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
                 copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
-                //multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
 
                 copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
-                //multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
-            }
-            else {
-                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-
-                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-
-
-                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
-                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
-
-                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
-                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
-            }
+//            }
+//            else {
+//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
+//
+//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
+//
+//
+//                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
+//
+//                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
+//            }
 
             solverMtx->addMatrElement(c1, c1, matrBig);
             solverMtx->addMatrElement(c1, c2, matrBig2);
@@ -1074,7 +1004,7 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
                 for (int j = 0; j < BASE_FUNC_COUNT; j++) {
                     mtxII[i][j] = 0.0;
                     mtxKI[i][j] = 0.0;
-                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                    for (int iGP = 0; iGP <  GP_EDGE_COUNT; iGP++) {
                         mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
                                        * getF(j, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
                         mtxKI[i][j] += edgeGW[iEdge][iGP] * getF(i, c2, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
@@ -1088,108 +1018,49 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             fillMtx(matrBig, 0.0, MATR_DIM);
             fillMtx(matrBig2, 0.0, MATR_DIM);
 
-            if (-n.x-n.y>=0) {
-                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-
-                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-
-
-                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
-                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
-
-                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
-                multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
-                addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
-                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
-            }
-            else {
+//            if (-n.x-n.y>=0) {
+//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
+//
+//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
+//
+//
+//                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
+//
+//                copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
+//                multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
+//                addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
+//            }
+//            else {
                 copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-                //multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
 
                 copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-                //multMtxToVal(mtxTmp, k2, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
 
 
                 copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, -n.x, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 1);
                 multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig2, mtxTmp, 1, 0);
 
                 copyMtx(mtxTmp, mtxKI, BASE_FUNC_COUNT);
                 multMtxToVal(mtxTmp, -n.y, BASE_FUNC_COUNT);
-                //addSmallMatrToBigMatr(matrBig2, mtxTmp, 0, 2);
                 multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
                 addSmallMatrToBigMatr(matrBig2, mtxTmp, 2, 0);
-            }
+//            }
 
             solverMtx->addMatrElement(c2, c2, matrBig);
             solverMtx->addMatrElement(c2, c1, matrBig2);
-        }
-        else {
-//            Material &mat1 = getMaterial(c1);
-//            double k1 = mat1.K;
-//
-//            for (int i = 0; i < BASE_FUNC_COUNT; i++) {
-//                for (int j = 0; j < BASE_FUNC_COUNT; j++) {
-//                    mtxII[i][j] = 0.0;
-//                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-//                        mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
-//                                       * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-//                    }
-//                    mtxII[i][j] *= edgeJ[iEdge];
-//                }
-//            }
-//
-//            fillMtx(matrBig, 0.0, MATR_DIM);
-//
-//            if (n.x+n.y>=0) {
-//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
-//                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-//                multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//                addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-//
-//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
-//                //addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-//                multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//                addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-//            }
-//            else {
-//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//                multMtxToVal(mtxTmp, n.x, BASE_FUNC_COUNT);
-//                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-//                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//                //addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-//
-//                copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//                multMtxToVal(mtxTmp, n.y, BASE_FUNC_COUNT);
-//                addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-//                //multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//                //addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-//            }
-//
-//            solverMtx->addMatrElement(c1, c1, matrBig);
-//
         }
     }
 
@@ -1209,16 +1080,16 @@ void HEAT_DG_IMPLICIT::calcRHS()
         }
         solverMtx->addRightElement(iCell, tmpArr);
 
-        // CONVECTION
-        memset(tmpArr, 0, sizeof(double)*MATR_DIM);
-        for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-            for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-                tmpArr[m] += cellGW[iCell][iGP] * (getField(FIELD_U, iCell, cellGP[iCell][iGP])) *
-                          (reg.par.u*getDfDx(m, iCell, cellGP[iCell][iGP]) + reg.par.v*getDfDy(m, iCell, cellGP[iCell][iGP]));
-            }
-            tmpArr[m] *= cellJ[iCell];
-        }
-        solverMtx->addRightElement(iCell, tmpArr);
+//        // CONVECTION
+//        memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+//        for (int m = 0; m < BASE_FUNC_COUNT; m++) {
+//            for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+//                tmpArr[m] += cellGW[iCell][iGP] * (getField(FIELD_U, iCell, cellGP[iCell][iGP])) *
+//                          (reg.par.u*getDfDx(m, iCell, cellGP[iCell][iGP]) + reg.par.v*getDfDy(m, iCell, cellGP[iCell][iGP]));
+//            }
+//            tmpArr[m] *= cellJ[iCell];
+//        }
+//        solverMtx->addRightElement(iCell, tmpArr);
 
     }
 
@@ -1274,50 +1145,50 @@ void HEAT_DG_IMPLICIT::calcRHS()
         }
 
 
-        // CONVECTION
-
-        if (c2 >= 0) {
-            // C1
-            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
-            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-                    double vn = reg1.par.u*n.x+reg1.par.v*n.y;
-                    double flux = ((vn >=0) ? getField(FIELD_U, c1, edgeGP[iEdge][iGP]) : getField(FIELD_U, c2, edgeGP[iEdge][iGP])) * vn;
-                    tmpArr[m] -= edgeGW[iEdge][iGP]*flux*getF(m, c1, edgeGP[iEdge][iGP]);
-                }
-                tmpArr[m] *= edgeJ[iEdge];
-            }
-            solverMtx->addRightElement(c1, tmpArr);
-
-            // C2
-            Region &reg2 = getRegion(c2);
-            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
-            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-                    double vn = reg2.par.u*n.x+reg2.par.v*n.y;
-                    double flux = ((vn >=0) ? getField(FIELD_U, c1, edgeGP[iEdge][iGP]) : getField(FIELD_U, c2, edgeGP[iEdge][iGP])) * vn;
-                    tmpArr[m] += edgeGW[iEdge][iGP]*flux*getF(m, c2, edgeGP[iEdge][iGP]);
-                }
-                tmpArr[m] *= edgeJ[iEdge];
-            }
-            solverMtx->addRightElement(c2, tmpArr);
-        }
-        else {
-            // C1
-            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
-            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
-                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-                    double fU1 = getField(FIELD_U, c1, edgeGP[iEdge][iGP]);
-                    double fU2 = phi_exac(time, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-
-                    double vn = reg1.par.u*n.x+reg1.par.v*n.y;
-                    double flux = ((vn >=0) ? fU1 : fU2) * vn;
-                    tmpArr[m] += edgeGW[iEdge][iGP]*flux*getF(m, c1, edgeGP[iEdge][iGP]);
-                }
-                tmpArr[m] *= edgeJ[iEdge];
-            }
-            solverMtx->addRightElement(c1, tmpArr);
-        }
+//        // CONVECTION
+//
+//        if (c2 >= 0) {
+//            // C1
+//            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+//            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
+//                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                    double vn = reg1.par.u*n.x+reg1.par.v*n.y;
+//                    double flux = ((vn >=0) ? getField(FIELD_U, c1, edgeGP[iEdge][iGP]) : getField(FIELD_U, c2, edgeGP[iEdge][iGP])) * vn;
+//                    tmpArr[m] -= edgeGW[iEdge][iGP]*flux*getF(m, c1, edgeGP[iEdge][iGP]);
+//                }
+//                tmpArr[m] *= edgeJ[iEdge];
+//            }
+//            solverMtx->addRightElement(c1, tmpArr);
+//
+//            // C2
+//            Region &reg2 = getRegion(c2);
+//            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+//            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
+//                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                    double vn = reg2.par.u*n.x+reg2.par.v*n.y;
+//                    double flux = ((vn >=0) ? getField(FIELD_U, c1, edgeGP[iEdge][iGP]) : getField(FIELD_U, c2, edgeGP[iEdge][iGP])) * vn;
+//                    tmpArr[m] += edgeGW[iEdge][iGP]*flux*getF(m, c2, edgeGP[iEdge][iGP]);
+//                }
+//                tmpArr[m] *= edgeJ[iEdge];
+//            }
+//            solverMtx->addRightElement(c2, tmpArr);
+//        }
+//        else {
+//            // C1
+//            memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+//            for (int m = 0; m < BASE_FUNC_COUNT; m++) {
+//                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                    double fU1 = getField(FIELD_U, c1, edgeGP[iEdge][iGP]);
+//                    double fU2 = phi_exac(time, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
+//
+//                    double vn = reg1.par.u*n.x+reg1.par.v*n.y;
+//                    double flux = ((vn >=0) ? fU1 : fU2) * vn;
+//                    tmpArr[m] += edgeGW[iEdge][iGP]*flux*getF(m, c1, edgeGP[iEdge][iGP]);
+//                }
+//                tmpArr[m] *= edgeJ[iEdge];
+//            }
+//            solverMtx->addRightElement(c1, tmpArr);
+//        }
     }
 
 }
@@ -1399,4 +1270,65 @@ void HEAT_DG_IMPLICIT::done()
 {
     //memFree();
 }
+
+
+void HEAT_DG_IMPLICIT::save(int step)
+{
+    char fName[50];
+
+    sprintf(fName, "res_%010d.vtk", step);
+    FILE * fp = fopen(fName, "w");
+    fprintf(fp, "# vtk DataFile Version 2.0\n");
+    fprintf(fp, "GASDIN data file\n");
+    fprintf(fp, "ASCII\n");
+    fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+
+    fprintf(fp, "POINTS %d float\n", grid.nCount);
+    for (int i = 0; i < grid.nCount; i++)
+    {
+        fprintf(fp, "%f %f %f  ", grid.nodes[i].x*L_, grid.nodes[i].y*L_, 0.0);
+        if (i + 1 % 8 == 0) fprintf(fp, "\n");
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "CELLS %d %d\n", grid.cCount, 4 * grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        fprintf(fp, "3 %d %d %d\n", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
+    }
+    fprintf(fp, "\n");
+
+    fprintf(fp, "CELL_TYPES %d\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
+    fprintf(fp, "\n");
+
+    fprintf(fp, "CELL_DATA %d\nSCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%16.8f ", p.T*T_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+
+    fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        fprintf(fp, "%16.8f ", cTau[i]*TIME_);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fprintf(fp, "SCALARS CellID float 1\nLOOKUP_TABLE default\n");
+    for (int i = 0; i < grid.cCount; i++)
+    {
+        fprintf(fp, "%d ", i);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+
+    fclose(fp);
+    printf("File '%s' saved...\n", fName);
+
+}
+
+
 
