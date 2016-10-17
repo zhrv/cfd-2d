@@ -168,6 +168,11 @@ private:
     double			KP_ = 1.0;
     double			TIME_ = 1.0;
 
+
+    // стаб. добавки
+
+    double STAB_C_11 = 1.0;
+
 protected:
     const static int FLUX_GODUNOV = 0;
     const static int FLUX_LAX = 1;
