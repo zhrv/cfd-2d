@@ -157,12 +157,12 @@ void HEAT_DG_IMPLICIT::init(char * xmlFileName)
     maxU = sqrt(maxU);
 
     //TODO
-//    maxR = 1.0;
-//    maxP = 1.0;
-//    maxT = 1.0;
+    maxR = 1.0;
+    maxP = 1.0;
+    maxT = 1.0;
 
     // параметры обезразмеривания
-    L_ = 150.0;
+    L_ = 1.0;
     R_ = maxR;					// характерная плотность = начальная плотность
     P_ = maxP;					// характерное давление = начальное давление 
     T_ = maxT;					// характерная температура = начальная температура
@@ -363,6 +363,9 @@ void HEAT_DG_IMPLICIT::calcMassMatr()
             }
         }
     }
+
+
+
 }
 
 void HEAT_DG_IMPLICIT::calcGaussPar()
@@ -517,6 +520,8 @@ void HEAT_DG_IMPLICIT::memAlloc()
     matrBx		= new double**[n];
     matrBy		= new double**[n];
     matrInvA	= new double**[n];
+    matrAii	    = new double**[n];
+    matrAki	    = new double**[n];
 
     for (int i = 0; i < n; i++) {
         u[i] = new double[BASE_FUNC_COUNT];
@@ -530,7 +535,8 @@ void HEAT_DG_IMPLICIT::memAlloc()
         matrBx[i] = allocMtx(BASE_FUNC_COUNT);
         matrBy[i] = allocMtx(BASE_FUNC_COUNT);
         matrInvA[i] = allocMtx(BASE_FUNC_COUNT);
-
+        matrAii[i]  = allocMtx(BASE_FUNC_COUNT);
+        matrAki[i]  = allocMtx(BASE_FUNC_COUNT);
     }
 
     for (int i = 0; i < grid.eCount; i++) {
@@ -1070,39 +1076,6 @@ void HEAT_DG_IMPLICIT::calcMatrFlux()
             solverMtx->addMatrElement(c2, c2, matrBig);
             solverMtx->addMatrElement(c2, c1, matrBig2);
         }
-//        else {
-//            Material &mat1 = getMaterial(c1);
-//            double k1 = mat1.K;
-//
-//            for (int i = 0; i < BASE_FUNC_COUNT; i++) {
-//                for (int j = 0; j < BASE_FUNC_COUNT; j++) {
-//                    mtxII[i][j] = 0.0;
-//                    for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
-//                        mtxII[i][j] += edgeGW[iEdge][iGP] * getF(i, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y)
-//                                       * getF(j, c1, edgeGP[iEdge][iGP].x, edgeGP[iEdge][iGP].y);
-//                    }
-//                    mtxII[i][j] *= edgeJ[iEdge];
-//                }
-//            }
-//
-//            fillMtx(matrBig, 0.0, MATR_DIM);
-//
-//            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//            multMtxToVal(mtxTmp, 0.5*n.x, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 1);
-//            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 1, 0);
-//
-//            copyMtx(mtxTmp, mtxII, BASE_FUNC_COUNT);
-//            multMtxToVal(mtxTmp, 0.5*n.y, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 0, 2);
-//            multMtxToVal(mtxTmp, k1, BASE_FUNC_COUNT);
-//            addSmallMatrToBigMatr(matrBig, mtxTmp, 2, 0);
-//
-//
-//            solverMtx->addMatrElement(c1, c1, matrBig);
-//
-//        }
     }
 
 }
@@ -1171,8 +1144,8 @@ void HEAT_DG_IMPLICIT::calcRHS()
 //                }
 
                 fU  = 0.5*(p1.T+p2.T);
-                fQx = 0.5*(p1.Qt[0]+p2.Qt[0]);//-STAB_C_11*(p2.T-p1.T);
-                fQy = 0.5*(p1.Qt[1]+p2.Qt[1]);//-STAB_C_11*(p2.T-p1.T);
+                fQx = 0.5*(p1.Qt[0]+p2.Qt[0])-STAB_C_11*(p2.T-p1.T);
+                fQy = 0.5*(p1.Qt[1]+p2.Qt[1])-STAB_C_11*(p2.T-p1.T);
 
                 for (int m = 0; m < BASE_FUNC_COUNT; m++) {
                     double fw = getF(m, c1, edgeGP[iEdge][iGP])*edgeGW[iEdge][iGP];

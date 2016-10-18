@@ -144,6 +144,9 @@ private:
     double			***matrBy;
     double			***matrInvA;
 
+    double          ***matrAii;
+    double          ***matrAki;
+
     MatrixSolver	*solverMtx;
 
     double			**matrBig;
