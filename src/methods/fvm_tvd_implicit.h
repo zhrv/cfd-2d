@@ -18,33 +18,33 @@ protected:
 	Material &	getMaterial	(int iCell);
 	
 	/**
-	 *	Преобразование примитивных переменных в консервативные
+	 *	РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РїСЂРёРјРёС‚РёРІРЅС‹С… РїРµСЂРµРјРµРЅРЅС‹С… РІ РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅС‹Рµ
 	 */
 	void convertParToCons(int iCell, Param & par);
 	
 	/**
-	 *	Преобразование консервативных переменных в примитивные
+	 *	РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅС‹С… РїРµСЂРµРјРµРЅРЅС‹С… РІ РїСЂРёРјРёС‚РёРІРЅС‹Рµ
 	 */
 	void convertConsToPar(int iCell, Param & par);
 	
 	/**
-	 *	Вычисление параметров с внешней стороны от границы ячейки согласно граничным условиям
+	 *	Р’С‹С‡РёСЃР»РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ СЃ РІРЅРµС€РЅРµР№ СЃС‚РѕСЂРѕРЅС‹ РѕС‚ РіСЂР°РЅРёС†С‹ СЏС‡РµР№РєРё СЃРѕРіР»Р°СЃРЅРѕ РіСЂР°РЅРёС‡РЅС‹Рј СѓСЃР»РѕРІРёСЏРј
 	 */
 	void boundaryCond(int iFace, Param& pL, Param& pR);
 
 	/**
-	 *	Вычисление шага по времени по значению CFL, если значение TAU из XML 
-	 *	меньше вычисленного, то используется значение, заданное в XML
+	 *	Р’С‹С‡РёСЃР»РµРЅРёРµ С€Р°РіР° РїРѕ РІСЂРµРјРµРЅРё РїРѕ Р·РЅР°С‡РµРЅРёСЋ CFL, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ TAU РёР· XML 
+	 *	РјРµРЅСЊС€Рµ РІС‹С‡РёСЃР»РµРЅРЅРѕРіРѕ, С‚Рѕ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ, Р·Р°РґР°РЅРЅРѕРµ РІ XML
 	 */
 	void calcTimeStep();
 
 	/**
-	 *	Запись значений газодинамических параметров в файл
+	 *	Р—Р°РїРёСЃСЊ Р·РЅР°С‡РµРЅРёР№ РіР°Р·РѕРґРёРЅР°РјРёС‡РµСЃРєРёС… РїР°СЂР°РјРµС‚СЂРѕРІ РІ С„Р°Р№Р»
 	 */
 	void save(int);
 
 	/**
-	 *	Вычисление численного потока
+	 *	Р’С‹С‡РёСЃР»РµРЅРёРµ С‡РёСЃР»РµРЅРЅРѕРіРѕ РїРѕС‚РѕРєР°
 	 */
 	void calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM);
 
@@ -59,14 +59,14 @@ private:
 	void clearMtx4(double **mtx4);											//+.
 	void printMtx4(double **mtx4, char *msg = 0);							//+.
 	
-	// Заполняет в mtx4 собственные значения матрицы Якоби функции потока.
+	// Р—Р°РїРѕР»РЅСЏРµС‚ РІ mtx4 СЃРѕР±СЃС‚РІРµРЅРЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ РјР°С‚СЂРёС†С‹ РЇРєРѕР±Рё С„СѓРЅРєС†РёРё РїРѕС‚РѕРєР°.
 	void eigenValues(double **dst4, double c, double u, double nx, double v, double ny);					//+.
 	void rightEigenVector(double **dst4, double c, double u, double nx, double v, double ny, double H);		//+.
 	void leftEigenVector(double **dst4, double c, double GAM, double u, double nx, double v, double ny);	//+.
 	
-	// Заполняет в mtx4 A+.
+	// Р—Р°РїРѕР»РЅСЏРµС‚ РІ mtx4 A+.
 	void calcAP(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
-	// Заполняет в mtx4 A-.
+	// Р—Р°РїРѕР»РЅСЏРµС‚ РІ mtx4 A-.
 	void calcAM(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);			//+.
 
 	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);	//+.
@@ -96,8 +96,8 @@ private:
 
 	double			TAU_MIN;
 
-	bool			STEADY;	// false - нестационарное течение, true - стационанрное течение.
-	double			*cTau;  // локальный шаг по времени в ячейке.
+	bool			STEADY;	// false - РЅРµСЃС‚Р°С†РёРѕРЅР°СЂРЅРѕРµ С‚РµС‡РµРЅРёРµ, true - СЃС‚Р°С†РёРѕРЅР°РЅСЂРЅРѕРµ С‚РµС‡РµРЅРёРµ.
+	double			*cTau;  // Р»РѕРєР°Р»СЊРЅС‹Р№ С€Р°Рі РїРѕ РІСЂРµРјРµРЅРё РІ СЏС‡РµР№РєРµ.
 	bool			SMOOTHING;
 	double			SMOOTHING_PAR;
 	int				FLUX;
@@ -110,7 +110,7 @@ private:
 	Region		   *regions;
 	Boundary	   *boundaries;
 
-	//! консервативные переменные на текущем временном слое.
+	//! РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ РЅР° С‚РµРєСѓС‰РµРј РІСЂРµРјРµРЅРЅРѕРј СЃР»РѕРµ.
 	double		   *ro;			 
 	double		   *ru;			
 	double		   *rv;			
@@ -119,20 +119,20 @@ private:
 	double			*tmpArr;
 	int				*tmpArrInt;
 
-	//! градиенты.
+	//! РіСЂР°РґРёРµРЅС‚С‹.
 	Vector			*gradR;
 	Vector			*gradP;
 	Vector			*gradU;
 	Vector			*gradV;	
 
-	//! лимиты
+	//! Р»РёРјРёС‚С‹
 	double			limitRmin;
 	double			limitRmax;
 	double			limitPmin;
 	double			limitPmax;
 	double			limitUmax;
 
-	//! подъемная сила.
+	//! РїРѕРґСЉРµРјРЅР°СЏ СЃРёР»Р°.
 	double			Fx;
 	double			Fy;
 	

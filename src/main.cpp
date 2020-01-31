@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 
 	Parallel::init(&argc, &argv);
 
-	hLog = fopen("task.log", "w"); // открываем файл для записи лога; вместо printf(...) необходимо использовать log(...)
+	hLog = fopen("task.log", "w"); // РѕС‚РєСЂС‹РІР°РµРј С„Р°Р№Р» РґР»СЏ Р·Р°РїРёСЃРё Р»РѕРіР°; РІРјРµСЃС‚Рѕ printf(...) РЅРµРѕР±С…РѕРґРёРјРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ log(...)
 	
 	Method * method = Solver::initMethod( "task.xml" ); 
 	

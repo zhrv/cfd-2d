@@ -24,8 +24,8 @@ private:
 	void memAlloc();
 	void memFree();
 
-	void calcMassMatr(); //!< âû÷èñëÿåì ìàòðèöó ìàññ
-	void calcGaussPar(); //!< âû÷èñëÿåì óçëû è êîýôôèöèåíòû êâàäðàòóð
+	void calcMassMatr(); //!< Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð¼Ð°Ñ‚Ñ€Ð¸Ñ†Ñƒ Ð¼Ð°ÑÑ
+	void calcGaussPar(); //!< Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ ÑƒÐ·Ð»Ñ‹ Ð¸ ÐºÐ¾ÑÑ„Ñ„Ð¸Ñ†Ð¸ÐµÐ½Ñ‚Ñ‹ ÐºÐ²Ð°Ð´Ñ€Ð°Ñ‚ÑƒÑ€
 
 	void calcTimeStep();
 	
@@ -34,9 +34,9 @@ private:
 	Region   &	getRegion(int iCell);
 	Material &	getMaterial(int iCell);
 
-	inline void convertParToCons(int iCell, Param & par); //!< Ïðåîáðàçîâàíèå ïðèìèòèâíûõ ïåðåìåííûõ â êîíñåðâàòèâíûå
+	inline void convertParToCons(int iCell, Param & par); //!< ÐŸÑ€ÐµÐ¾Ð±Ñ€Ð°Ð·Ð¾Ð²Ð°Ð½Ð¸Ðµ Ð¿Ñ€Ð¸Ð¼Ð¸Ñ‚Ð¸Ð²Ð½Ñ‹Ñ… Ð¿ÐµÑ€ÐµÐ¼ÐµÐ½Ð½Ñ‹Ñ… Ð² ÐºÐ¾Ð½ÑÐµÑ€Ð²Ð°Ñ‚Ð¸Ð²Ð½Ñ‹Ðµ
 
-	inline void convertConsToPar(int iCell, Param & par); //!< Ïðåîáðàçîâàíèå êîíñåðâàòèâíûõ ïåðåìåííûõ â ïðèìèòèâíûå
+	inline void convertConsToPar(int iCell, Param & par); //!< ÐŸÑ€ÐµÐ¾Ð±Ñ€Ð°Ð·Ð¾Ð²Ð°Ð½Ð¸Ðµ ÐºÐ¾Ð½ÑÐµÑ€Ð²Ð°Ñ‚Ð¸Ð²Ð½Ñ‹Ñ… Ð¿ÐµÑ€ÐµÐ¼ÐµÐ½Ð½Ñ‹Ñ… Ð² Ð¿Ñ€Ð¸Ð¼Ð¸Ñ‚Ð¸Ð²Ð½Ñ‹Ðµ
 
 
 	inline double getDfDx(int id, int iCell, Point p);
@@ -55,10 +55,10 @@ private:
 	void incCFL();
 	void decCFL();
 
-	void calcIntegral();		//!< âû÷èñëÿåì èíòåãðàë îò(dF / dU)*deltaU*dFi / dx
-	void calcMatrWithTau();		//!< âû÷èñëÿåì ìàòðèöû ïåðåä ïðîèçâîäíîé ïî âðåìåíè
-	void calcMatrFlux();		//!< Âû÷èñëÿåì ïîòîêîâûå âåëè÷èíû 
-	void calcRHS();				//!< Âû÷èñëÿåì ñòîëáåö ïðàâûõ ÷ëåíîâ
+	void calcIntegral();		//!< Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð¸Ð½Ñ‚ÐµÐ³Ñ€Ð°Ð» Ð¾Ñ‚(dF / dU)*deltaU*dFi / dx
+	void calcMatrWithTau();		//!< Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð¼Ð°Ñ‚Ñ€Ð¸Ñ†Ñ‹ Ð¿ÐµÑ€ÐµÐ´ Ð¿Ñ€Ð¾Ð¸Ð·Ð²Ð¾Ð´Ð½Ð¾Ð¹ Ð¿Ð¾ Ð²Ñ€ÐµÐ¼ÐµÐ½Ð¸
+	void calcMatrFlux();		//!< Ð’Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð¿Ð¾Ñ‚Ð¾ÐºÐ¾Ð²Ñ‹Ðµ Ð²ÐµÐ»Ð¸Ñ‡Ð¸Ð½Ñ‹ 
+	void calcRHS();				//!< Ð’Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ ÑÑ‚Ð¾Ð»Ð±ÐµÑ† Ð¿Ñ€Ð°Ð²Ñ‹Ñ… Ñ‡Ð»ÐµÐ½Ð¾Ð²
 
 	void calcLiftForce();
 
@@ -102,8 +102,8 @@ private:
 
 	double			TAU_MIN;
 
-	bool			STEADY;	// false - íåñòàöèîíàðíîå òå÷åíèå, true - ñòàöèîíàíðíîå òå÷åíèå.
-	double			*cTau;  // ëîêàëüíûé øàã ïî âðåìåíè â ÿ÷åéêå.
+	bool			STEADY;	// false - Ð½ÐµÑÑ‚Ð°Ñ†Ð¸Ð¾Ð½Ð°Ñ€Ð½Ð¾Ðµ Ñ‚ÐµÑ‡ÐµÐ½Ð¸Ðµ, true - ÑÑ‚Ð°Ñ†Ð¸Ð¾Ð½Ð°Ð½Ñ€Ð½Ð¾Ðµ Ñ‚ÐµÑ‡ÐµÐ½Ð¸Ðµ.
+	double			*cTau;  // Ð»Ð¾ÐºÐ°Ð»ÑŒÐ½Ñ‹Ð¹ ÑˆÐ°Ð³ Ð¿Ð¾ Ð²Ñ€ÐµÐ¼ÐµÐ½Ð¸ Ð² ÑÑ‡ÐµÐ¹ÐºÐµ.
 	bool			SMOOTHING;
 	double			SMOOTHING_PAR;
 	int				FLUX;
@@ -128,13 +128,13 @@ private:
 	double			*tmpArr2;
 	int				*tmpArrInt;
 
-	//! ãðàäèåíòû.
+	//! Ð³Ñ€Ð°Ð´Ð¸ÐµÐ½Ñ‚Ñ‹.
 	Vector			*gradR;
 	Vector			*gradP;
 	Vector			*gradU;
 	Vector			*gradV;
 
-	//! ëèìèòû
+	//! Ð»Ð¸Ð¼Ð¸Ñ‚Ñ‹
 	double			limitRmin;
 	double			limitRmax;
 	double			limitPmin;
@@ -143,11 +143,11 @@ private:
 
 	int				limCells;
 
-	//! ïîäúåìíàÿ ñèëà.
+	//! Ð¿Ð¾Ð´ÑŠÐµÐ¼Ð½Ð°Ñ ÑÐ¸Ð»Ð°.
 	double			Fx;
 	double			Fy;
 
-	//! óçëû è êîýôôèöèåíòû êâàäðàòóð
+	//! ÑƒÐ·Ð»Ñ‹ Ð¸ ÐºÐ¾ÑÑ„Ñ„Ð¸Ñ†Ð¸ÐµÐ½Ñ‚Ñ‹ ÐºÐ²Ð°Ð´Ñ€Ð°Ñ‚ÑƒÑ€
 	Point			**cellGP;
 	Point			**edgeGP;
 	double			**cellGW;
@@ -155,7 +155,7 @@ private:
 	double			**edgeGW;
 	double			*edgeJ;
 
-	// ìàòðèöà ìàññ
+	// Ð¼Ð°Ñ‚Ñ€Ð¸Ñ†Ð° Ð¼Ð°ÑÑ
 	double			***matrA;
 	double			***matrInvA;
 
@@ -171,7 +171,7 @@ private:
 
 	LimiterDG		*limiter = NULL;
 
-	// ïàðàìåòðû îáåçðàçìåðèâàíèÿ
+	// Ð¿Ð°Ñ€Ð°Ð¼ÐµÑ‚Ñ€Ñ‹ Ð¾Ð±ÐµÐ·Ñ€Ð°Ð·Ð¼ÐµÑ€Ð¸Ð²Ð°Ð½Ð¸Ñ
 	double			L_		= 1.0;
 	double			U_		= 1.0;
 	double			R_		= 1.0;
@@ -199,6 +199,6 @@ protected:
 
 	const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
 
-	inline double getGAM(int iCell) { return getMaterial(iCell).getGamma(); } // TODO: ñäåëàòü
+	inline double getGAM(int iCell) { return getMaterial(iCell).getGamma(); } // TODO: ÑÐ´ÐµÐ»Ð°Ñ‚ÑŒ
 };
 

@@ -57,14 +57,14 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
 
-	// сглаживание невязок
+	// СЃРіР»Р°Р¶РёРІР°РЅРёРµ РЅРµРІСЏР·РѕРє
 	int smUsing = 1;
 	node0 = task->FirstChild("smoothing");
 	node0->FirstChild("using")->ToElement()->Attribute("value", &smUsing);
 	node0->FirstChild("coefficient")->ToElement()->Attribute("value", &SMOOTHING_PAR);
 	SMOOTHING = (smUsing == 1);
 
-	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РџР Р•Р”Р•Р›Р¬РќР«РҐ Р—РќРђР§Р•РќРРЇРҐ
 	node0 = task->FirstChild("limits");
 	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
 	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
@@ -72,7 +72,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("p")->ToElement()->Attribute( "max", &limitPmax);
 	node0->FirstChild("u")->ToElement()->Attribute( "max", &limitUmax);
 
-	// чтение параметров о МАТЕРИАЛАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -92,7 +92,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		matNode = matNode->NextSibling("material");
 	}
 
-	// чтение параметров о РЕГИОНАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -117,7 +117,7 @@ void FVM_TVD_IMPLICIT::init(char * xmlFileName)
 		regNode = regNode->NextSibling("region");
 	}
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р“Р РђРќРР§РќР«РҐ РЈРЎР›РћР’РРЇРҐ
 	node0 = task->FirstChild("boundaries");
 	node0->ToElement()->Attribute("count", &bCount);
 	boundaries = new Boundary[bCount];
@@ -477,8 +477,8 @@ void FVM_TVD_IMPLICIT::reconstruct(int iFace, Param& pL, Param& pR, Point p)
 
 void FVM_TVD_IMPLICIT::run() 
 {
-	int						nc = grid.cCount; // количество ячеек.
-	int						ne = grid.eCount; // количество ребер.
+	int						nc = grid.cCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЏС‡РµРµРє.
+	int						ne = grid.eCount; // РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРµР±РµСЂ.
 	double					t = 0.0;
 	unsigned int			step = 0;
 
@@ -507,7 +507,7 @@ void FVM_TVD_IMPLICIT::run()
 	log("TMAX = %e STEP_MAX = %d\n", TMAX, STEP_MAX);	
 	log("Flux calculation method: %s\n", FLUX_NAMES[FLUX]);
 	
-	// инициализируем портрет матрицы
+	// РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РїРѕСЂС‚СЂРµС‚ РјР°С‚СЂРёС†С‹
 	log("Matrix structure initialization:\n");
 	CSRMatrix::DELTA = 65536;
 	for (int iEdge = 0; iEdge < ne; iEdge++) {
@@ -531,9 +531,9 @@ void FVM_TVD_IMPLICIT::run()
 		if (!STEADY) t += TAU;
 		if (!solverErr) step++;
 
-		//заполнение матрицы.
+		//Р·Р°РїРѕР»РЅРµРЅРёРµ РјР°С‚СЂРёС†С‹.
 		Param		average, cellL, cellR;
-		double		__GAM = 1.4;			// TODO: сделать правильное вычисление показателя адиабаты
+		double		__GAM = 1.4;			// TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
 
 		solverMtx->zero();
 		for (int iCell = 0; iCell < nc; iCell++){
@@ -548,12 +548,12 @@ void FVM_TVD_IMPLICIT::run()
 			int		c2 = grid.edges[iEdge].c2;
 			double	l = grid.edges[iEdge].l;
 
-			//сделаем нормаль внешней.
+			//СЃРґРµР»Р°РµРј РЅРѕСЂРјР°Р»СЊ РІРЅРµС€РЅРµР№.
 			Vector	n = grid.edges[iEdge].n;
 			reconstruct(iEdge, cellL, cellR);
 			calcRoeAverage(average, cellL, cellR, __GAM, n);
 
-			// вычисляем спектральный радиус для вычисления шага по времени
+			// РІС‹С‡РёСЃР»СЏРµРј СЃРїРµРєС‚СЂР°Р»СЊРЅС‹Р№ СЂР°РґРёСѓСЃ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ С€Р°РіР° РїРѕ РІСЂРµРјРµРЅРё
 			if (STEADY) {
 				double lambda = sqrt(average.u*average.u + average.v*average.v) + average.cz;
 				lambda *= l;
@@ -635,7 +635,7 @@ void FVM_TVD_IMPLICIT::run()
 			//log("edge = %d of %d\n", iEdge, ne);
 		}
 
-		// вычисляем шаги по временив ячейках по насчитанным ранее значениям спектра
+		// РІС‹С‡РёСЃР»СЏРµРј С€Р°РіРё РїРѕ РІСЂРµРјРµРЅРёРІ СЏС‡РµР№РєР°С… РїРѕ РЅР°СЃС‡РёС‚Р°РЅРЅС‹Рј СЂР°РЅРµРµ Р·РЅР°С‡РµРЅРёСЏРј СЃРїРµРєС‚СЂР°
 		if (STEADY) {
 			for (int iCell = 0; iCell < grid.cCount; iCell++)
 			{
@@ -743,7 +743,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 	{
 		if (cellIsLim(iCell)) 
 		{
-			// пересчитываем по соседям			
+			// РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј РїРѕ СЃРѕСЃРµРґСЏРј			
 			double sRO = 0.0;
 			double sRU = 0.0;
 			double sRV = 0.0;
@@ -754,7 +754,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 				int		iEdge = grid.cells[iCell].edgesInd[i];
 				int		j = grid.edges[iEdge].c2;
 				if (j == iCell)	{
-					//std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+					//std::swap(j, grid.edges[iEdge].c1); // С‚Р°Рє РЅСѓР¶РЅРѕ РµС‰Рµ РЅРѕСЂРјР°Р»СЊ РїРѕРІРѕСЂС‡РёРІР°С‚СЊ С‚РѕРіРґР°
 					j = grid.edges[iEdge].c1;
 				}
 				if (j >= 0) {
@@ -772,7 +772,7 @@ void FVM_TVD_IMPLICIT::remediateLimCells()
 				rv[iCell] = sRV/S;
 				re[iCell] = sRE/S;
 			}
-			// после 0x20 итераций пробуем вернуть ячейку в счет
+			// РїРѕСЃР»Рµ 0x20 РёС‚РµСЂР°С†РёР№ РїСЂРѕР±СѓРµРј РІРµСЂРЅСѓС‚СЊ СЏС‡РµР№РєСѓ РІ СЃС‡РµС‚
 			grid.cells[iCell].flag += 0x010000;
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
 		}
@@ -982,10 +982,10 @@ void FVM_TVD_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	switch (b.type)
 	{
 	case Boundary::BOUND_INLET:
-		pR.T  = b.par[0];		//!< температура
-		pR.p  = b.par[1];		//!< давление
-		pR.u  = b.par[2];		//!< первая компонента вектора скорости
-		pR.v  = b.par[3];		//!< вторая компонента вектора скорости
+		pR.T  = b.par[0];		//!< С‚РµРјРїРµСЂР°С‚СѓСЂР°
+		pR.p  = b.par[1];		//!< РґР°РІР»РµРЅРёРµ
+		pR.u  = b.par[2];		//!< РїРµСЂРІР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
+		pR.v  = b.par[3];		//!< РІС‚РѕСЂР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
 		
 		m.URS(pR, 2);
 		m.URS(pR, 1);
@@ -1087,7 +1087,7 @@ void FVM_TVD_IMPLICIT::incCFL()
 
 void FVM_TVD_IMPLICIT::calcLiftForce()
 {
-	const double width = 1.0; // предполагаемая ширина профиля по z.
+	const double width = 1.0; // РїСЂРµРґРїРѕР»Р°РіР°РµРјР°СЏ С€РёСЂРёРЅР° РїСЂРѕС„РёР»СЏ РїРѕ z.
 	Param		 par;
 	Fx = Fy = 0.0;
 	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)

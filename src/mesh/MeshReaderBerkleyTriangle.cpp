@@ -8,7 +8,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 
 	
 
-	// читаем данные об УЗЛАХ
+	// С‡РёС‚Р°РµРј РґР°РЅРЅС‹Рµ РѕР± РЈР—Р›РђРҐ
 	sprintf(str, "%s.node", fileName);
 	fp = fopen(str, "r");
 	fscanf(fp, "%d %d %d %d", &g->nCount, &tmp, &tmp, &tmp);
@@ -19,7 +19,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 	}
 	fclose(fp);
 
-	// читаем данные о ЯЧЕЙКАХ
+	// С‡РёС‚Р°РµРј РґР°РЅРЅС‹Рµ Рѕ РЇР§Р•Р™РљРђРҐ
 	sprintf(str, "%s.ele", fileName);
 	fp = fopen(str, "r");
 	fscanf(fp, "%d %d %d", &g->cCount, &tmp, &tmp);
@@ -46,7 +46,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 	}
 	fclose(fp);
 
-	// формируем данные о РЕБРАХ
+	// С„РѕСЂРјРёСЂСѓРµРј РґР°РЅРЅС‹Рµ Рѕ Р Р•Р‘Р РђРҐ
 	sprintf(str, "%s.neigh", fileName);
 	fp = fopen(str, "r");
 	fscanf(fp, "%d %d", &tmp, &tmp);
@@ -73,7 +73,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 			if (p > -1)
 			{
 				for (int k = 0; k < 3; k++)
-				{ // убираем у соседа номер этой ячейки, чтобы грань не повторялась
+				{ // СѓР±РёСЂР°РµРј Сѓ СЃРѕСЃРµРґР° РЅРѕРјРµСЂ СЌС‚РѕР№ СЏС‡РµР№РєРё, С‡С‚РѕР±С‹ РіСЂР°РЅСЊ РЅРµ РїРѕРІС‚РѕСЂСЏР»Р°СЃСЊ
 					if (neigh[p][k] == i) neigh[p][k] = -1;
 				 }
 				g->eCount++;
@@ -133,7 +133,7 @@ void MeshReaderBerkleyTriangle::read(Grid* g)
 		}
 	}
 
-	// чтение данных о граничных гранях
+	// С‡С‚РµРЅРёРµ РґР°РЅРЅС‹С… Рѕ РіСЂР°РЅРёС‡РЅС‹С… РіСЂР°РЅСЏС…
 	sprintf(str, "%s.poly", fileName);
 	fp = fopen(str, "r");
 	int bndCount;

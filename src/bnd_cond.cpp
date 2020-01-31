@@ -80,7 +80,7 @@ void CFDBndInlet::run(int iEdge, Param& pL, Param& pR)
 	pR.p = par[3];
 }
 
-void CFDBndOutlet::run(int iEdge, Param& pL, Param& pR) // @todo исправить - необходимо учитывать шаг сетки
+void CFDBndOutlet::run(int iEdge, Param& pL, Param& pR) // @todo РёСЃРїСЂР°РІРёС‚СЊ - РЅРµРѕР±С…РѕРґРёРјРѕ СѓС‡РёС‚С‹РІР°С‚СЊ С€Р°Рі СЃРµС‚РєРё
 {
 	pR = pL;
 }

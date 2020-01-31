@@ -20,7 +20,7 @@ LimiterDGCockburn::LimiterDGCockburn(FEM_DG *mthd, Grid *grid, double **ro, doub
 
 LimiterDGCockburn::~LimiterDGCockburn()
 {
-	// TODO: очистка памяти
+	// TODO: РѕС‡РёСЃС‚РєР° РїР°РјСЏС‚Рё
 }
 
 
@@ -79,7 +79,7 @@ void LimiterDGCockburn::initLimiterParameters()
 		matrR[i] = new double[4];
 	}
 
-	// находим угол и коэффициенты разложения
+	// РЅР°С…РѕРґРёРј СѓРіРѕР» Рё РєРѕСЌС„С„РёС†РёРµРЅС‚С‹ СЂР°Р·Р»РѕР¶РµРЅРёСЏ
 	for (int iCell = 0; iCell < cellsCount; iCell++)
 	{
 		int n0 = grid->cells[iCell].neigh[0];
@@ -166,7 +166,7 @@ void LimiterDGCockburn::run()
 
 
 	//return;
-	for (int iCell = 0; iCell < cellsCount; iCell++) // цикл по ячейкам
+	for (int iCell = 0; iCell < cellsCount; iCell++) // С†РёРєР» РїРѕ СЏС‡РµР№РєР°Рј
 	{
 		int n0 = grid->cells[iCell].neigh[0];
 		int n1 = grid->cells[iCell].neigh[1];
@@ -188,9 +188,9 @@ void LimiterDGCockburn::run()
 
 		double ROc, RUc, RVc, REc;
 		method->getFields(ROc, RUc, RVc, REc, iCell, grid->cells[iCell].c.x, grid->cells[iCell].c.y);
-		for (int m = 0; m < 3; m++) // цикл по направлениям
+		for (int m = 0; m < 3; m++) // С†РёРєР» РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЏРј
 		{
-			// вычисляем приращения
+			// РІС‹С‡РёСЃР»СЏРµРј РїСЂРёСЂР°С‰РµРЅРёСЏ
 			double ROm, RUm, RVm, REm;
 			double RO1, RU1, RV1, RE1;
 			double RO2, RU2, RV2, RE2;
@@ -209,7 +209,7 @@ void LimiterDGCockburn::run()
 			deltaU2[m][2] = limAlfa[iCell][m][0] * (RV1 - RVc) + limAlfa[iCell][m][1] * (RV2 - RVc);
 			deltaU2[m][3] = limAlfa[iCell][m][0] * (RE1 - REc) + limAlfa[iCell][m][1] * (RE2 - REc);
 
-			// скорости по направлению
+			// СЃРєРѕСЂРѕСЃС‚Рё РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ
 			double un, ut, c, utmp, vtmp;
 			double nx = limLmN[iCell][m].x;
 			double ny = limLmN[iCell][m].y;
@@ -219,7 +219,7 @@ void LimiterDGCockburn::run()
 			ut = utmp*ny - vtmp*nx;
 			c = sqrt(GAM*AGAM*(REc / ROc - (utmp*utmp + vtmp*vtmp) / 2.0));
 
-			// поворачиваем скорости
+			// РїРѕРІРѕСЂР°С‡РёРІР°РµРј СЃРєРѕСЂРѕСЃС‚Рё
 			utmp = deltaU1[m][1] * nx + deltaU1[m][2] * ny;
 			vtmp = deltaU1[m][1] * ny - deltaU1[m][2] * nx;
 			deltaU1[m][1] = utmp;
@@ -230,7 +230,7 @@ void LimiterDGCockburn::run()
 			deltaU2[m][1] = utmp;
 			deltaU2[m][2] = vtmp;
 
-			// переходим к инвариантам
+			// РїРµСЂРµС…РѕРґРёРј Рє РёРЅРІР°СЂРёР°РЅС‚Р°Рј
 			getMatrLR(matrL, matrR, un, ut, c);
 			memset(deltaS1, 0, 4 * sizeof(double));
 			memset(deltaS2, 0, 4 * sizeof(double));
@@ -247,14 +247,14 @@ void LimiterDGCockburn::run()
 				deltaS2[3] += matrL[3][k] * deltaU2[m][k];
 			}
 
-			// лимитируем инварианты
+			// Р»РёРјРёС‚РёСЂСѓРµРј РёРЅРІР°СЂРёР°РЅС‚С‹
 			deltaS1[0] = MINMOD_B(deltaS1[0], LIMITER_ALFA*deltaS2[0]);
 			deltaS1[1] = MINMOD_B(deltaS1[1], LIMITER_ALFA*deltaS2[1]);
 			deltaS1[2] = MINMOD_B(deltaS1[2], LIMITER_ALFA*deltaS2[2]);
 			deltaS1[3] = MINMOD_B(deltaS1[3], LIMITER_ALFA*deltaS2[3]);
 
 
-			// переходим к консервативным
+			// РїРµСЂРµС…РѕРґРёРј Рє РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅС‹Рј
 			memset(deltaU1[m], 0, 4 * sizeof(double));
 			for (int k = 0; k < 4; k++)
 			{
@@ -264,7 +264,7 @@ void LimiterDGCockburn::run()
 				deltaU1[m][3] += matrR[3][k] * deltaS1[k];
 			}
 
-			// поворачиваем скорости обратно
+			// РїРѕРІРѕСЂР°С‡РёРІР°РµРј СЃРєРѕСЂРѕСЃС‚Рё РѕР±СЂР°С‚РЅРѕ
 			utmp = deltaU1[m][1] * nx + deltaU1[m][2] * ny;
 			vtmp = deltaU1[m][1] * ny - deltaU1[m][2] * nx;
 			deltaU1[m][1] = utmp;
@@ -272,13 +272,13 @@ void LimiterDGCockburn::run()
 		}
 
 		double pos, neg;
-		for (int k = 0; k < 4; k++) // цикл по компонентам {RO,RU,RV,RE}
+		for (int k = 0; k < 4; k++) // С†РёРєР» РїРѕ РєРѕРјРїРѕРЅРµРЅС‚Р°Рј {RO,RU,RV,RE}
 		{
 
 			double & d1n = deltaU1[0][k];
 			double & d2n = deltaU1[1][k];
 			double & d3n = deltaU1[2][k];
-			// делаем поправки для приращений
+			// РґРµР»Р°РµРј РїРѕРїСЂР°РІРєРё РґР»СЏ РїСЂРёСЂР°С‰РµРЅРёР№
 			if (abs(deltaU1[0][k] + deltaU1[1][k] + deltaU1[2][k]) > EPS)
 			{
 				pos = 0; neg = 0;
@@ -307,7 +307,7 @@ void LimiterDGCockburn::run()
 				deltaU1[1][k] = thetaP * MAX(0.0, deltaU1[1][k]) - thetaM * MAX(0.0, -deltaU1[1][k]);
 				deltaU1[2][k] = thetaP * MAX(0.0, deltaU1[2][k]) - thetaM * MAX(0.0, -deltaU1[2][k]);
 			}
-			// вычисляем отлимитированные коэффициенты разложения
+			// РІС‹С‡РёСЃР»СЏРµРј РѕС‚Р»РёРјРёС‚РёСЂРѕРІР°РЅРЅС‹Рµ РєРѕСЌС„С„РёС†РёРµРЅС‚С‹ СЂР°Р·Р»РѕР¶РµРЅРёСЏ
 			double& xb0 = grid->cells[iCell].c.x;
 			double& yb0 = grid->cells[iCell].c.y;
 			double& xm1 = limPm[iCell][0].x;
@@ -378,7 +378,7 @@ void LimiterDGCockburn::run()
 }
 
 /*!
-Вычисление вектора площади
+Р’С‹С‡РёСЃР»РµРЅРёРµ РІРµРєС‚РѕСЂР° РїР»РѕС‰Р°РґРё
 */
 double LimiterDGCockburn::triSquare(Point p0, Point p1, Point p2)
 {
@@ -457,7 +457,7 @@ int LimiterDGCockburn::__getEdgeByCells(int c1, int c2)
 	{
 		Edge &edge = grid->edges[iEdge];
 		if ((edge.c1 == c1 && edge.c2 == c2) || (edge.c1 == c2 && edge.c2 == c1)) return iEdge;
-		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // если одна из ячеек граничная.
+		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // РµСЃР»Рё РѕРґРЅР° РёР· СЏС‡РµРµРє РіСЂР°РЅРёС‡РЅР°СЏ.
 	}
 	log("LimiterDGCockburn::__getEdgeByCells(int c1, int c2) : edge index not found");
 	return -1;

@@ -39,7 +39,7 @@ void FVM_TVD::init(char * xmlFileName)
 		STEADY = true;
 	}
 
-	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РџР Р•Р”Р•Р›Р¬РќР«РҐ Р—РќРђР§Р•РќРРЇРҐ
 	node0 = task->FirstChild("limits");
 	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
 	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
@@ -47,7 +47,7 @@ void FVM_TVD::init(char * xmlFileName)
 	node0->FirstChild("p")->ToElement()->Attribute( "max", &limitPmax);
 	node0->FirstChild("u")->ToElement()->Attribute( "max", &limitUmax);
 
-	// чтение параметров о МАТЕРИАЛАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -67,7 +67,7 @@ void FVM_TVD::init(char * xmlFileName)
 		matNode = matNode->NextSibling("material");
 	}
 
-	// чтение параметров о РЕГИОНАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
 	node0 = task->FirstChild("regions");
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
@@ -95,7 +95,7 @@ void FVM_TVD::init(char * xmlFileName)
 	}
 
 
-	/* Чтение параметров ГУ */
+	/* Р§С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Р“РЈ */
 	node0 = task->FirstChild("boundaries");
 	TiXmlNode* bNode = node0->FirstChild("boundCond");
 	while (bNode != NULL)
@@ -120,7 +120,7 @@ void FVM_TVD::init(char * xmlFileName)
 
 	bCount = boundaries.size();
 
-	/* Чтение данных сетки. */
+	/* Р§С‚РµРЅРёРµ РґР°РЅРЅС‹С… СЃРµС‚РєРё. */
 	node0 = task->FirstChild("mesh");
 	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
 	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
@@ -128,7 +128,7 @@ void FVM_TVD::init(char * xmlFileName)
 	mr->read(&grid);
 
 
-	/* Определение ГУ для каждого ребра. */
+	/* РћРїСЂРµРґРµР»РµРЅРёРµ Р“РЈ РґР»СЏ РєР°Р¶РґРѕРіРѕ СЂРµР±СЂР°. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge & e = grid.edges[iEdge];
 		if (e.type == Edge::TYPE_INNER) {
@@ -320,7 +320,7 @@ void FVM_TVD::run()
 		memcpy(rv_old, rv, nc*sizeof(double));
 		memcpy(re_old, re, nc*sizeof(double));
 
-		// первый подшаг метода Р.-К.
+		// РїРµСЂРІС‹Р№ РїРѕРґС€Р°Рі РјРµС‚РѕРґР° Р .-Рљ.
 		memset(ro_int, 0, nc*sizeof(double));
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
@@ -342,7 +342,7 @@ void FVM_TVD::run()
 			{
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				double __GAM = 1.4; // TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
 				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
 				fr += fr1;
 				fu += fu1;
@@ -373,7 +373,7 @@ void FVM_TVD::run()
 			re[iCell] += cfl*re_int[iCell];
 		}
 
-		// второй подшаг метода Р.-К.
+		// РІС‚РѕСЂРѕР№ РїРѕРґС€Р°Рі РјРµС‚РѕРґР° Р .-Рљ.
 		memset(ro_int, 0, nc*sizeof(double));
 		memset(ru_int, 0, nc*sizeof(double));
 		memset(rv_int, 0, nc*sizeof(double));
@@ -395,7 +395,7 @@ void FVM_TVD::run()
             {
 				double fr1, fu1, fv1, fe1;
 				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
+				double __GAM = 1.4; // TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
 				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
 				fr += fr1;
 				fu += fu1;
@@ -426,7 +426,7 @@ void FVM_TVD::run()
 			re[iCell] += cfl*re_int[iCell];
 		}
 
-		// полусумма: формула (4.10) из icase-1997-65.pdf
+		// РїРѕР»СѓСЃСѓРјРјР°: С„РѕСЂРјСѓР»Р° (4.10) РёР· icase-1997-65.pdf
 		for (int iCell = 0; iCell < nc; iCell++)
 		{
 			if (cellIsLim(iCell)) continue;
@@ -467,7 +467,7 @@ void FVM_TVD::remediateLimCells()
 	{
 		if (cellIsLim(iCell)) 
 		{
-			// пересчитываем по соседям
+			// РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј РїРѕ СЃРѕСЃРµРґСЏРј
 			double sRO = 0.0;
 			double sRU = 0.0;
 			double sRV = 0.0;
@@ -491,7 +491,7 @@ void FVM_TVD::remediateLimCells()
 			rv[iCell] = sRV/S;
 			re[iCell] = sRE/S;
 
-			// после 0x20 итераций пробуем вернуть ячейку в счет
+			// РїРѕСЃР»Рµ 0x20 РёС‚РµСЂР°С†РёР№ РїСЂРѕР±СѓРµРј РІРµСЂРЅСѓС‚СЊ СЏС‡РµР№РєСѓ РІ СЃС‡РµС‚
 			grid.cells[iCell].flag += 0x010000;
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
 		}
