@@ -37,8 +37,8 @@ int main(int argc, char** argv)
                 show_usage(argv[0]);
                 return 0;
             } else if ((arg == "-d") || (arg == "--decomp")) {
-                if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                    str = argv[++i]; // Increment 'i' so we don't get the argument as the next argv[i].
+                if (i + 1 < argc) {
+                    str = argv[++i];
                     try {
                         procCount = std::stoi(str);
                     }
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
                         show_usage(argv[0]);
                         return 1;
                     }
-                } else { // Uh-oh, there was no argument to the destination option.
+                } else {
                     std::cerr << "--decomp option requires one argument." << std::endl;
                     show_usage(argv[0]);
                     return 1;
