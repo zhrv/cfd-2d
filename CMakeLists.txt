@@ -1,31 +1,28 @@
 cmake_minimum_required(VERSION 2.6)
 project(cfd_2d)
 
+set(CMAKE_C_COMPILER "mpicc")
+set(CMAKE_CXX_COMPILER "mpicxx")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-
-# необходимо прописать путь к библиотеке MPI
-set(MPI_INCLUDE "/usr/include/mpich")
-set(MPI_LIB "/usr/lib/mpich")
 
 set(CONTRIB_DIR "${CMAKE_SOURCE_DIR}/contrib")
 
 #
-#  http://acts.nersc.gov/hypre/
+#  https://github.com/hypre-space/hypre
 #
-set(HYPRE_INCLUDE "${CONTRIB_DIR}/hypre/include")
-set(HYPRE_LIB "${CONTRIB_DIR}/hypre/lib")
+set(HYPRE_INCLUDE "${CONTRIB_DIR}/hypre/src/hypre/include")
+set(HYPRE_LIB "${CONTRIB_DIR}/hypre/src/hypre/lib")
 
 
 #
 #  http://glaros.dtc.umn.edu/gkhome/metis/metis/download
 #
-set(METIS_INCLUDE "${CONTRIB_DIR}/metis/include")
-set(METIS_LIB "${CONTRIB_DIR}/metis/lib")
+set(METIS_INCLUDE "${CONTRIB_DIR}/metis-5.1.0/local/include")
+set(METIS_LIB "${CONTRIB_DIR}/metis-5.1.0/local/lib")
 
 
 include_directories(
-		${MPI_INCLUDE}
 		${HYPRE_INCLUDE}
 		${METIS_INCLUDE}
 		src
@@ -87,5 +84,5 @@ add_executable(	cfd-2d
 		${TINYXML_SRC}
 )
 
-target_link_libraries(cfd-2d  mpi HYPRE metis)
+target_link_libraries(cfd-2d HYPRE metis)
 install(TARGETS cfd-2d RUNTIME DESTINATION bin)

@@ -61,14 +61,14 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		node1->FirstChild("max_limited_cells")->ToElement()->Attribute("value", &maxLimCells);
 	}
 
-	// сглаживание невязок
+	// СЃРіР»Р°Р¶РёРІР°РЅРёРµ РЅРµРІСЏР·РѕРє
 	int smUsing = 1;
 	node0 = task->FirstChild("smoothing");
 	node0->FirstChild("using")->ToElement()->Attribute("value", &smUsing);
 	node0->FirstChild("coefficient")->ToElement()->Attribute("value", &SMOOTHING_PAR);
 	SMOOTHING = (smUsing == 1);
 
-	// чтение параметров о ПРЕДЕЛЬНЫХ ЗНАЧЕНИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РџР Р•Р”Р•Р›Р¬РќР«РҐ Р—РќРђР§Р•РќРРЇРҐ
 	node0 = task->FirstChild("limits");
 	node0->FirstChild("ro")->ToElement()->Attribute("min", &limitRmin);
 	node0->FirstChild("ro")->ToElement()->Attribute("max", &limitRmax);
@@ -76,7 +76,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	node0->FirstChild("p")->ToElement()->Attribute("max", &limitPmax);
 	node0->FirstChild("u")->ToElement()->Attribute("max", &limitUmax);
 
-	// чтение параметров о МАТЕРИАЛАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -96,7 +96,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		matNode = matNode->NextSibling("material");
 	}
 
-	// чтение параметров о РЕГИОНАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
 	double maxP = 0.0;
 	double maxR = 0.0;
 	double maxT = 0.0;
@@ -134,21 +134,21 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	maxU = sqrt(maxU);
 
-	// параметры обезразмеривания
+	// РїР°СЂР°РјРµС‚СЂС‹ РѕР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёСЏ
 	L_ = 1.0;
-	R_ = maxR;					// характерная плотность = начальная плотность
-	P_ = maxP;					// характерное давление = начальное давление 
-	T_ = maxT;					// характерная температура = начальная температура
-	U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
-	E_ = POW_2(U_);			// характерная энергия  = U_**2
-	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
-	TIME_ = L_ / U_;			// характерное время
-	MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
-	KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
-	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+	R_ = maxR;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ = РЅР°С‡Р°Р»СЊРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ
+	P_ = maxP;					// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РґР°РІР»РµРЅРёРµ = РЅР°С‡Р°Р»СЊРЅРѕРµ РґР°РІР»РµРЅРёРµ 
+	T_ = maxT;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР° = РЅР°С‡Р°Р»СЊРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР°
+	U_ = sqrt(P_ / R_);		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ = sqrt( P_ / R_ )
+	E_ = POW_2(U_);			// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЌРЅРµСЂРіРёСЏ  = U_**2
+	CV_ = POW_2(U_) / T_;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
+	TIME_ = L_ / U_;			// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РІСЂРµРјСЏ
+	MU_ = R_ * U_ * L_;		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РІСЏР·РєРѕСЃС‚СЊ = R_ * U_ * L_
+	KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// РєРѕСЌС„С„РёС†РёРµРЅС‚ С‚РµРїР»РѕРїСЂРѕРІРѕРґРЅРѕСЃС‚Рё = R_ * U_**3 * L_ / T_
+	CV_ = POW_2(U_) / T_;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
 
 
-	// Обезразмеривание всех параметров
+	// РћР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёРµ РІСЃРµС… РїР°СЂР°РјРµС‚СЂРѕРІ
 	TAU /= TIME_;
 	TMAX /= TIME_;
 
@@ -174,7 +174,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		int zhrv = 0;
 	}
 
-	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+	Material::gR *= R_ * T_ / P_;	// Р“Р°Р·РѕРІР°СЏ РїРѕСЃС‚РѕСЏРЅРЅР°СЏ
 	for (int i = 0; i < matCount; i++)
 	{
 		Material & mat = materials[i];
@@ -185,7 +185,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р“Р РђРќРР§РќР«РҐ РЈРЎР›РћР’РРЇРҐ
 	node0 = task->FirstChild("boundaries");
 	node0->ToElement()->Attribute("count", &bCount);
 	boundaries = new Boundary[bCount];
@@ -236,7 +236,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	memAlloc();
 
-	// инициализация лимитера
+	// РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р»РёРјРёС‚РµСЂР°
 	limiter = LimiterDG::create(limiterName, this);
 	if (limiter != NULL) {
 		log("Limiter: %s\n", limiter->getName());
@@ -245,7 +245,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		log("Without limiter\n");
 	}
 
-	// инициализация решателя
+	// РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЂРµС€Р°С‚РµР»СЏ
 	node0 = task->FirstChild("solver");
 	const char * solverName = node0->ToElement()->Attribute("type");
 	//solverMtx = new SolverZeidel();
@@ -305,7 +305,7 @@ void FEM_DG_IMPLICIT::calcMassMatr()
 void FEM_DG_IMPLICIT::calcGaussPar()
 {
 	
-	// для ячеек
+	// РґР»СЏ СЏС‡РµРµРє
 	if (GP_CELL_COUNT == 4) {
 		for (int i = 0; i < grid.cCount; i++) {
 
@@ -384,7 +384,7 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 	}
 
 
-	// для ребер
+	// РґР»СЏ СЂРµР±РµСЂ
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
 			double gp1 = -3.0 / 5.0;
@@ -896,7 +896,7 @@ void FEM_DG_IMPLICIT::remediateLimCells()
 	{
 		if (cellIsLim(iCell))
 		{
-			// пересчитываем по соседям			
+			// РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј РїРѕ СЃРѕСЃРµРґСЏРј			
 			double sRO = 0.0;
 			double sRU = 0.0;
 			double sRV = 0.0;
@@ -907,7 +907,7 @@ void FEM_DG_IMPLICIT::remediateLimCells()
 				int		iEdge = grid.cells[iCell].edgesInd[i];
 				int		j = grid.edges[iEdge].c2;
 				if (j == iCell)	{
-					//std::swap(j, grid.edges[iEdge].c1); // так нужно еще нормаль поворчивать тогда
+					//std::swap(j, grid.edges[iEdge].c1); // С‚Р°Рє РЅСѓР¶РЅРѕ РµС‰Рµ РЅРѕСЂРјР°Р»СЊ РїРѕРІРѕСЂС‡РёРІР°С‚СЊ С‚РѕРіРґР°
 					j = grid.edges[iEdge].c1;
 				}
 				if (j >= 0) {
@@ -930,7 +930,7 @@ void FEM_DG_IMPLICIT::remediateLimCells()
 				rv[iCell][0] = sRV / S;
 				re[iCell][0] = sRE / S;
 			}
-			// после 0x20 итераций пробуем вернуть ячейку в счет
+			// РїРѕСЃР»Рµ 0x20 РёС‚РµСЂР°С†РёР№ РїСЂРѕР±СѓРµРј РІРµСЂРЅСѓС‚СЊ СЏС‡РµР№РєСѓ РІ СЃС‡РµС‚
 			grid.cells[iCell].flag += 0x010000;
 			if (grid.cells[iCell].flag & 0x200000) grid.cells[iCell].flag &= 0x001110;
 		}
@@ -1537,7 +1537,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 					
-					// вычисляем спектральный радиус для вычисления шага по времени
+					// РІС‹С‡РёСЃР»СЏРµРј СЃРїРµРєС‚СЂР°Р»СЊРЅС‹Р№ СЂР°РґРёСѓСЃ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ С€Р°РіР° РїРѕ РІСЂРµРјРµРЅРё
 					if (STEADY) {
 						double u1 = sqrt(par1.U2()) + par1.cz;
 						double u2 = sqrt(par2.U2()) + par2.cz;
@@ -1612,7 +1612,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 
-					// вычисляем спектральный радиус для вычисления шага по времени
+					// РІС‹С‡РёСЃР»СЏРµРј СЃРїРµРєС‚СЂР°Р»СЊРЅС‹Р№ СЂР°РґРёСѓСЃ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ С€Р°РіР° РїРѕ РІСЂРµРјРµРЅРё
 					if (STEADY) {
 						double u1 = sqrt(par1.u*par1.u + par1.v*par1.v) + par1.cz;
 						double u2 = sqrt(par2.u*par2.u + par2.v*par2.v) + par2.cz;
@@ -1654,7 +1654,7 @@ void FEM_DG_IMPLICIT::run()
 {
 	//double __GAM = 1.4;
 	
-	//// инициализируем портрет матрицы
+	//// РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РїРѕСЂС‚СЂРµС‚ РјР°С‚СЂРёС†С‹
 	//log("Matrix structure initialization:\n");
 	//CSRMatrix::DELTA = 65536;
 	//for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
@@ -1694,10 +1694,10 @@ void FEM_DG_IMPLICIT::run()
 		solverErr = 0;
 		solverMtx->zero();
 
-		/* Заполняем правую часть */
+		/* Р—Р°РїРѕР»РЅСЏРµРј РїСЂР°РІСѓСЋ С‡Р°СЃС‚СЊ */
 		calcRHS();
 
-		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
+		/* Р’С‹С‡РёСЃР»СЏРµРј С€Р°РіРё РїРѕ РІСЂРµРјРµРЅРё РІ СЏС‡РµР№РєР°С… РїРѕ РЅР°СЃС‡РёС‚Р°РЅРЅС‹Рј СЂР°РЅРµРµ Р·РЅР°С‡РµРЅРёСЏРј СЃРїРµРєС‚СЂР° */
 		if (STEADY) {
 			double minTau = DBL_MAX;
 			for (int iCell = 0; iCell < grid.cCount; iCell++)
@@ -1710,14 +1710,14 @@ void FEM_DG_IMPLICIT::run()
 			//log("MIN_TAU = %25.15e\n", minTau); 
 		}
 
-		/* Заполняем элементы матрицы */
-		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
-		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-		calcMatrFlux();			// Вычисляем потоковые величины 
+		/* Р—Р°РїРѕР»РЅСЏРµРј СЌР»РµРјРµРЅС‚С‹ РјР°С‚СЂРёС†С‹ */
+		calcMatrWithTau();		// РІС‹С‡РёСЃР»СЏРµРј РјР°С‚СЂРёС†С‹ РїРµСЂРµРґ РїСЂРѕРёР·РІРѕРґРЅРѕР№ РїРѕ РІСЂРµРјРµРЅРё
+		calcIntegral();			// РІС‹С‡РёСЃР»СЏРµРј РёРЅС‚РµРіСЂР°Р» РѕС‚(dF / dU)*deltaU*dFi / dx
+		calcMatrFlux();			// Р’С‹С‡РёСЃР»СЏРµРј РїРѕС‚РѕРєРѕРІС‹Рµ РІРµР»РёС‡РёРЅС‹ 
 
 
 
-		/* Решаем СЛАУ */
+		/* Р РµС€Р°РµРј РЎР›РђРЈ */
 		int maxIter = SOLVER_ITER;
 		double eps = SOLVER_EPS;
 
@@ -1905,10 +1905,10 @@ void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 	switch (b.type)
 	{
 	case Boundary::BOUND_INLET:
-		pR.T = b.par[0];		//!< температура
-		pR.p = b.par[1];		//!< давление
-		pR.u = b.par[2];		//!< первая компонента вектора скорости
-		pR.v = b.par[3];		//!< вторая компонента вектора скорости
+		pR.T = b.par[0];		//!< С‚РµРјРїРµСЂР°С‚СѓСЂР°
+		pR.p = b.par[1];		//!< РґР°РІР»РµРЅРёРµ
+		pR.u = b.par[2];		//!< РїРµСЂРІР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
+		pR.v = b.par[3];		//!< РІС‚РѕСЂР°СЏ РєРѕРјРїРѕРЅРµРЅС‚Р° РІРµРєС‚РѕСЂР° СЃРєРѕСЂРѕСЃС‚Рё
 
 		m.URS(pR, 2);
 		m.URS(pR, 1);
@@ -1948,7 +1948,7 @@ void FEM_DG_IMPLICIT::done()
 
 void FEM_DG_IMPLICIT::calcLiftForce()
 {
-	const double width = 1.0; // предполагаемая ширина профиля по z.
+	const double width = 1.0; // РїСЂРµРґРїРѕР»Р°РіР°РµРјР°СЏ С€РёСЂРёРЅР° РїСЂРѕС„РёР»СЏ РїРѕ z.
 	Param		 par;
 	Fx = Fy = 0.0;
 	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)

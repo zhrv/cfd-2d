@@ -57,7 +57,7 @@ void Decomp::init(char * xmlFileName)
 	//const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
 	//grid.initFromFiles((char*)fName);
 
-	/* Чтение данных сетки. */
+	/* Р§С‚РµРЅРёРµ РґР°РЅРЅС‹С… СЃРµС‚РєРё. */
 	node0 = task->FirstChild("mesh");
 	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
 	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
@@ -76,7 +76,7 @@ void Decomp::run()
 	log("  edges count:     %d\n", grid.eCount);
 	log("  nodes count:     %d\n", grid.nCount);
 
-	// декомпозиция области средствами METIS
+	// РґРµРєРѕРјРїРѕР·РёС†РёСЏ РѕР±Р»Р°СЃС‚Рё СЃСЂРµРґСЃС‚РІР°РјРё METIS
 	int n = grid.cCount;
 	int m = grid.eCount;
 	int ncon = 1;
@@ -100,7 +100,7 @@ void Decomp::run()
 			}
 			xadj[i + 1] = jj;
 		}
-		// TODO: подключить х64 версию METIS
+		// TODO: РїРѕРґРєР»СЋС‡РёС‚СЊ С…64 РІРµСЂСЃРёСЋ METIS
 		METIS_PartGraphRecursive(&n, &ncon, xadj, adjncy, NULL, NULL, NULL, &procCount, NULL, NULL, NULL, &objval, part);
 		delete[] xadj;
 		delete[] adjncy;
@@ -143,8 +143,8 @@ void Decomp::run()
 
 	log(" Written file 'parts.vtk'...\n");
 
-	// формирование файлов c данными сетки для каждого процессора
-	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
+	// С„РѕСЂРјРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»РѕРІ c РґР°РЅРЅС‹РјРё СЃРµС‚РєРё РґР»СЏ РєР°Р¶РґРѕРіРѕ РїСЂРѕС†РµСЃСЃРѕСЂР°
+	MK_DIR('mesh'); // @todo: РґРѕР±Р°РІРёС‚СЊ СѓРґР°Р»РµРЅРёРµ СЃС‚Р°СЂРѕРіРѕ СЃРѕРґРµСЂР¶РёРјРѕРіРѕ
 	MK_DIR('vtk_data');  
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
@@ -187,7 +187,7 @@ void Decomp::run()
 		}
 		procCellEx.clear();
 
-		// сортировка фиктивных ячеек в порядке убывания процессора
+		// СЃРѕСЂС‚РёСЂРѕРІРєР° С„РёРєС‚РёРІРЅС‹С… СЏС‡РµРµРє РІ РїРѕСЂСЏРґРєРµ СѓР±С‹РІР°РЅРёСЏ РїСЂРѕС†РµСЃСЃРѕСЂР°
 		int exCnt = pm.cCountEx - pm.cCount;
 
 		pm.recvCount.resize(procCount);

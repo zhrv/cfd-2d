@@ -20,7 +20,7 @@ VECTOR normVector(VECTOR v)
 }
 
 
-void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех массивов
+void FEM_RKDG::init(char * xmlFileName) // TODO: РѕСЃРІРѕР±РѕРґРёС‚СЊ РїР°РјСЏС‚СЊ РґР»СЏ РІСЃРµС… РјР°СЃСЃРёРІРѕРІ
 {
 	TiXmlDocument doc( xmlFileName );
 	bool loadOkay = doc.LoadFile( TIXML_ENCODING_UTF8 );
@@ -58,7 +58,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 		FLUX = FLUX_GODUNOV;
 	}
 
-	// чтение параметров о МАТЕРИАЛАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ РњРђРўР•Р РРђР›РђРҐ
 	node0 = task->FirstChild("materials");
 	node0->ToElement()->Attribute("count", &matCount);;
 	materials = new Material[matCount];
@@ -78,7 +78,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 		matNode = matNode->NextSibling("material");
 	}
 
-	// чтение параметров о РЕГИОНАХ
+	// С‡С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Рѕ Р Р•Р“РРћРќРђРҐ
 	double maxP = 0.0;
 	double maxR = 0.0;
 	double maxT = 0.0;
@@ -117,39 +117,39 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 
 	maxU = sqrt(maxU);
 
-	//// параметры обезразмеривания
+	//// РїР°СЂР°РјРµС‚СЂС‹ РѕР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёСЏ
 	//L_ = 1.0;
-	//R_ = maxR;					// характерная плотность = начальная плотность
-	//P_ = maxP;					// характерное давление = начальное давление 
-	//T_ = maxT;					// характерная температура = начальная температура
-	//U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
-	//E_ = POW_2(U_);			// характерная энергия  = U_**2
-	//CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
-	//TIME_ = L_ / U_;			// характерное время
-	//MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
-	//KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
-	//CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+	//R_ = maxR;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ = РЅР°С‡Р°Р»СЊРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ
+	//P_ = maxP;					// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РґР°РІР»РµРЅРёРµ = РЅР°С‡Р°Р»СЊРЅРѕРµ РґР°РІР»РµРЅРёРµ 
+	//T_ = maxT;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР° = РЅР°С‡Р°Р»СЊРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР°
+	//U_ = sqrt(P_ / R_);		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ = sqrt( P_ / R_ )
+	//E_ = POW_2(U_);			// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЌРЅРµСЂРіРёСЏ  = U_**2
+	//CV_ = POW_2(U_) / T_;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
+	//TIME_ = L_ / U_;			// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РІСЂРµРјСЏ
+	//MU_ = R_ * U_ * L_;		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РІСЏР·РєРѕСЃС‚СЊ = R_ * U_ * L_
+	//KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// РєРѕСЌС„С„РёС†РёРµРЅС‚ С‚РµРїР»РѕРїСЂРѕРІРѕРґРЅРѕСЃС‚Рё = R_ * U_**3 * L_ / T_
+	//CV_ = POW_2(U_) / T_;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
 
 
-	//// Обезразмеривание всех параметров
+	//// РћР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёРµ РІСЃРµС… РїР°СЂР°РјРµС‚СЂРѕРІ
 	//TAU /= TIME_;
 	//TMAX /= TIME_;
 
-	// параметры обезразмеривания
+	// РїР°СЂР°РјРµС‚СЂС‹ РѕР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёСЏ
 	L_ = 1.0;
-	R_ = 1.0;					// характерная плотность = начальная плотность
-	P_ = 1.0;					// характерное давление = начальное давление 
-	T_ = 1.0;					// характерная температура = начальная температура
-	U_ = 1.0;		// характерная скорость = sqrt( P_ / R_ )
-	E_ = 1.0;			// характерная энергия  = U_**2
-	CV_ = 1.0;	// характерная теплоёмкость  = U_**2 / T_
-	TIME_ = 1.0;			// характерное время
-	MU_ = 1.0;		// характерная вязкость = R_ * U_ * L_
-	KP_ = 1.0;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
-	CV_ = 1.0;	// характерная теплоёмкость  = U_**2 / T_
+	R_ = 1.0;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ = РЅР°С‡Р°Р»СЊРЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ
+	P_ = 1.0;					// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РґР°РІР»РµРЅРёРµ = РЅР°С‡Р°Р»СЊРЅРѕРµ РґР°РІР»РµРЅРёРµ 
+	T_ = 1.0;					// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР° = РЅР°С‡Р°Р»СЊРЅР°СЏ С‚РµРјРїРµСЂР°С‚СѓСЂР°
+	U_ = 1.0;		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ = sqrt( P_ / R_ )
+	E_ = 1.0;			// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ СЌРЅРµСЂРіРёСЏ  = U_**2
+	CV_ = 1.0;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
+	TIME_ = 1.0;			// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ РІСЂРµРјСЏ
+	MU_ = 1.0;		// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ РІСЏР·РєРѕСЃС‚СЊ = R_ * U_ * L_
+	KP_ = 1.0;	// РєРѕСЌС„С„РёС†РёРµРЅС‚ С‚РµРїР»РѕРїСЂРѕРІРѕРґРЅРѕСЃС‚Рё = R_ * U_**3 * L_ / T_
+	CV_ = 1.0;	// С…Р°СЂР°РєС‚РµСЂРЅР°СЏ С‚РµРїР»РѕС‘РјРєРѕСЃС‚СЊ  = U_**2 / T_
 
 
-	// Обезразмеривание всех параметров
+	// РћР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёРµ РІСЃРµС… РїР°СЂР°РјРµС‚СЂРѕРІ
 	TAU /= TIME_;
 	TMAX /= TIME_;
 
@@ -175,7 +175,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 		int zhrv = 0;
 	}
 
-	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
+	Material::gR *= R_ * T_ / P_;	// Р“Р°Р·РѕРІР°СЏ РїРѕСЃС‚РѕСЏРЅРЅР°СЏ
 	for (int i = 0; i < matCount; i++)
 	{
 		Material & mat = materials[i];
@@ -186,7 +186,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 
 
 
-	/* Чтение параметров ГУ */
+	/* Р§С‚РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ Р“РЈ */
 	node0 = task->FirstChild("boundaries");
 	TiXmlNode* bNode = node0->FirstChild("boundCond");
 	while (bNode != NULL)
@@ -204,7 +204,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 			exit(e.getType());
 		}
 
-		// TODO: !!!! костыль для обезразмеривания
+		// TODO: !!!! РєРѕСЃС‚С‹Р»СЊ РґР»СЏ РѕР±РµР·СЂР°Р·РјРµСЂРёРІР°РЅРёСЏ
 		if (b->parCount == 4) {
 			b->par[0] /= U_;
 			b->par[1] /= U_;
@@ -220,7 +220,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 	bCount = boundaries.size();
 
 	
-	/* Чтение данных сетки. */
+	/* Р§С‚РµРЅРёРµ РґР°РЅРЅС‹С… СЃРµС‚РєРё. */
 	//node0 = task->FirstChild("mesh");
 	//const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
 	//const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
@@ -230,7 +230,7 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить память для всех масс
 	grid.readMeshFiles();
 	//grid.saveMeshInfo();
 
-	/* Определение ГУ для каждого ребра. */
+	/* РћРїСЂРµРґРµР»РµРЅРёРµ Р“РЈ РґР»СЏ РєР°Р¶РґРѕРіРѕ СЂРµР±СЂР°. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
 		Edge & e = grid.edges[iEdge];
 		if (e.type == Edge::TYPE_INNER) {
@@ -470,7 +470,7 @@ void FEM_RKDG::calcMassMatr()
 void FEM_RKDG::calcGaussPar()
 {
 
-	// для ячеек
+	// РґР»СЏ СЏС‡РµРµРє
 	if (GP_CELL_COUNT == 4) {
 		for (int i = 0; i < grid.cCount; i++) {
 
@@ -547,7 +547,7 @@ void FEM_RKDG::calcGaussPar()
 		}
 	}
 
-	// для ребер
+	// РґР»СЏ СЂРµР±РµСЂ
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
 			double gp1 = -3.0 / 5.0;
@@ -732,7 +732,7 @@ void FEM_RKDG::save(int step)
 	
 	fprintf(fp, "      <CellData Scalars=\"Density, Pressure, Proc\" Vectors=\"Velocity\">\n");
 	
-	// плотность
+	// РїР»РѕС‚РЅРѕСЃС‚СЊ
 	fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Density\" format=\"ascii\">\n");
 	fprintf(fp, "          ");
 	for (int i = 0; i < grid.cCount; i++) {
@@ -743,7 +743,7 @@ void FEM_RKDG::save(int step)
 	}
 	fprintf(fp, "        </DataArray>\n");
 
-	// давление
+	// РґР°РІР»РµРЅРёРµ
 	fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Pressure\" format=\"ascii\">\n");
 	fprintf(fp, "          ");
 	for (int i = 0; i < grid.cCount; i++) {
@@ -754,7 +754,7 @@ void FEM_RKDG::save(int step)
 	}
 	fprintf(fp, "        </DataArray>\n");
 	
-	// скорость
+	// СЃРєРѕСЂРѕСЃС‚СЊ
 	fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Velocity\" format=\"ascii\" NumberOfComponents=\"3\">\n");
 	fprintf(fp, "          ");
 	for (int i = 0; i < grid.cCount; i++) {
@@ -765,7 +765,7 @@ void FEM_RKDG::save(int step)
 	}
 	fprintf(fp, "        </DataArray>\n");
 	
-	// номер процессора
+	// РЅРѕРјРµСЂ РїСЂРѕС†РµСЃСЃРѕСЂР°
 	fprintf(fp, "        <DataArray type=\"Int32\" Name=\"Proc\" format=\"ascii\">\n");
 	fprintf(fp, "          ");
 	for (int i = 0; i < grid.cCount; i++) {
@@ -774,7 +774,7 @@ void FEM_RKDG::save(int step)
 	}
 	fprintf(fp, "        </DataArray>\n");
 
-	// локальный номер ячейки
+	// Р»РѕРєР°Р»СЊРЅС‹Р№ РЅРѕРјРµСЂ СЏС‡РµР№РєРё
 	fprintf(fp, "        <DataArray type=\"Int32\" Name=\"Loc_ID\" format=\"ascii\">\n");
 	fprintf(fp, "          ");
 	for (int i = 0; i < grid.cCount; i++) {
@@ -1013,7 +1013,7 @@ void FEM_RKDG::calcConvectionSurf()
 				convertConsToPar(c1, pt, pL);
 				convertConsToPar(c2, pt, pR);
 				Material &mat = getMaterial(c1);
-				double __GAM = mat.getGamma();   // TODO: сделать правильное вычисление показателя адиабаты
+				double __GAM = mat.getGamma();   // TODO: СЃРґРµР»Р°С‚СЊ РїСЂР°РІРёР»СЊРЅРѕРµ РІС‹С‡РёСЃР»РµРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»СЏ Р°РґРёР°Р±Р°С‚С‹
 				calcFlux(fr, fu, fv, fe, pL, pR, n, __GAM);
 				
 				VECTOR tmp(FUNC_COUNT), tmp1(FUNC_COUNT), tmp2(FUNC_COUNT);

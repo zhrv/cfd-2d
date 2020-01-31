@@ -24,7 +24,7 @@ int MeshReaderSalomeUnv::find_edge(int n1, int n2)
 
 void MeshReaderSalomeUnv::read(Grid * g)
 {
-	// ÷òåíèå ôàéëà â êîíòåéíåðû
+	// Ñ‡Ñ‚ÐµÐ½Ð¸Ðµ Ñ„Ð°Ð¹Ð»Ð° Ð² ÐºÐ¾Ð½Ñ‚ÐµÐ¹Ð½ÐµÑ€Ñ‹
 	ifstream fin(fileName);
 	if (fin.is_open()) {
 
@@ -40,7 +40,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 	}
 
 	/* 
-	 *  Óïàêîâêà äàííûõ â êëàññ Grid
+	 *  Ð£Ð¿Ð°ÐºÐ¾Ð²ÐºÐ° Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð² ÐºÐ»Ð°ÑÑ Grid
 	 */
 
 	int i;
@@ -125,7 +125,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 			if (p > -1)
 			{
 				for (int k = 0; k < 3; k++)
-				{ // óáèðàåì ó ñîñåäà íîìåð ýòîé ÿ÷åéêè, ÷òîáû ãðàíü íå ïîâòîðÿëàñü
+				{ // ÑƒÐ±Ð¸Ñ€Ð°ÐµÐ¼ Ñƒ ÑÐ¾ÑÐµÐ´Ð° Ð½Ð¾Ð¼ÐµÑ€ ÑÑ‚Ð¾Ð¹ ÑÑ‡ÐµÐ¹ÐºÐ¸, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð³Ñ€Ð°Ð½ÑŒ Ð½Ðµ Ð¿Ð¾Ð²Ñ‚Ð¾Ñ€ÑÐ»Ð°ÑÑŒ
 					if (neigh[p][k] == i) neigh[p][k] = -1;
 				}
 				g->eCount++;
@@ -158,13 +158,13 @@ void MeshReaderSalomeUnv::read(Grid * g)
 				g->edges[iEdge].cCount = 3;
 				g->edges[iEdge].c = new Point[g->edges[iEdge].cCount];
 				double _sqrt3 = 1.0 / sqrt(3.0);
-				// öåíòð ðåáðà
+				// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 				g->edges[iEdge].c[0].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0;
 				g->edges[iEdge].c[0].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0;
-				// ïåðâàÿ òî÷êà Ãàóññà
+				// Ð¿ÐµÑ€Ð²Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 				g->edges[iEdge].c[1].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
 				g->edges[iEdge].c[1].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
-				// âòîðàÿ òî÷êà Ãàóññà
+				// Ð²Ñ‚Ð¾Ñ€Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 				g->edges[iEdge].c[2].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
 				g->edges[iEdge].c[2].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
 				g->edges[iEdge].n.x = g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y;
@@ -177,7 +177,7 @@ void MeshReaderSalomeUnv::read(Grid * g)
 				cfi[i]++;
 				g->edges[iEdge].cnl1 = fabs(g->edges[iEdge].n.x*(g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c1].c.x) + g->edges[iEdge].n.y*(g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c1].c.y));
 
-				// êîððåêöèÿ íàïðàâëåíèé íîðìàëåé
+				// ÐºÐ¾Ñ€Ñ€ÐµÐºÑ†Ð¸Ñ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ð¹ Ð½Ð¾Ñ€Ð¼Ð°Ð»ÐµÐ¹
 				Vector vc;
 				vc.x = g->cells[i].c.x - g->edges[iEdge].c[0].x;
 				vc.y = g->cells[i].c.y - g->edges[iEdge].c[0].y;
@@ -356,7 +356,7 @@ void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 		p.push_back(tmp[1]);
 		p.push_back(tmp[5]);
 		switch (tmp[1]) {
-		case 11: // ðåáðî
+		case 11: // Ñ€ÐµÐ±Ñ€Ð¾
 			sscanf(it->c_str(), "%d %d %d", &tmp[6], &tmp[7], &tmp[8]); it++;
 			sscanf(it->c_str(), "%d %d", &tmp[9], &tmp[10]); it++;
 			tmp[9]--;
@@ -366,7 +366,7 @@ void MeshReaderSalomeUnv::parse_block_2412(string_list sl, Grid * g)
 			edges.push_back(p);
 			break;
 
-		case 41: // òðåóãîëüíèê
+		case 41: // Ñ‚Ñ€ÐµÑƒÐ³Ð¾Ð»ÑŒÐ½Ð¸Ðº
 			sscanf(it->c_str(), "%d %d %d", &tmp[6], &tmp[7], &tmp[8]); it++;
 			tmp[6]--;
 			tmp[7]--;

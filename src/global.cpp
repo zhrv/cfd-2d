@@ -3,7 +3,7 @@
 
 FILE * hLog;
 
-double Material::gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
+double Material::gR = 8.314472;	// Рј2 РєРі СЃ-2 Рљ-1 РњРѕР»СЊ-1
 
 
 void Material::URS(Param &par, int flag)
@@ -19,7 +19,7 @@ void Material::URS(Param &par, int flag)
 	
 	case 1:		// e=e(r,p)
 		par.e = par.p/(par.r*(gam-1));
-		par.T = par.e/Cv;				// TODO: проверить правильность
+		par.T = par.e/Cv;				// TODO: РїСЂРѕРІРµСЂРёС‚СЊ РїСЂР°РІРёР»СЊРЅРѕСЃС‚СЊ
 		break;
 	
 	case 2:		// r=r(T,p)
@@ -55,8 +55,8 @@ void EXIT(int err)
 
 
 /**
- *	Решение задачи о распаде произвольного разрыва
- *	(с) ИПМ им. М.В.Келдыша РАН, Тишкин, Никишин, Змитренко
+ *	Р РµС€РµРЅРёРµ Р·Р°РґР°С‡Рё Рѕ СЂР°СЃРїР°РґРµ РїСЂРѕРёР·РІРѕР»СЊРЅРѕРіРѕ СЂР°Р·СЂС‹РІР°
+ *	(СЃ) РРџРњ РёРј. Рњ.Р’.РљРµР»РґС‹С€Р° Р РђРќ, РўРёС€РєРёРЅ, РќРёРєРёС€РёРЅ, Р—РјРёС‚СЂРµРЅРєРѕ
  *
  *	c==========================================================
  *	C    Nikichine
@@ -410,7 +410,7 @@ void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 
 	double AGAM  =  (GAM-1.0);
 
-	// Схема ROE
+	// РЎС…РµРјР° ROE
 	
 	double fG = GAM;
 

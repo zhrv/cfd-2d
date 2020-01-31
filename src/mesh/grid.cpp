@@ -47,14 +47,14 @@ int Grid::findEdge(int n1, int n2)
 	return -1;
 }
 
-//Grid::initFromFiles: çàãðóçêà ñåòêè èç ôàéëà fName.
+//Grid::initFromFiles: Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° ÑÐµÑ‚ÐºÐ¸ Ð¸Ð· Ñ„Ð°Ð¹Ð»Ð° fName.
 void Grid::initFromFiles(char* fName) 
 {
 	char str[50];
 	FILE *fp;
 	int tmp; 
 
-	// ÷èòàåì äàííûå îá ÓÇËÀÕ
+	// Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾Ð± Ð£Ð—Ð›ÐÐ¥
 	sprintf(str, "%s.node", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
@@ -69,7 +69,7 @@ void Grid::initFromFiles(char* fName)
 	}
 	fclose(fp);
 
-	// ÷èòàåì äàííûå î ß×ÅÉÊÀÕ
+	// Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾ Ð¯Ð§Ð•Ð™ÐšÐÐ¥
 	sprintf(str, "%s.ele", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
@@ -99,7 +99,7 @@ void Grid::initFromFiles(char* fName)
 	}
 	fclose(fp);
 
-	// ôîðìèðóåì äàííûå î ÐÅÁÐÀÕ
+	// Ñ„Ð¾Ñ€Ð¼Ð¸Ñ€ÑƒÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð¾ Ð Ð•Ð‘Ð ÐÐ¥
 	sprintf(str, "%s.neigh", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
@@ -130,7 +130,7 @@ void Grid::initFromFiles(char* fName)
 			if (p > -1) 
 			{
 				for (int k = 0; k < 3; k++) 
-				{ // óáèðàåì ó ñîñåäà íîìåð ýòîé ÿ÷åéêè, ÷òîáû ãðàíü íå ïîâòîðÿëàñü
+				{ // ÑƒÐ±Ð¸Ñ€Ð°ÐµÐ¼ Ñƒ ÑÐ¾ÑÐµÐ´Ð° Ð½Ð¾Ð¼ÐµÑ€ ÑÑ‚Ð¾Ð¹ ÑÑ‡ÐµÐ¹ÐºÐ¸, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð³Ñ€Ð°Ð½ÑŒ Ð½Ðµ Ð¿Ð¾Ð²Ñ‚Ð¾Ñ€ÑÐ»Ð°ÑÑŒ
 					if (neigh[p][k] == i) neigh[p][k] = -1;
 				}
 				eCount++;
@@ -160,13 +160,13 @@ void Grid::initFromFiles(char* fName)
 				edges[iEdge].cCount = 3;
 				edges[iEdge].c      = new Point[edges[iEdge].cCount];
 				double _sqrt3 = 1.0/sqrt(3.0);
-				// öåíòð ðåáðà
+				// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 				edges[iEdge].c[0].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0;
 				edges[iEdge].c[0].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0;
-				// ïåðâà¤ òî÷êà vàóññà
+				// Ð¿ÐµÑ€Ð²Ð°Â¤ Ñ‚Ð¾Ñ‡ÐºÐ° vÐ°ÑƒÑÑÐ°
 				edges[iEdge].c[1].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0-_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
 				edges[iEdge].c[1].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0-_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
-				// âòîðà¤ òî÷êà vàóññà
+				// Ð²Ñ‚Ð¾Ñ€Ð°Â¤ Ñ‚Ð¾Ñ‡ÐºÐ° vÐ°ÑƒÑÑÐ°
 				edges[iEdge].c[2].x = (nodes[edges[iEdge].n1].x+nodes[edges[iEdge].n2].x)/2.0+_sqrt3*(nodes[edges[iEdge].n2].x-nodes[edges[iEdge].n1].x)/2.0;
 				edges[iEdge].c[2].y = (nodes[edges[iEdge].n1].y+nodes[edges[iEdge].n2].y)/2.0+_sqrt3*(nodes[edges[iEdge].n2].y-nodes[edges[iEdge].n1].y)/2.0;
 
@@ -201,7 +201,7 @@ void Grid::initFromFiles(char* fName)
 		
 	}
 	
-	// ÷òåíèå äàííûõ î ãðàíè÷íûõ ãðàíÿõ
+	// Ñ‡Ñ‚ÐµÐ½Ð¸Ðµ Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð¾ Ð³Ñ€Ð°Ð½Ð¸Ñ‡Ð½Ñ‹Ñ… Ð³Ñ€Ð°Ð½ÑÑ…
 	sprintf(str, "%s.poly", fName);
 	fp = fopen(str, "r");
 	if (!fp) {
@@ -377,16 +377,16 @@ void Grid::readMeshFiles()
 		e.cCount = 3;
 		e.c = new Point[e.cCount];
 		double _sqrt3 = 1.0 / sqrt(3.0);
-		// öåíòð ðåáðà
+		// Ñ†ÐµÐ½Ñ‚Ñ€ Ñ€ÐµÐ±Ñ€Ð°
 		e.c[0].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0;
 		e.c[0].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0;
-		// ïåðâàÿ òî÷êà Ãàóññà
+		// Ð¿ÐµÑ€Ð²Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 		e.c[1].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 - _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
 		e.c[1].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 - _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// âòîðàÿ òî÷êà Ãàóññà
+		// Ð²Ñ‚Ð¾Ñ€Ð°Ñ Ñ‚Ð¾Ñ‡ÐºÐ° Ð“Ð°ÑƒÑÑÐ°
 		e.c[2].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 + _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
 		e.c[2].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 + _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// íîðìàëü è äëèíà ðåáðà
+		// Ð½Ð¾Ñ€Ð¼Ð°Ð»ÑŒ Ð¸ Ð´Ð»Ð¸Ð½Ð° Ñ€ÐµÐ±Ñ€Ð°
 		e.n.x = nodes[e.n2].y - nodes[e.n1].y;
 		e.n.y = nodes[e.n1].x - nodes[e.n2].x;
 		e.l = sqrt(e.n.x*e.n.x + e.n.y*e.n.y);
@@ -399,7 +399,7 @@ void Grid::readMeshFiles()
 		else {
 			e.cnl2 = 0.0;
 		}
-		// êîððåêöèÿ íàïðàâëåíèé íîðìàëåé
+		// ÐºÐ¾Ñ€Ñ€ÐµÐºÑ†Ð¸Ñ Ð½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ð¹ Ð½Ð¾Ñ€Ð¼Ð°Ð»ÐµÐ¹
 		Vector vc;
 		
 		vc.x = cells[e.c1].c.x - e.c[0].x;

@@ -22,3 +22,10 @@ x64*/*
 /.kdev4
 /build
 /run
+.idea/
+/cmake-build-*
+~debug
+~tmp
+~run
+/contrib/metis-5.1.0/build/
+contrib/metis-5.1.0/local/
