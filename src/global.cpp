@@ -31,18 +31,34 @@ void Material::URS(Param &par, int flag)
 
 void log(char * format, ...)
 {
-	if (!Parallel::isRoot()) return;
-	va_list arglist;
+    if (!Parallel::isRoot()) return;
+    va_list arglist;
 
     va_start(arglist,format);
 
-        vprintf(format, arglist);
-        vfprintf(hLog, format, arglist);
+    vprintf(format, arglist);
+    vfprintf(hLog, format, arglist);
 
     va_end(arglist);
-	
-	fflush(stdout);
-	fflush(hLog);
+
+    fflush(stdout);
+    fflush(hLog);
+}
+
+void log(const char * format, ...)
+{
+    if (!Parallel::isRoot()) return;
+    va_list arglist;
+
+    va_start(arglist,format);
+
+    vprintf(format, arglist);
+    vfprintf(hLog, format, arglist);
+
+    va_end(arglist);
+
+    fflush(stdout);
+    fflush(hLog);
 }
 
 void EXIT(int err)

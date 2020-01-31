@@ -11,7 +11,7 @@ public:
 	//virtual void init(int cellsCount, int blockDimension);
 
 	virtual int solve(double eps, int& maxIter);
-	virtual char* getName() { return "ZEIDEL"; }
+	virtual char* getName() { return (char*)"ZEIDEL"; }
 	//virtual void zero();
 	//virtual void setMatrElement(int i, int j, double** matrDim);
 	//virtual void addMatrElement(int i, int j, double** matrDim);

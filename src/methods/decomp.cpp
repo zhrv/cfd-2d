@@ -49,8 +49,8 @@ void Decomp::init(char * xmlFileName)
 	task = doc.FirstChild( "task" );
 
 
-	node0 = task->FirstChild("decomp");
-	node0->FirstChild("processors")->ToElement()->Attribute("value", &procCount);
+//	node0 = task->FirstChild("decomp");
+//	node0->FirstChild("processors")->ToElement()->Attribute("value", &procCount);
 
 	grids = new Grid[procCount];
 

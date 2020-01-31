@@ -30,11 +30,12 @@ Method* Solver::initMethod(char* fileName)
 	//char methodName[50];
 	const char * methodName = task->ToElement()->Attribute("method");
 
-	if (strcmp("DECOMP", methodName) == 0)
-	{
-		m = new Decomp();
-	}
-	else if (strcmp("FVM_TVD", methodName) == 0) 
+//	if (strcmp("DECOMP", methodName) == 0)
+//	{
+//		m = new Decomp();
+//	}
+//	else
+	if (strcmp("FVM_TVD", methodName) == 0)
 	{
 		m = new FVM_TVD();
 	}

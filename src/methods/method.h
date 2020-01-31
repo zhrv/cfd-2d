@@ -9,6 +9,7 @@ public:
 	virtual void init(char * xmlFileName) = 0;
 	virtual void run() = 0;
 	virtual void done() = 0;
+	virtual ~Method() {};
 
 	void exchange(double* field)
 	{
