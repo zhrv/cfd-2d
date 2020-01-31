@@ -18,8 +18,8 @@ set(HYPRE_LIB "${CONTRIB_DIR}/hypre/src/hypre/lib")
 #
 #  http://glaros.dtc.umn.edu/gkhome/metis/metis/download
 #
-set(METIS_INCLUDE "${CONTRIB_DIR}/metis/include")
-set(METIS_LIB "${CONTRIB_DIR}/metis/lib")
+set(METIS_INCLUDE "${CONTRIB_DIR}/metis-5.1.0/local/include")
+set(METIS_LIB "${CONTRIB_DIR}/metis-5.1.0/local/lib")
 
 
 include_directories(
