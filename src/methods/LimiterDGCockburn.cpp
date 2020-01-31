@@ -392,10 +392,10 @@ double LimiterDGCockburn::triSquare(Point p0, Point p1, Point p2)
 void LimiterDGCockburn::choiseDirection(int& nn1, int& nn2, double& a1, double& a2, int n0, int n1, int n2, int n3, Point pm, int mm)
 {
 	int nn[3] = { n1, n2, n3 };
-	Point p[3];
-	p[0] = grid->cells[n1].c;
-	p[1] = grid->cells[n2].c;
-	p[2] = grid->cells[n3].c;
+//	Point p[3];
+//	p[0] = grid->cells[n1].c;
+//	p[1] = grid->cells[n2].c;
+//	p[2] = grid->cells[n3].c;
 	for (int m = 0; m < 3; m++)
 	{
 		nn1 = nn[m];
