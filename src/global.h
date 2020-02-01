@@ -2,6 +2,7 @@
 #define _GLOBAL_H_
 
 #include <string.h>
+#include <string>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -247,12 +248,12 @@ public:
 
 	static const int FILE_OPENING_ERROR = 301;
 
-	Exception(char* msg, int t) : message(msg), type(t) {}
-	char* getMessage() { return message; }
+	Exception(std::string msg, int t) : message(msg), type(t) {}
+    std::string getMessage() { return message; }
 	int getType() { return type; }
 
 private:
-	char* message;
+	std::string message;
 	int type;
 };
 

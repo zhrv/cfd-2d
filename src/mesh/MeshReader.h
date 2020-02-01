@@ -6,7 +6,8 @@ class MeshReader
 {
 public:
 	static const int TYPE_BERKLEY_TRI	= 1;
-	static const int TYPE_SALOME		= 2;
+    static const int TYPE_SALOME		= 2;
+    static const int TYPE_MSH2  		= 3;
 
 	virtual void read(Grid*) = 0;
 	static MeshReader* create(int type, char* fileName);
