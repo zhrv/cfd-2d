@@ -22,6 +22,24 @@ public:
 
     virtual void read(Grid*);
 
+    struct element {
+        int ind;
+        int type;
+
+        static const int TYPE_EDGE = 11;
+        static const int TYPE_CELL = 41;
+
+        element() : ind(0), type(0){}
+        element(int i, int t) : ind(i), type(t) {}
+    };
+
+    typedef vector<string> string_list;
+    typedef vector<int> indexes;
+    typedef vector<indexes> index_list;
+    typedef map<string, indexes> bnd_map;
+    typedef set<int> ind_set;
+    typedef vector<element> ele_map;
+
 };
 
 

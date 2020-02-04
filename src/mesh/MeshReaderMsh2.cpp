@@ -82,6 +82,9 @@ void MeshReaderMsh2::read(Grid * g)
     vector<cell_t> cells;
     cell_t cell;
     double          *vert;
+    long long tmp_ll;
+    double tmp_d;
+    int tmp_i;
     streampos fpos;
 
     ifstream fin(fileName);
@@ -111,16 +114,16 @@ void MeshReaderMsh2::read(Grid * g)
             else if (strstr(line, "$NODES")) {
                 delete[] line;
                 line = getLineUpper(fin);
-                sscanf(line, "%d", &num_vertices);
-                for (int i = 0; i < num_vertices; i++) {
+                sscanf(line, "%d", &g->nCount);
+                g->nodes = new Point[g->nCount];
+                for (int i = 0; i < g->nCount; i++) {
                     delete[] line;
                     line = getLineUpper(fin);
-                    int retval = sscanf (line, "%lld %lf %lf %lf", &node.id, &node.x, &node.y, &node.z);
+                    int retval = sscanf (line, "%lld %lf %lf %lf", &tmp_ll, &(g->nodes[i].x), &(g->nodes[i].y), &tmp_d);
                     if (retval != 4) {
                         delete[] line;
                         throw Exception("Premature end of file", Exception::FILE_OPENING_ERROR);
                     }
-                    nodes.push_back(node);
                 }
             }
             else if(strstr(line, "$ELEMENTS")) {
@@ -160,6 +163,11 @@ void MeshReaderMsh2::read(Grid * g)
                         }
                         --edge.n[0];
                         --edge.n[1];
+                        if (edge.n[0] > edge.n[1]) {
+                            tmp_i = edge.n[0];
+                            edge.n[0] = edge.n[1];
+                            edge.n[1] = tmp_i;
+                        }
                         edges.push_back(edge);
                     }
                 }
@@ -185,14 +193,40 @@ void MeshReaderMsh2::read(Grid * g)
     log("\t- cells;\n");
     g->cCount = cells.size();
     g->cells = new Cell[g->cCount];
-    typedef set<int> ind_set;
+
     map<int, ind_set> node_cells;
+    map<pair<int, int>, vector<int>> edges_cells;
     i = 0;
     for (auto it = cells.begin(); it != cells.end(); it++, i++) {
-        auto& el = *it;
-        node_cells[it->n[0]].insert(i);
-        node_cells[it->n[1]].insert(i);
-        node_cells[it->n[2]].insert(i);
+        Cell & c = g->cells[i];
+        c.nCount = 3;
+        c.nodesInd = new int[g->cells[i].nCount];
+        c.nodesInd[0] = it->n[0];
+        c.nodesInd[1] = it->n[1];
+        c.nodesInd[2] = it->n[2];
+
+        g->cells[i].type = it->type;
+        g->cells[i].c.x = (g->nodes[g->cells[i].nodesInd[0]].x + g->nodes[g->cells[i].nodesInd[1]].x + g->nodes[g->cells[i].nodesInd[2]].x) / 3.0;
+        g->cells[i].c.y = (g->nodes[g->cells[i].nodesInd[0]].y + g->nodes[g->cells[i].nodesInd[1]].y + g->nodes[g->cells[i].nodesInd[2]].y) / 3.0;
+        g->cells[i].HX = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[1]].x),
+                               fabs(g->nodes[g->cells[i].nodesInd[1]].x - g->nodes[g->cells[i].nodesInd[2]].x),
+                               fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[2]].x));
+        g->cells[i].HY = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].y - g->nodes[g->cells[i].nodesInd[1]].y),
+                               fabs(g->nodes[g->cells[i].nodesInd[1]].y - g->nodes[g->cells[i].nodesInd[2]].y),
+                               fabs(g->nodes[g->cells[i].nodesInd[0]].y - g->nodes[g->cells[i].nodesInd[2]].y));
+        g->cells[i].eCount = 3;
+        g->cells[i].edgesInd = new int[g->cells[i].eCount];
+
+        for (int j = 0; j < 3; j++) {
+            int n1 = c.nodesInd[j];
+            int n2 = c.nodesInd[(j+1)%3];
+            if (n1 > n2) {
+                tmp_i = n1;
+                n1 = n2;
+                n2 = tmp_i;
+            }
+            edges_cells[pair<int,int>(n1, n2)].push_back(i);
+        }
     }
 
 
