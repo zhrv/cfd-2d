@@ -66,6 +66,7 @@ set(MESH_SRC
 		src/mesh/MeshReaderBerkleyTriangle.cpp
 		src/mesh/MeshReaderSalomeUnv.cpp
 		src/mesh/MeshReaderMsh2.cpp
+		src/mesh/MeshReaderGmsh.cpp
 )
 
 set(TINYXML_SRC

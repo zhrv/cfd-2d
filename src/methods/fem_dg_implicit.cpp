@@ -5,6 +5,7 @@
 #include <cfloat>
 #include "LimiterDG.h"
 #include "MatrixSolver.h"
+#include "MeshReader.h"
 
 #define POW_2(x) ((x)*(x))
 
@@ -134,21 +135,35 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	maxU = sqrt(maxU);
 
-	// параметры обезразмеривания
-	L_ = 1.0;
-	R_ = maxR;					// характерная плотность = начальная плотность
-	P_ = maxP;					// характерное давление = начальное давление 
-	T_ = maxT;					// характерная температура = начальная температура
-	U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
-	E_ = POW_2(U_);			// характерная энергия  = U_**2
-	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
-	TIME_ = L_ / U_;			// характерное время
-	MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
-	KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
-	CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+    // параметры обезразмеривания
+    L_ = 1.0;
+    R_ = 1.0;				// характерная плотность = начальная плотность
+    P_ = 1.0;				// характерное давление = начальное давление
+    T_ = 1.0;					// характерная температура = начальная температура
+    U_ = 1.0;		// характерная скорость = sqrt( P_ / R_ )
+    E_ = 1.0;		// характерная энергия  = U_**2
+    CV_ = 1.0;	// характерная теплоёмкость  = U_**2 / T_
+    TIME_ = 1.0;			// характерное время
+    MU_ = 1.0;	// характерная вязкость = R_ * U_ * L_
+    KP_ = 1.0;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
+    CV_ = 1.0;	// характерная теплоёмкость  = U_**2 / T_
 
 
-	// Обезразмеривание всех параметров
+//    // параметры обезразмеривания
+//    L_ = 1.0;
+//    R_ = maxR;					// характерная плотность = начальная плотность
+//    P_ = maxP;					// характерное давление = начальное давление
+//    T_ = maxT;					// характерная температура = начальная температура
+//    U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
+//    E_ = POW_2(U_);			// характерная энергия  = U_**2
+//    CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+//    TIME_ = L_ / U_;			// характерное время
+//    MU_ = R_ * U_ * L_;		// характерная вязкость = R_ * U_ * L_
+//    KP_ = R_ * POW_2(U_) * U_ * L_ / T_;	// коэффициент теплопроводности = R_ * U_**3 * L_ / T_
+//    CV_ = POW_2(U_) / T_;	// характерная теплоёмкость  = U_**2 / T_
+//
+//
+    // Обезразмеривание всех параметров
 	TAU /= TIME_;
 	TMAX /= TIME_;
 
@@ -185,54 +200,129 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 
 
-	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
-	node0 = task->FirstChild("boundaries");
-	node0->ToElement()->Attribute("count", &bCount);
-	boundaries = new Boundary[bCount];
-	TiXmlNode* bNode = node0->FirstChild("boundCond");
-	for (int i = 0; i < bCount; i++)
-	{
-		Boundary & b = boundaries[i];
-		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
-		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-		if (strcmp(str, "BOUND_WALL") == 0)
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_WALL;
-		}
-		else
-		if (strcmp(str, "BOUND_OUTLET") == 0)
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_OUTLET;
-		}
-		else
-		if (strcmp(str, "BOUND_INLET") == 0)
-		{
-			b.parCount = 4;
-			b.par = new double[4];
-			b.type = Boundary::BOUND_INLET;
+//	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
+//	node0 = task->FirstChild("boundaries");
+//	node0->ToElement()->Attribute("count", &bCount);
+//	boundaries = new Boundary[bCount];
+//	TiXmlNode* bNode = node0->FirstChild("boundCond");
+//	for (int i = 0; i < bCount; i++)
+//	{
+//		Boundary & b = boundaries[i];
+//		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
+//		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
+//		if (strcmp(str, "BOUND_WALL") == 0)
+//		{
+//			b.parCount = 0;
+//			b.par = NULL;
+//			b.type = Boundary::BOUND_WALL;
+//		}
+//		else
+//		if (strcmp(str, "BOUND_OUTLET") == 0)
+//		{
+//			b.parCount = 0;
+//			b.par = NULL;
+//			b.type = Boundary::BOUND_OUTLET;
+//		}
+//		else
+//		if (strcmp(str, "BOUND_INLET") == 0)
+//		{
+//			b.parCount = 4;
+//			b.par = new double[4];
+//			b.type = Boundary::BOUND_INLET;
+//
+//			node1 = bNode->FirstChild("parameters");
+//			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
+//			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
+//			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
+//			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
+//		}
+//		else {
+//			log("ERROR: unsupported boundary condition type '%s'", str);
+//			EXIT(1);
+//		}
+//
+//		bNode = bNode->NextSibling("boundCond");
+//	}
+    /* Чтение параметров ГУ */
+    node0 = task->FirstChild("boundaries");
+    TiXmlNode* bNode = node0->FirstChild("boundCond");
+    while (bNode != NULL)
+    {
+        int edgeType;
+        bNode->ToElement()->Attribute("edgeType", &edgeType);
 
-			node1 = bNode->FirstChild("parameters");
-			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
-			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
-			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
-			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
-		}
-		else {
-			log("ERROR: unsupported boundary condition type '%s'", str);
-			EXIT(1);
-		}
+        CFDBoundary * b;
 
-		bNode = bNode->NextSibling("boundCond");
-	}
+        try {
+            b = CFDBoundary::create(bNode, &grid);
+        }
+        catch (Exception e) {
+            log("ERROR: %s\n", e.getMessage().c_str());
+            exit(e.getType());
+        }
 
-	
-	node0 = task->FirstChild("mesh");
-	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	grid.initFromFiles((char*)fName);
+        boundaries.push_back(b);
+
+        bNode = bNode->NextSibling("boundCond");
+    }
+
+    bCount = boundaries.size();
+
+
+    /* Чтение данных сетки. */
+    node0 = task->FirstChild("mesh");
+    const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+    const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+    MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+    mr->read(&grid);
+//	node0 = task->FirstChild("mesh");
+//	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
+//	grid.initFromFiles((char*)fName);
+
+    /* Определение ГУ для каждого ребра. */
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge & e = grid.edges[iEdge];
+        if (e.type == Edge::TYPE_INNER) {
+            e.bnd = NULL;
+            continue;
+        }
+        if (e.type == Edge::TYPE_NAMED) {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (strcmp(e.typeName, boundaries[i]->name) == 0)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+
+            e.bnd = boundaries[iBound];
+        }
+        else {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (e.type == boundaries[i]->edgeType)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+
+            e.bnd = boundaries[iBound];
+        }
+    }
 
 	memAlloc();
 
@@ -616,6 +706,7 @@ void FEM_DG_IMPLICIT::convertConsToPar(int iCell, Param & par)
 	par.e = par.E - 0.5*(par.u*par.u + par.v*par.v);
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
+    mat.URS(par, 1);
 }
 
 double FEM_DG_IMPLICIT::getField(int fldId, int iCell, double x, double y)
@@ -1238,7 +1329,8 @@ void FEM_DG_IMPLICIT::calcIntegral()
 			consToPar(fRO, fRU, fRV, fRE, par);
 			Material& mat = getMaterial(iCell);
 			mat.URS(par, 0); // p=p(r,e)
-			double H = par.E + par.p / par.r;
+            mat.URS(par, 1);
+            double H = par.E + par.p / par.r;
 			calcA(mx, par.cz, getGAM(iCell), par.u, 1.0, par.v, 0.0, H);
 			calcA(my, par.cz, getGAM(iCell), par.u, 0.0, par.v, 1.0, H);
 			//calcAx_(my, par, getGAM(iCell));
@@ -1304,11 +1396,13 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1);
 				
 				getFields(fRO2, fRU2, fRV2, fRE2, c2, p); 
 				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
 				Material& mat2 = getMaterial(c2);
 				mat2.URS(par2, 0); // p=p(r,e)
+                mat2.URS(par2, 1);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1353,11 +1447,13 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1);
 
 				getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
 				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
 				Material& mat2 = getMaterial(c2);
 				mat2.URS(par2, 0); // p=p(r,e)
+                mat2.URS(par2, 1);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1401,8 +1497,9 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1);
 
-				boundaryCond(iEdge, par1, par2);
+                boundaryCond(iEdge, par1, par2);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1462,6 +1559,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				consToPar(fRO, fRU, fRV, fRE, par);
 				Material& mat = getMaterial(iCell);
 				mat.URS(par, 0); // p=p(r,e)
+                mat.URS(par, 1);
 
 				double FR = par.r*par.u;
 				double FU = FR*par.u + par.p;
@@ -1528,12 +1626,14 @@ void FEM_DG_IMPLICIT::calcRHS()
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat1 = getMaterial(c1);
 					mat1.URS(par1, 0); // p=p(r,e)
+                    mat1.URS(par1, 1);
 
 					getFields(fRO, fRU, fRV, fRE, c2, p);
 					Param par2;
 					consToPar(fRO, fRU, fRV, fRE, par2);
 					Material& mat2 = getMaterial(c2);
 					mat2.URS(par2, 0); // p=p(r,e)
+                    mat2.URS(par2, 1);
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 					
@@ -1605,9 +1705,10 @@ void FEM_DG_IMPLICIT::calcRHS()
 					Param par1;
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat = getMaterial(c1);
-					mat.URS(par1, 0); // p=p(r,e)
-					
-					Param par2;
+                    mat.URS(par1, 0); // p=p(r,e)
+                    mat.URS(par1, 1); // p=p(r,e)
+
+                    Param par2;
 					boundaryCond(iEdge, par1, par2);
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
@@ -1884,7 +1985,7 @@ void FEM_DG_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, P
 }
 
 void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
-{
+{/*
 	int iBound = -1;
 	for (int i = 0; i < bCount; i++)
 	{
@@ -1899,6 +2000,10 @@ void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
 		EXIT(1);
 	}
+
+
+
+
 	Boundary& b = boundaries[iBound];
 	int c1 = grid.edges[iEdge].c1;
 	Material& m = getMaterial(c1);
@@ -1927,7 +2032,23 @@ void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 		pR.u = pL.u - V.x;
 		pR.v = pL.v - V.y;
 		break;
-	}
+	}*/
+    Edge &edge = grid.edges[iEdge];
+    int c1 = edge.c1;
+    Material& m = getMaterial(c1);
+    if (edge.bnd) {
+        edge.bnd->run(iEdge, pL, pR);
+        m.URS(pR, 2);
+        m.URS(pR, 1);
+        pR.E = pR.e + 0.5*(pR.U2());
+        return;
+    }
+    else {
+        char msg[128];
+        sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+        throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+    }
+
 }
 
 void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int j)
@@ -1937,6 +2058,9 @@ void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int
 	int jj = j * BASE_FUNC_COUNT;
 	for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
 		for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
+		    if (mS[i1][j1] != mS[i1][j1]) {
+		        return;
+		    }
 			mB[ii + i1][jj + j1] += mS[i1][j1];
 		}
 	}

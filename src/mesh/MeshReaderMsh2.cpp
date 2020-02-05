@@ -66,6 +66,18 @@ typedef struct {
 } edge_t;
 
 
+void addNeigh(Cell &c, int j)
+{
+    if (j == c.neigh[0] or j == c.neigh[1] or j == c.neigh[2]) return;
+    for (int i = 0; i < 3; i++) {
+        if (c.neigh[i] == -1) {
+            c.neigh[i] == j;
+        }
+    }
+
+}
+
+
 void MeshReaderMsh2::read(Grid * g)
 {
     int num_vertices = 0,

@@ -246,6 +246,8 @@ public:
 	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
 	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE = 222;
 
+    static const int TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE = 223;
+
 	static const int FILE_OPENING_ERROR = 301;
 
 	Exception(std::string msg, int t) : message(msg), type(t) {}

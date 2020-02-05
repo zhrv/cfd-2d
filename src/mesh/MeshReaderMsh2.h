@@ -15,6 +15,7 @@ private:
     char* fileName;
 
     char* getLineUpper (ifstream &stream);
+    void addNeigh(Cell &c, int iNeigh);
 
 public:
     MeshReaderMsh2(char* fName) : fileName(fName) {}
