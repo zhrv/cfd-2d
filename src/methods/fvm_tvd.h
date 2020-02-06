@@ -25,7 +25,12 @@ protected:
 	 *	Преобразование консервативных переменных в примитивные
 	 */
 	void convertConsToPar(int iCell, Param & par);
-	
+
+    /**
+     *  Вычисление одного шага по времени
+     */
+	void singleTimeStep();
+
 	/**
 	 *	Вычисление параметров справа и слева от границы ячейки
 	 */
@@ -64,6 +69,7 @@ protected:
 	Region & getRegionByName(char* name);
 	Region & getRegion(char * name);
 
+    void procExchangeData();
 private:
 	double TMAX;
 	double TAU;

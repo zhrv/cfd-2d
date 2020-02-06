@@ -8,27 +8,15 @@
 using namespace std;
 
 
-class MeshReaderMsh2 :
-        public MeshReader
+class MeshReaderMsh2 : public MeshReader
 {
-private:
-    char* fileName;
-
-    char* getLineUpper (ifstream &stream);
-    void addNeigh(Cell &c, int iNeigh);
-
 public:
-    MeshReaderMsh2(char* fName) : fileName(fName) {}
-    ~MeshReaderMsh2() { delete[] fileName; }
-
-    virtual void read(Grid*);
-
     struct element {
         int ind;
         int type;
 
-        static const int TYPE_EDGE = 11;
-        static const int TYPE_CELL = 41;
+        static const int TYPE_EDGE = 1;
+        static const int TYPE_CELL = 2;
 
         element() : ind(0), type(0){}
         element(int i, int t) : ind(i), type(t) {}
@@ -41,6 +29,20 @@ public:
     typedef set<int> ind_set;
     typedef vector<element> ele_map;
 
+private:
+    char* fileName;
+    index_list edges, cells;
+    bnd_map bounds;
+    vector<Point> points;
+    ele_map elements;
+
+    int find_edge(int n1, int n2);
+
+public:
+    MeshReaderMsh2(char* fName) : fileName(fName) {}
+    ~MeshReaderMsh2() { delete[] fileName; }
+
+    virtual void read(Grid*);
 };
 
 

@@ -15,7 +15,7 @@
 	#define MK_DIR(name) _mkdir("mesh");
 #else
 	#include <sys/stat.h>
-	#define MK_DIR(name) mkdir("mesh", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	#define MK_DIR(name) mkdir(name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 
 
@@ -189,6 +189,7 @@ struct Param
 	double cz;		//!< скорость звука
 	double T;		//!< температура
 	double ML;		//!< динамическая вязкость
+	double gam;     //!< показатель адиабаты
 	
 	inline double U2() { return  u*u + v*v; }
 	inline double magU() { return sqrt(U2()); }
@@ -270,11 +271,13 @@ struct Parallel
 
 	static void send(int pid, int tag, int n, double* data);
 	static void send(int pid, int tag, int n, int* data);
-	static void send(int pid, int tag, int n, VECTOR* data);
+    static void send(int pid, int tag, int n, VECTOR* data);
+    static void send(int pid, int tag, int n, Vector* data);
 
 	static void recv(int pid, int tag, int n, double* data);
 	static void recv(int pid, int tag, int n, int* data);
-	static void recv(int pid, int tag, int n, VECTOR* data);
+    static void recv(int pid, int tag, int n, VECTOR* data);
+    static void recv(int pid, int tag, int n, Vector* data);
 
 	//static void bcast(int tag, int n, double* data);
 	//static void bcast(int tag, int n, int* data);

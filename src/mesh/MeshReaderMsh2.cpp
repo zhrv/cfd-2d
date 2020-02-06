@@ -1,245 +1,313 @@
-
 #include "MeshReaderMsh2.h"
-#include <fstream>
+#include <iostream>
+#include <fstream> // подключаем файлы
 #include <algorithm>
 #include <cstring>
-#include <ctime>
 
-/*
- * Read a line from a file. Obtained from:
- * http://stackoverflow.com/questions/314401/
- * how-to-read-a-line-from-the-console-in-c/314422#314422
- *
- * Using this avoids a dependence on IEEE Std 1003.1-2008 (``POSIX.1'') for the
- * getline function.
- */
-char* MeshReaderMsh2::getLineUpper(ifstream &stream)
+
+//int MeshReaderMsh2::findEdge(int n1, int n2)
+//{
+//    std::set <int> s1 = { n1, n2};
+//    std::set <int> s2;
+//    for (int i = all_edges.size() - 1; i > 0; --i) {
+//        s2 = { all_edges[i][0], all_edges[i][1] };
+//        if (s1 == s2) {
+//            return i;
+//        }
+//        s2.clear();
+//    }
+//    return -1;
+//}
+
+int MeshReaderMsh2::find_edge(int n1, int n2)
 {
-    char               *line = new char[1024], *linep = line;
-    size_t              lenmax = 1024, len = lenmax;
-    int                 c;
-
-    for (;;) {
-        c = stream.get();
-        c = toupper (c);
-        if (c == EOF && linep == line) {
-            delete[] linep;
-            return nullptr;
-        }
-
-        if (--len == 0) {
-            char               *linen;
-
-            len = lenmax;
-            lenmax *= 2;
-
-            linen = new char[lenmax];
-            memcpy(linen, linep, sizeof(char)*len);
-
-            line = linen + (line - linep);
-            linep = linen;
-        }
-        if ((*line++ = c) == '\n')
-            break;
-    }
-    *line = '\0';
-    return linep;
-}
-
-typedef struct {
-    char  name[128];
-    int   id;
-    int   dim;
-} patch_t;
-
-typedef struct {
-    long long id;
-    double x, y, z;
-} node_t;
-
-typedef struct {
-    long long id, type, n[3];
-} cell_t;
-
-typedef struct {
-    long long id, type, n[2];
-} edge_t;
-
-
-void addNeigh(Cell &c, int j)
-{
-    if (j == c.neigh[0] or j == c.neigh[1] or j == c.neigh[2]) return;
-    for (int i = 0; i < 3; i++) {
-        if (c.neigh[i] == -1) {
-            c.neigh[i] == j;
+    for (int i = 0; i < edges.size(); i++) {
+        if (((edges[i][4] == n1) && (edges[i][5] == n2)) || ((edges[i][4] == n2) && (edges[i][5] == n1)) ){
+            return i;
         }
     }
-
+    return -1;
 }
 
 
-void MeshReaderMsh2::read(Grid * g)
+void MeshReaderMsh2::read(Grid* g)
 {
-    int num_vertices = 0,
-        num_patches = 0,
-        num_trees = 0,
-        num_trees_real = 0,
-        tree;
-    vector<patch_t> patches;
-    patch_t patch;
-    vector<node_t> nodes;
-    node_t node;
-    vector<edge_t> edges;
-    edge_t edge;
-    vector<cell_t> cells;
-    cell_t cell;
-    double          *vert;
-    long long tmp_ll;
-    double tmp_d;
-    int tmp_i;
-    streampos fpos;
+    char str[64];
+    long long int tmp, elem, cell, edge, type;
+    double tmp1;
+    int numPatches, numElements, retval;
+    std::string line;
 
-    ifstream fin(fileName);
-    if (!fin.is_open()) {
-        throw Exception("Mesh file opening error.", Exception::FILE_OPENING_ERROR);
-    }
-
-    while (1) {
-        char *line = getLineUpper(fin);
-
-        if (line == NULL) {
-            break;
-        }
-
+    // читаем сеточные данные
+    std::sprintf(str, "%s.msh", fileName);
+    log("Reading file '%s'\n", str);
+    std::ifstream file(str);
+    string_list patches;
+    while (getline(file, line)) {
         if (line[0] == '$') {
-            if (strstr(line, "$PHYSICALNAMES")) {
-                delete[] line;
-                line = getLineUpper(fin);
-                sscanf(line, "%d", &num_patches);
-                for (int i = 0; i < num_patches; i++) {
-                    delete[] line;
-                    line = getLineUpper(fin);
-                    sscanf(line, "%d %d \"%[^\"]", &(patch.dim), &(patch.id), patch.name);
-                    patches.push_back(patch);
+            if (line == "$PhysicalNames") {
+                getline(file, line);
+                sscanf(line.c_str(), "%d", &numPatches);
+                patches.resize(numPatches);
+                for (int i = 0; i < numPatches; i++) {
+                    getline(file, line);
+                    int dim, id;
+                    char name[128];
+                    sscanf(line.c_str(), "%d %d \"%[^\"]", &(dim), &(id), name);
+                    patches[--id] = name;
                 }
             }
-            else if (strstr(line, "$NODES")) {
-                delete[] line;
-                line = getLineUpper(fin);
-                sscanf(line, "%d", &g->nCount);
+            else if (line == "$Nodes") {
+                getline(file, line);
+                sscanf(line.c_str(), "%d", &(g->nCount));
                 g->nodes = new Point[g->nCount];
                 for (int i = 0; i < g->nCount; i++) {
-                    delete[] line;
-                    line = getLineUpper(fin);
-                    int retval = sscanf (line, "%lld %lf %lf %lf", &tmp_ll, &(g->nodes[i].x), &(g->nodes[i].y), &tmp_d);
-                    if (retval != 4) {
-                        delete[] line;
-                        throw Exception("Premature end of file", Exception::FILE_OPENING_ERROR);
-                    }
+                    getline(file, line);
+                    sscanf(line.c_str(), "%lld %lf %lf %lf", &tmp, &g->nodes[i].x, &g->nodes[i].y, &tmp1);
                 }
             }
-            else if(strstr(line, "$ELEMENTS")) {
-                fpos = fin.tellg();
-                delete[] line;
-                long long id, type, el_count;
-                line = getLineUpper(fin);
-                sscanf(line, "%d", &el_count);
-                for (int i = 0; i < el_count; i++) {
-                    line = getLineUpper(fin);
-                    int retval = sscanf (line, "%lld %lld", &id, &type);
+            else if (line == "$Elements") {
+                getline(file, line);
+                sscanf(line.c_str(), "%d", &numElements);
+                for (int i = 0; i < numElements; i++) {
+                    getline(file, line);
+                    retval = sscanf(line.c_str(), "%lld %lld", &elem, &type);
                     if (retval != 2) {
-                        delete[] line;
-                        throw Exception("Premature end of file", Exception::FILE_OPENING_ERROR);
+                        log("Premature end of file");
+                        exit(2);
                     }
 
-                    if (type == 2) { // 3-node triangle
-                        long long tagc, tag2;
-                        retval = sscanf (line, "%lld %lld %lld %lld %lld %lld %lld %lld", &cell.id, &type, &tagc, &cell.type, &tag2,
-                                         &(cell.n[0]), &(cell.n[1]), &(cell.n[2]) );
-                        if (retval != 8) {
-                            delete[] line;
-                            throw Exception("Premature end of file", Exception::FILE_OPENING_ERROR);
-                        }
-                        --cell.n[0];
-                        --cell.n[1];
-                        --cell.n[2];
-                        cells.push_back(cell);
-                    }
-                    else if (type == 1) { // 2-node line
-                        long long tagc, tag2;
-                        retval = sscanf (line, "%lld %lld %lld %lld %lld %lld %lld", &edge.id, &type, &tagc, &edge.type, &tag2,
-                                         &(edge.n[0]), &(edge.n[1]) );
+                    if (type == 1) {
+                        indexes v;
+                        v.clear();
+
+                        int node1, node2;
+                        int tagc, tag1, tag2;
+                        retval = sscanf(line.c_str(), "%lld %lld %d %d %d %d %d", &edge, &type, &tagc, &tag1, &tag2,
+                                        &node1, &node2);
                         if (retval != 7) {
-                            delete[] line;
-                            throw Exception("Premature end of file", Exception::FILE_OPENING_ERROR);
+                            log("Premature end of file");
+                            exit(2);
                         }
-                        --edge.n[0];
-                        --edge.n[1];
-                        if (edge.n[0] > edge.n[1]) {
-                            tmp_i = edge.n[0];
-                            edge.n[0] = edge.n[1];
-                            edge.n[1] = tmp_i;
+                        v.push_back(type);
+                        v.push_back(tagc);
+                        v.push_back(tag1);
+                        v.push_back(tag2);
+                        v.push_back(node1-1);
+                        v.push_back(node2-1);
+                        edges.push_back(v);
+                    }
+
+                    if (type == 2) {
+                        indexes v;
+                        v.clear();
+                        int node1, node2, node3;
+                        int tagc, tag1, tag2;
+                        retval = sscanf(line.c_str(), "%lld %lld %d %d %d %d %d %d", &cell, &type, &tagc, &tag1, &tag2,
+                                        &node1, &node2, &node3);
+                        if (retval != 8) {
+                            log("Premature end of file");
+                            exit(2);
                         }
-                        edges.push_back(edge);
+                        v.push_back(type);
+                        v.push_back(tagc);
+                        v.push_back(tag1);
+                        v.push_back(tag2);
+                        v.push_back(node1-1);
+                        v.push_back(node2-1);
+                        v.push_back(node3-1);
+                        cells.push_back(v);
                     }
                 }
             }
         }
-
-        delete[] line;
     }
+    file.close();
 
     log("Building mesh structure:\n");
 
-    // nodes
-    log("\t- nodes;\n");
-    g->nCount = nodes.size();
-    g->nodes = new Point[g->nCount];
+    std::map<int, ind_set> node_cells;
+    // читаем данные о ЯЧЕЙКАХ
+    g->cCount = cells.size();
+    g->cells = new Cell[g->cCount];
+    int** neigh;
+    neigh = new int*[g->cCount];
     int i = 0;
-    for (auto it = nodes.begin(); it != nodes.end(); it++, i++) {
-        Point & p = g->nodes[i];
-        p.x = it->x;
-        p.y = it->y;
+    for (index_list::iterator it = cells.begin(); it != cells.end(); it++, i++) {
+        indexes & ind = *it;
+        node_cells[ind[4]].insert(i);
+        node_cells[ind[5]].insert(i);
+        node_cells[ind[6]].insert(i);
     }
 
     log("\t- cells;\n");
-    g->cCount = cells.size();
-    g->cells = new Cell[g->cCount];
-
-    map<int, ind_set> node_cells;
-    map<pair<int, int>, vector<int>> edges_cells;
     i = 0;
-    for (auto it = cells.begin(); it != cells.end(); it++, i++) {
+    for (auto it = cells.begin(); it != cells.end(); it++, i++)
+    {
+        neigh[i] = new int[3];
+        indexes & ind = *it;
+
+//        elements[ind[0]] = element(i, element::TYPE_CELL);
+
         Cell & c = g->cells[i];
         c.nCount = 3;
         c.nodesInd = new int[g->cells[i].nCount];
-        c.nodesInd[0] = it->n[0];
-        c.nodesInd[1] = it->n[1];
-        c.nodesInd[2] = it->n[2];
+        c.nodesInd[0] = ind[4];
+        c.nodesInd[1] = ind[5];
+        c.nodesInd[2] = ind[6];
 
-        g->cells[i].type = it->type;
-        g->cells[i].c.x = (g->nodes[g->cells[i].nodesInd[0]].x + g->nodes[g->cells[i].nodesInd[1]].x + g->nodes[g->cells[i].nodesInd[2]].x) / 3.0;
-        g->cells[i].c.y = (g->nodes[g->cells[i].nodesInd[0]].y + g->nodes[g->cells[i].nodesInd[1]].y + g->nodes[g->cells[i].nodesInd[2]].y) / 3.0;
-        g->cells[i].HX = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[1]].x),
+        g->cells[i].type = cells[i][2];
+        strcpy(g->cells[i].typeName, patches[g->cells[i].type-1].c_str());
+
+        c.c.x = (g->nodes[g->cells[i].nodesInd[0]].x + g->nodes[g->cells[i].nodesInd[1]].x + g->nodes[g->cells[i].nodesInd[2]].x) / 3.0;
+        c.c.y = (g->nodes[g->cells[i].nodesInd[0]].y + g->nodes[g->cells[i].nodesInd[1]].y + g->nodes[g->cells[i].nodesInd[2]].y) / 3.0;
+        c.HX = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[1]].x),
                                fabs(g->nodes[g->cells[i].nodesInd[1]].x - g->nodes[g->cells[i].nodesInd[2]].x),
                                fabs(g->nodes[g->cells[i].nodesInd[0]].x - g->nodes[g->cells[i].nodesInd[2]].x));
-        g->cells[i].HY = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].y - g->nodes[g->cells[i].nodesInd[1]].y),
+        c.HY = _max_(fabs(g->nodes[g->cells[i].nodesInd[0]].y - g->nodes[g->cells[i].nodesInd[1]].y),
                                fabs(g->nodes[g->cells[i].nodesInd[1]].y - g->nodes[g->cells[i].nodesInd[2]].y),
                                fabs(g->nodes[g->cells[i].nodesInd[0]].y - g->nodes[g->cells[i].nodesInd[2]].y));
-        g->cells[i].eCount = 3;
-        g->cells[i].edgesInd = new int[g->cells[i].eCount];
+        c.eCount = 3;
+        c.edgesInd = new int[g->cells[i].eCount];
 
-        for (int j = 0; j < 3; j++) {
-            int n1 = c.nodesInd[j];
-            int n2 = c.nodesInd[(j+1)%3];
-            if (n1 > n2) {
-                tmp_i = n1;
-                n1 = n2;
-                n2 = tmp_i;
+        for (int k = 0; k < 3; k++) {
+            //map<int, ind_set>::iterator out_it;
+            indexes res(50);
+            auto it_res = set_intersection(
+                    node_cells[c.nodesInd[k % 3]].begin(), node_cells[c.nodesInd[k % 3]].end(),
+                    node_cells[c.nodesInd[(k + 1) % 3]].begin(), node_cells[c.nodesInd[(k + 1) % 3]].end(),
+                    res.begin());
+            res.resize(it_res-res.begin());
+            c.neigh[k] = -2;
+            for (auto rit = res.begin(); rit != res.end(); rit++) {
+                if (*rit != i) {
+                    c.neigh[k] = *rit;
+                }
             }
-            edges_cells[pair<int,int>(n1, n2)].push_back(i);
+            neigh[i][k] = c.neigh[k];
         }
     }
 
 
+    log("\t- edges;\n");
+    g->eCount = 0;
+    for (int i = 0; i < g->cCount; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            int p = neigh[i][j];
+            if (p > -1)
+            {
+                for (int k = 0; k < 3; k++)
+                { // убираем у соседа номер этой ячейки, чтобы грань не повторялась
+                    if (neigh[p][k] == i) neigh[p][k] = -1;
+                }
+                g->eCount++;
+            }
+            if (p == -2) g->eCount++;
+        }
+    }
+    g->edges = new Edge[g->eCount];
+
+    int iEdge = 0;
+    int * cfi = new int[g->cCount];
+    for (int i = 0; i < g->cCount; i++)
+    {
+        cfi[i] = 0;
+    }
+    // ::memset(cfi, 0, cCount*sizeof(int));
+    for (int i = 0; i < g->cCount; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            int p = neigh[i][j];
+            if (p != -1)
+            {
+                g->edges[iEdge].n1 = g->cells[i].nodesInd[(j + 0) % 3];
+                g->edges[iEdge].n2 = g->cells[i].nodesInd[(j + 1) % 3];
+                g->edges[iEdge].cCount = 3;
+                g->edges[iEdge].c = new Point[g->edges[iEdge].cCount];
+                double _sqrt3 = 1.0 / sqrt(3.0);
+                // центр ребра
+                g->edges[iEdge].c[0].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0;
+                g->edges[iEdge].c[0].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0;
+                // первая точка Гаусса
+                g->edges[iEdge].c[1].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
+                g->edges[iEdge].c[1].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
+                // вторая точка Гаусса
+                g->edges[iEdge].c[2].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
+                g->edges[iEdge].c[2].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
+                g->edges[iEdge].n.x = g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y;
+                g->edges[iEdge].n.y = g->nodes[g->edges[iEdge].n1].x - g->nodes[g->edges[iEdge].n2].x;
+                g->edges[iEdge].l = sqrt(g->edges[iEdge].n.x*g->edges[iEdge].n.x + g->edges[iEdge].n.y*g->edges[iEdge].n.y);
+                g->edges[iEdge].n.x /= g->edges[iEdge].l;
+                g->edges[iEdge].n.y /= g->edges[iEdge].l;
+                g->edges[iEdge].c1 = i;
+                g->cells[i].edgesInd[cfi[i]] = iEdge;
+                cfi[i]++;
+                g->edges[iEdge].cnl1 = fabs(g->edges[iEdge].n.x*(g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c1].c.x) + g->edges[iEdge].n.y*(g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c1].c.y));
+
+                // коррекция направлений нормалей
+                Vector vc;
+                vc.x = g->cells[i].c.x - g->edges[iEdge].c[0].x;
+                vc.y = g->cells[i].c.y - g->edges[iEdge].c[0].y;
+                if (scalar_prod(vc, g->edges[iEdge].n) > 0) {
+                    g->edges[iEdge].n.x *= -1;
+                    g->edges[iEdge].n.y *= -1;
+                }
+
+                if (p > -1)
+                {
+
+                    g->edges[iEdge].c2 = p;
+                    g->cells[p].edgesInd[cfi[p]] = iEdge;
+                    cfi[p]++;
+                    g->edges[iEdge].cnl2 = fabs(g->edges[iEdge].n.x*(g->cells[g->edges[iEdge].c2].c.x - g->edges[iEdge].c[0].x) + g->edges[iEdge].n.y*(g->cells[g->edges[iEdge].c2].c.y - g->edges[iEdge].c[0].y));
+                    g->edges[iEdge].type = Edge::TYPE_INNER;
+                }
+                if (p == -2)
+                {
+                    g->edges[iEdge].c2 = -1;
+                    g->edges[iEdge].cnl2 = 0;
+                    g->edges[iEdge].type = Edge::TYPE_NAMED;
+
+                    int jEdge = find_edge(g->edges[iEdge].n1, g->edges[iEdge].n2);
+                    if (jEdge != -1) {
+                        //elements[edges[jEdge][0]] = element(iEdge, element::TYPE_EDGE);
+                        strcpy(g->edges[jEdge].typeName, patches[edges[jEdge][2]-1].c_str());
+                    }
+                    else {
+                        throw Exception("Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE);
+                    }
+                }
+
+
+                iEdge++;
+            }
+        }
+    }
+
+    for (int i = 0; i < g->cCount; i++)
+    {
+        double a = g->edges[g->cells[i].edgesInd[0]].l;
+        double b = g->edges[g->cells[i].edgesInd[1]].l;
+        double c = g->edges[g->cells[i].edgesInd[2]].l;
+        double p = (a + b + c) / 2.0;
+        g->cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
+    }
+
+    for (int i = 0; i < g->eCount; i++) {
+        Edge &e = g->edges[i];
+        if (e.type == Edge::TYPE_NAMED and strcmp(e.typeName, "") == 0) {
+            int kkk=0;
+        }
+    }
+    for (int i = 0; i < g->cCount; i++)
+    {
+        delete[] neigh[i];
+    }
+    delete[] neigh;
+    delete[] cfi;
 }
+
+

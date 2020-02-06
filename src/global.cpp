@@ -9,23 +9,31 @@ double Material::gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
 void Material::URS(Param &par, int flag)
 {
 	double Cv = Cp-gR/M;
-	double gam = Cp/Cv; 
+	double gam = Cp/Cv;
+	par.gam = gam;
+	par.ML = ML;
 	switch (flag)
 	{
-	case 0:		// p=p(r,e)
-		par.p = par.r*par.e*(gam-1);
-		par.cz = sqrt(gam*par.p/par.r);
-		break;
-	
-	case 1:		// e=e(r,p)
-		par.e = par.p/(par.r*(gam-1));
-		par.T = par.e/Cv;				// TODO: проверить правильность
-		break;
-	
-	case 2:		// r=r(T,p)
-		par.r = par.p*M/(par.T*gR);
-		par.cz = sqrt(gam*par.p/par.r);
-		break;
+        case 0:		// p=p(r,e)
+            par.p = par.r*par.e*(gam-1);
+            par.cz = sqrt(gam*par.p/par.r);
+            break;
+
+        case 1:		// e=e(r,p)
+            par.e = par.p/(par.r*(gam-1));
+            par.T = par.e/Cv;
+            break;
+
+        case 2:		// r=r(T,p)
+            par.r = par.p*M/(par.T*gR);
+            par.cz = sqrt(gam*par.p/par.r);
+            break;
+
+        case 3:		// cons to param
+            par.p = par.r*par.e*(gam-1);
+            par.cz = sqrt(gam*par.p/par.r);
+            par.T = par.e/Cv;
+            break;
 	}
 }
 
@@ -611,8 +619,8 @@ double * Parallel::buf;
 void Parallel::init(int* argc, char*** argv)
 {
 	MPI_Init(argc, argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &procCount);
-	MPI_Comm_rank(MPI_COMM_WORLD, &procId);
+	MPI_Comm_size(MPI_COMM_WORLD, &(Parallel::procCount));
+	MPI_Comm_rank(MPI_COMM_WORLD, &(Parallel::procId));
 }
 
 void Parallel::done()
@@ -632,19 +640,34 @@ void Parallel::send(int pid, int tag, int n, int* x)
 
 void Parallel::send(int pid, int tag, int n, VECTOR* x)
 {
-	int nv = x[0].n;
-	int size = nv*n;
-	//double * buf = new double[size];
-	int k = 0;
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < nv; j++) {
-			buf[k] = x[i][j];
-			k++;
-		}
-	}
-	MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+    int nv = x[0].n;
+    int size = nv*n;
+    //double * buf = new double[size];
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < nv; j++) {
+            buf[k] = x[i][j];
+            k++;
+        }
+    }
+    MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
 
-	//delete[] buf;
+    //delete[] buf;
+}
+
+void Parallel::send(int pid, int tag, int n, Vector* x)
+{
+    int nv = 2;
+    int size = nv*n;
+    //double * buf = new double[size];
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        buf[k++] = x->x;
+        buf[k++] = x->y;
+    }
+    MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+
+    //delete[] buf;
 }
 
 void Parallel::recv(int pid, int tag, int n, double* x)
@@ -659,19 +682,34 @@ void Parallel::recv(int pid, int tag, int n, int* x)
 
 void Parallel::recv(int pid, int tag, int n, VECTOR* x)
 {
-	int nv = x[0].n;
-	int size = nv*n;
-	double * buf = new double[size];
-	MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+    int nv = x[0].n;
+    int size = nv*n;
+    //auto * buf = new double[size];
+    MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
 
-	int k = 0;
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < nv; j++) {
-			x[i][j] = buf[k];
-			k++;
-		}
-	}
-	delete[] buf;
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < nv; j++) {
+            x[i][j] = buf[k];
+            k++;
+        }
+    }
+    //delete[] buf;
+}
+
+void Parallel::recv(int pid, int tag, int n, Vector* x)
+{
+    int nv = 2;
+    int size = nv*n;
+    //auto * buf = new double[size];
+    MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        x->x = buf[k++];
+        x->y = buf[k++];
+    }
+    //delete[] buf;
 }
 /*
 void Parallel::bcast(int n, double* x)

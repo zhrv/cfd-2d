@@ -97,42 +97,73 @@ public:
 		fclose(fp);
 	}
 
-	void exchange(VECTOR* field)
-	{
-		for (int p = 0; p < Parallel::procCount; p++) {
-			if (p < Parallel::procId) {
-				if (grid.recvCount[p] > 0) {
-					Parallel::recv(p, 0, grid.recvCount[p], &field[grid.recvShift[p]]);
-				}
-				int n = grid.sendInd[p].size();
-				if (n > 0) {
-					for (int i = 0; i < n; i++) {
-						vBuf[i] = field[grid.sendInd[p][i]];
-					}
-					Parallel::send(p, 1, n, vBuf);
-				}
-			}
-			else if (Parallel::procId < p) {
-				int n = grid.sendInd[p].size();
-				if (n > 0) {
-					for (int i = 0; i < n; i++) {
-						vBuf[i] = field[grid.sendInd[p][i]];
-					}
-					Parallel::send(p, 0, n, vBuf);
-				}
-				if (grid.recvCount[p] > 0) {
-					Parallel::recv(p, 1, grid.recvCount[p], &field[grid.recvShift[p]]);
-				}
-			}
-		}
-	}
+    void exchange(VECTOR* field)
+    {
+        for (int p = 0; p < Parallel::procCount; p++) {
+            if (p < Parallel::procId) {
+                if (grid.recvCount[p] > 0) {
+                    Parallel::recv(p, 0, grid.recvCount[p], &field[grid.recvShift[p]]);
+                }
+                int n = grid.sendInd[p].size();
+                if (n > 0) {
+                    for (int i = 0; i < n; i++) {
+                        vBuf[i] = field[grid.sendInd[p][i]];
+                    }
+                    Parallel::send(p, 1, n, vBuf);
+                }
+            }
+            else if (Parallel::procId < p) {
+                int n = grid.sendInd[p].size();
+                if (n > 0) {
+                    for (int i = 0; i < n; i++) {
+                        vBuf[i] = field[grid.sendInd[p][i]];
+                    }
+                    Parallel::send(p, 0, n, vBuf);
+                }
+                if (grid.recvCount[p] > 0) {
+                    Parallel::recv(p, 1, grid.recvCount[p], &field[grid.recvShift[p]]);
+                }
+            }
+        }
+    }
+
+    void exchange(Vector* field)
+    {
+        for (int p = 0; p < Parallel::procCount; p++) {
+            if (p < Parallel::procId) {
+                if (grid.recvCount[p] > 0) {
+                    Parallel::recv(p, 0, grid.recvCount[p], &field[grid.recvShift[p]]);
+                }
+                int n = grid.sendInd[p].size();
+                if (n > 0) {
+                    for (int i = 0; i < n; i++) {
+                        pBuf[i] = field[grid.sendInd[p][i]];
+                    }
+                    Parallel::send(p, 1, n, pBuf);
+                }
+            }
+            else if (Parallel::procId < p) {
+                int n = grid.sendInd[p].size();
+                if (n > 0) {
+                    for (int i = 0; i < n; i++) {
+                        pBuf[i] = field[grid.sendInd[p][i]];
+                    }
+                    Parallel::send(p, 0, n, pBuf);
+                }
+                if (grid.recvCount[p] > 0) {
+                    Parallel::recv(p, 1, grid.recvCount[p], &field[grid.recvShift[p]]);
+                }
+            }
+        }
+    }
 
 protected:
 	Grid grid;
 
 	double * dBuf;
 	int    * iBuf;
-	VECTOR * vBuf;
+    VECTOR * vBuf;
+    Point  * pBuf;
 };
 
 #endif

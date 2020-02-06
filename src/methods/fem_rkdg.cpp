@@ -680,7 +680,7 @@ void FEM_RKDG::save(int step)
 		
 		
 		for (int pid = 0; pid < Parallel::procCount; pid++) {
-			fprintf(fp, "    <Piece Source=\"vtk_data/res_%010d.%04d.vtu\"/>\n", step, pid);
+			fprintf(fp, "    <Piece Source=\"res_%010d.%04d.vtu\"/>\n", step, pid);
 		}
 		fprintf(fp, "  </PUnstructuredGrid>\n");
 
@@ -689,7 +689,7 @@ void FEM_RKDG::save(int step)
 		log("File '%s' saved...\n", fName);
 	}
 
-	sprintf(fName, "vtk_data/res_%010d.%04d.vtu", step, Parallel::procId);
+	sprintf(fName, "res_%010d.%04d.vtu", step, Parallel::procId);
 	log("File '%s' saved...\n", fName);
 	fp = fopen(fName, "w");
 	fprintf(fp, "<?xml version=\"1.0\"?>\n");

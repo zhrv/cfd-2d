@@ -49,13 +49,7 @@ void Decomp::init(char * xmlFileName)
 	task = doc.FirstChild( "task" );
 
 
-//	node0 = task->FirstChild("decomp");
-//	node0->FirstChild("processors")->ToElement()->Attribute("value", &procCount);
-
 	grids = new Grid[procCount];
-
-	//const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	//grid.initFromFiles((char*)fName);
 
 	/* Чтение данных сетки. */
 	node0 = task->FirstChild("mesh");
@@ -144,8 +138,7 @@ void Decomp::run()
 	log(" Written file 'parts.vtk'...\n");
 
 	// формирование файлов c данными сетки для каждого процессора
-	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
-	MK_DIR('vtk_data');  
+	MK_DIR("mesh"); // @todo: добавить удаление старого содержимого
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
 	for (int i = 0; i < n; i++)

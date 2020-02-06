@@ -88,7 +88,7 @@ int MeshReaderGmsh::findEdge(int n1, int n2)
 {
 	std::set <int> s1 = { n1, n2};
 	std::set <int> s2;
-    for (int i = all_edges.size() - 1; i > 0; --i) {
+    for (int i = all_edges.size() - 1; i >= 0; --i) {
         s2 = { all_edges[i][0], all_edges[i][1] };
         if (s1 == s2) {
             return i;
@@ -358,6 +358,13 @@ void MeshReaderGmsh::read(Grid* g)
 		else {
 			throw Exception((char*)"Boundary edge #%d not defined in msh file.", Exception::TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE);
 		}
+	}
+
+	for (int i = 0; i < g->eCount; i++) {
+	    Edge &e = g->edges[i];
+	    if (e.type == Edge::TYPE_NAMED and strcmp(e.typeName, "") == 0) {
+	        int kkk=0;
+	    }
 	}
 
 	/*for (int i = 0; i < g->eCount; i++) {
