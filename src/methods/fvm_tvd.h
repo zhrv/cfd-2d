@@ -69,7 +69,8 @@ protected:
 	Region & getRegionByName(char* name);
 	Region & getRegion(char * name);
 
-    void procExchangeData();
+    void procExchangeFields();
+    void procExchangeGrads();
 private:
 	double TMAX;
 	double TAU;

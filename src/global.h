@@ -237,19 +237,20 @@ struct Boundary
 	static const int BOUND_WALL		= 3;
 };
 
-class Exception
+class Exception : std::exception
 {
 public:
-	static const int TYPE_BOUND_NOPAR = 101;
-	static const int TYPE_BOUND_UNKNOWN = 102;
+	static const int TYPE_BOUND_NOPAR                           = 101;
+	static const int TYPE_BOUND_UNKNOWN                         = 102;
 
-	static const int TYPE_MESH_WRONG_NAME = 201;
-	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
-	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE = 222;
+	static const int TYPE_MESH_WRONG_NAME                       = 201;
+	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT              = 221;
+	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE         = 222;
 
-    static const int TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE = 223;
+    static const int TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE        = 223;
+    static const int TYPE_MESH_GMSH_WRONG_EDGE                  = 224;
 
-	static const int FILE_OPENING_ERROR = 301;
+    static const int FILE_OPENING_ERROR = 301;
 
 	Exception(std::string msg, int t) : message(msg), type(t) {}
     std::string getMessage() { return message; }

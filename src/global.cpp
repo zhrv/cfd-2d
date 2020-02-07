@@ -662,8 +662,8 @@ void Parallel::send(int pid, int tag, int n, Vector* x)
     //double * buf = new double[size];
     int k = 0;
     for (int i = 0; i < n; i++) {
-        buf[k++] = x->x;
-        buf[k++] = x->y;
+        buf[k++] = x[i].x;
+        buf[k++] = x[i].y;
     }
     MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
 
@@ -706,8 +706,8 @@ void Parallel::recv(int pid, int tag, int n, Vector* x)
 
     int k = 0;
     for (int i = 0; i < n; i++) {
-        x->x = buf[k++];
-        x->y = buf[k++];
+        x[i].x = buf[k++];
+        x[i].y = buf[k++];
     }
     //delete[] buf;
 }

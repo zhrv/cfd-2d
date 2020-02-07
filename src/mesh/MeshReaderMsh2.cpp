@@ -5,19 +5,12 @@
 #include <cstring>
 
 
-//int MeshReaderMsh2::findEdge(int n1, int n2)
-//{
-//    std::set <int> s1 = { n1, n2};
-//    std::set <int> s2;
-//    for (int i = all_edges.size() - 1; i > 0; --i) {
-//        s2 = { all_edges[i][0], all_edges[i][1] };
-//        if (s1 == s2) {
-//            return i;
-//        }
-//        s2.clear();
-//    }
-//    return -1;
-//}
+
+MeshReaderMsh2::edge_t make_edge(int n1, int n2) {
+    if (n1 > n2) std::swap(n1, n2);
+    MeshReaderMsh2::edge_t e(n1, n2);
+    return e;
+}
 
 int MeshReaderMsh2::find_edge(int n1, int n2)
 {
@@ -29,13 +22,12 @@ int MeshReaderMsh2::find_edge(int n1, int n2)
     return -1;
 }
 
-
 void MeshReaderMsh2::read(Grid* g)
 {
     char str[64];
     long long int tmp, elem, cell, edge, type;
     double tmp1;
-    int numPatches, numElements, retval;
+    int numPatches, numElements, retval, i;
     std::string line;
 
     // читаем сеточные данные
@@ -126,29 +118,13 @@ void MeshReaderMsh2::read(Grid* g)
 
     log("Building mesh structure:\n");
 
-    std::map<int, ind_set> node_cells;
-    // читаем данные о ЯЧЕЙКАХ
+    log("\t- cells;\n");
     g->cCount = cells.size();
     g->cells = new Cell[g->cCount];
-    int** neigh;
-    neigh = new int*[g->cCount];
-    int i = 0;
-    for (index_list::iterator it = cells.begin(); it != cells.end(); it++, i++) {
-        indexes & ind = *it;
-        node_cells[ind[4]].insert(i);
-        node_cells[ind[5]].insert(i);
-        node_cells[ind[6]].insert(i);
-    }
-
-    log("\t- cells;\n");
+    edge_cells_t e2c;
     i = 0;
-    for (auto it = cells.begin(); it != cells.end(); it++, i++)
+    for (auto ind : cells)
     {
-        neigh[i] = new int[3];
-        indexes & ind = *it;
-
-//        elements[ind[0]] = element(i, element::TYPE_CELL);
-
         Cell & c = g->cells[i];
         c.nCount = 3;
         c.nodesInd = new int[g->cells[i].nCount];
@@ -171,121 +147,99 @@ void MeshReaderMsh2::read(Grid* g)
         c.edgesInd = new int[g->cells[i].eCount];
 
         for (int k = 0; k < 3; k++) {
-            //map<int, ind_set>::iterator out_it;
-            indexes res(50);
-            auto it_res = set_intersection(
-                    node_cells[c.nodesInd[k % 3]].begin(), node_cells[c.nodesInd[k % 3]].end(),
-                    node_cells[c.nodesInd[(k + 1) % 3]].begin(), node_cells[c.nodesInd[(k + 1) % 3]].end(),
-                    res.begin());
-            res.resize(it_res-res.begin());
-            c.neigh[k] = -2;
-            for (auto rit = res.begin(); rit != res.end(); rit++) {
-                if (*rit != i) {
-                    c.neigh[k] = *rit;
-                }
-            }
-            neigh[i][k] = c.neigh[k];
+            e2c[make_edge(c.nodesInd[k % 3], c.nodesInd[(k + 1) % 3])].push_back(i);
         }
+
+        ++i;
     }
 
 
     log("\t- edges;\n");
-    g->eCount = 0;
-    for (int i = 0; i < g->cCount; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            int p = neigh[i][j];
-            if (p > -1)
-            {
-                for (int k = 0; k < 3; k++)
-                { // убираем у соседа номер этой ячейки, чтобы грань не повторялась
-                    if (neigh[p][k] == i) neigh[p][k] = -1;
-                }
-                g->eCount++;
-            }
-            if (p == -2) g->eCount++;
-        }
-    }
+    g->eCount = e2c.size();
     g->edges = new Edge[g->eCount];
-
     int iEdge = 0;
     int * cfi = new int[g->cCount];
     for (int i = 0; i < g->cCount; i++)
     {
         cfi[i] = 0;
     }
-    // ::memset(cfi, 0, cCount*sizeof(int));
-    for (int i = 0; i < g->cCount; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            int p = neigh[i][j];
-            if (p != -1)
-            {
-                g->edges[iEdge].n1 = g->cells[i].nodesInd[(j + 0) % 3];
-                g->edges[iEdge].n2 = g->cells[i].nodesInd[(j + 1) % 3];
-                g->edges[iEdge].cCount = 3;
-                g->edges[iEdge].c = new Point[g->edges[iEdge].cCount];
-                double _sqrt3 = 1.0 / sqrt(3.0);
-                // центр ребра
-                g->edges[iEdge].c[0].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0;
-                g->edges[iEdge].c[0].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0;
-                // первая точка Гаусса
-                g->edges[iEdge].c[1].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
-                g->edges[iEdge].c[1].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
-                // вторая точка Гаусса
-                g->edges[iEdge].c[2].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
-                g->edges[iEdge].c[2].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
-                g->edges[iEdge].n.x = g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y;
-                g->edges[iEdge].n.y = g->nodes[g->edges[iEdge].n1].x - g->nodes[g->edges[iEdge].n2].x;
-                g->edges[iEdge].l = sqrt(g->edges[iEdge].n.x*g->edges[iEdge].n.x + g->edges[iEdge].n.y*g->edges[iEdge].n.y);
-                g->edges[iEdge].n.x /= g->edges[iEdge].l;
-                g->edges[iEdge].n.y /= g->edges[iEdge].l;
-                g->edges[iEdge].c1 = i;
-                g->cells[i].edgesInd[cfi[i]] = iEdge;
-                cfi[i]++;
-                g->edges[iEdge].cnl1 = fabs(g->edges[iEdge].n.x*(g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c1].c.x) + g->edges[iEdge].n.y*(g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c1].c.y));
+    for (auto e : e2c) {
+        edge_t e_nodes = e.first;
+        indexes &c = e.second;
 
-                // коррекция направлений нормалей
-                Vector vc;
-                vc.x = g->cells[i].c.x - g->edges[iEdge].c[0].x;
-                vc.y = g->cells[i].c.y - g->edges[iEdge].c[0].y;
-                if (scalar_prod(vc, g->edges[iEdge].n) > 0) {
-                    g->edges[iEdge].n.x *= -1;
-                    g->edges[iEdge].n.y *= -1;
-                }
+        g->edges[iEdge].n1 = e_nodes.first;
+        g->edges[iEdge].n2 = e_nodes.second;
+        g->edges[iEdge].cCount = 3;
+        g->edges[iEdge].c = new Point[g->edges[iEdge].cCount];
+        double _sqrt3 = 1.0 / sqrt(3.0);
+        // центр ребра
+        g->edges[iEdge].c[0].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0;
+        g->edges[iEdge].c[0].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0;
+        // первая точка Гаусса
+        g->edges[iEdge].c[1].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
+        g->edges[iEdge].c[1].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 - _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
+        // вторая точка Гаусса
+        g->edges[iEdge].c[2].x = (g->nodes[g->edges[iEdge].n1].x + g->nodes[g->edges[iEdge].n2].x) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].x - g->nodes[g->edges[iEdge].n1].x) / 2.0;
+        g->edges[iEdge].c[2].y = (g->nodes[g->edges[iEdge].n1].y + g->nodes[g->edges[iEdge].n2].y) / 2.0 + _sqrt3*(g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y) / 2.0;
+        g->edges[iEdge].n.x = g->nodes[g->edges[iEdge].n2].y - g->nodes[g->edges[iEdge].n1].y;
+        g->edges[iEdge].n.y = g->nodes[g->edges[iEdge].n1].x - g->nodes[g->edges[iEdge].n2].x;
+        g->edges[iEdge].l = sqrt(g->edges[iEdge].n.x*g->edges[iEdge].n.x + g->edges[iEdge].n.y*g->edges[iEdge].n.y);
+        g->edges[iEdge].n.x /= g->edges[iEdge].l;
+        g->edges[iEdge].n.y /= g->edges[iEdge].l;
+        if (c.size() != 2 and c.size() != 1) {
+            throw Exception("Edge hasn'n nearest cells...", Exception::TYPE_MESH_GMSH_WRONG_EDGE);
+        }
+        i = c[0];
+        g->edges[iEdge].c1 = i;
+        g->cells[i].edgesInd[cfi[i]] = iEdge;
+        cfi[i]++;
+        g->edges[iEdge].cnl1 = fabs(
+                g->edges[iEdge].n.x * (g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c1].c.x) +
+                g->edges[iEdge].n.y * (g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c1].c.y));
+        if (c.size() == 2) {
+            i = c[1];
+            g->edges[iEdge].c2 = i;
+            g->cells[i].edgesInd[cfi[i]] = iEdge;
+            cfi[i]++;
+            g->edges[iEdge].cnl2 = fabs(
+                    g->edges[iEdge].n.x * (g->edges[iEdge].c[0].x - g->cells[g->edges[iEdge].c2].c.x) +
+                    g->edges[iEdge].n.y * (g->edges[iEdge].c[0].y - g->cells[g->edges[iEdge].c2].c.y));
+            g->edges[iEdge].type = Edge::TYPE_INNER;
+        }
+        else {
+            g->edges[iEdge].c2 = -1;
+            g->edges[iEdge].cnl2 = 0;
+            g->edges[iEdge].type = Edge::TYPE_NAMED;
 
-                if (p > -1)
-                {
-
-                    g->edges[iEdge].c2 = p;
-                    g->cells[p].edgesInd[cfi[p]] = iEdge;
-                    cfi[p]++;
-                    g->edges[iEdge].cnl2 = fabs(g->edges[iEdge].n.x*(g->cells[g->edges[iEdge].c2].c.x - g->edges[iEdge].c[0].x) + g->edges[iEdge].n.y*(g->cells[g->edges[iEdge].c2].c.y - g->edges[iEdge].c[0].y));
-                    g->edges[iEdge].type = Edge::TYPE_INNER;
-                }
-                if (p == -2)
-                {
-                    g->edges[iEdge].c2 = -1;
-                    g->edges[iEdge].cnl2 = 0;
-                    g->edges[iEdge].type = Edge::TYPE_NAMED;
-
-                    int jEdge = find_edge(g->edges[iEdge].n1, g->edges[iEdge].n2);
-                    if (jEdge != -1) {
-                        //elements[edges[jEdge][0]] = element(iEdge, element::TYPE_EDGE);
-                        strcpy(g->edges[jEdge].typeName, patches[edges[jEdge][2]-1].c_str());
-                    }
-                    else {
-                        throw Exception("Boundary edge #%d not defined in UNV file.", Exception::TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE);
-                    }
-                }
-
-
-                iEdge++;
+            int jEdge = find_edge(g->edges[iEdge].n1, g->edges[iEdge].n2);
+            if (jEdge == -1) {
+                throw Exception("Boundary edge not defined...", Exception::TYPE_MESH_GMSH_WRONG_EDGE);
             }
+            indexes &ind = edges[jEdge];
+            strcpy(g->edges[iEdge].typeName, patches[ind[2]-1].c_str());
+        }
+        // коррекция направлений нормалей
+        Vector vc;
+        vc.x = g->cells[g->edges[iEdge].c1].c.x - g->edges[iEdge].c[0].x;
+        vc.y = g->cells[g->edges[iEdge].c1].c.y - g->edges[iEdge].c[0].y;
+        if (scalar_prod(vc, g->edges[iEdge].n) > 0) {
+            g->edges[iEdge].n.x *= -1;
+            g->edges[iEdge].n.y *= -1;
+        }
+
+
+        ++iEdge;
+    }
+
+    log("\t- neighbors;\n");
+    for (int iCell = 0; iCell < g->cCount; iCell++) {
+        Cell &cell = g->cells[iCell];
+        for (int k = 0; k < 3; k++) {
+            Edge &edge = g->edges[cell.edgesInd[k]];
+            cell.neigh[k] = (edge.c1 == iCell ? edge.c2 : edge.c1);
         }
     }
+
 
     for (int i = 0; i < g->cCount; i++)
     {
@@ -295,19 +249,6 @@ void MeshReaderMsh2::read(Grid* g)
         double p = (a + b + c) / 2.0;
         g->cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
     }
-
-    for (int i = 0; i < g->eCount; i++) {
-        Edge &e = g->edges[i];
-        if (e.type == Edge::TYPE_NAMED and strcmp(e.typeName, "") == 0) {
-            int kkk=0;
-        }
-    }
-    for (int i = 0; i < g->cCount; i++)
-    {
-        delete[] neigh[i];
-    }
-    delete[] neigh;
-    delete[] cfi;
 }
 
 

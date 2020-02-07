@@ -274,178 +274,372 @@ int findEdgeByNodes(int n1, int n2)
 
 void Grid::readMeshFiles()
 {
-	int p = Parallel::procId;
-	char fName[64];
-	int tmp;
-	sprintf(fName, "mesh/mesh.%04d.proc", p);
-	FILE * fp = fopen(fName, "r");
-	if (!fp) {
-		log("Can not open file '%s'\n", fName);
-		EXIT(1);
-	}
+    int p = Parallel::procId;
+    char fName[64];
+    int tmp;
+    sprintf(fName, "mesh/mesh.%04d.proc", p);
+    FILE * fp = fopen(fName, "r");
+    if (!fp) {
+        log("Can not open file '%s'\n", fName);
+        EXIT(1);
+    }
 
-	log("Reading mesh part structure:\n");
+    log("Reading mesh part structure:\n");
 
-	// Nodes
-	log("\t- nodes;\n");
-	fscanf(fp, "%d %d", &nCount, &nCountEx);
-	nodes = new Point[nCountEx];
-	for (int i = 0; i < nCountEx; i++)
-	{
-		fscanf(fp, "%d %lf %lf", &tmp, &(nodes[i].x), &(nodes[i].y));
-	}
+    // Nodes
+    log("\t- nodes;\n");
+    fscanf(fp, "%d %d", &nCount, &nCountEx);
+    nodes = new Point[nCountEx];
+    for (int i = 0; i < nCountEx; i++)
+    {
+        fscanf(fp, "%d %lf %lf", &tmp, &(nodes[i].x), &(nodes[i].y));
+    }
 
-	// Cells
-	log("\t- cells;\n");
-	fscanf(fp, "%d %d", &cCount, &cCountEx);
-	cells = new Cell[cCountEx];
-	for (int i = 0; i < cCountEx; i++)
-	{
-		cells[i].nCount = 3;
-		cells[i].nodesInd = new int[cells[i].nCount];
-		fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), &(cells[i].typeName));
-		cells[i].c.x = (nodes[cells[i].nodesInd[0]].x + nodes[cells[i].nodesInd[1]].x + nodes[cells[i].nodesInd[2]].x) / 3.0;
-		cells[i].c.y = (nodes[cells[i].nodesInd[0]].y + nodes[cells[i].nodesInd[1]].y + nodes[cells[i].nodesInd[2]].y) / 3.0;
-		cells[i].HX = _max_(fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[1]].x),
-			fabs(nodes[cells[i].nodesInd[1]].x - nodes[cells[i].nodesInd[2]].x),
-			fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[2]].x));
-		cells[i].HY = _max_(fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[1]].y),
-			fabs(nodes[cells[i].nodesInd[1]].y - nodes[cells[i].nodesInd[2]].y),
-			fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[2]].y));
-		cells[i].eCount = 3;
-		cells[i].edgesInd = new int[cells[i].eCount];
-	}
-	std::map<int, std::set<int> > node_cells;
-	for (int i = 0; i < cCountEx; i++) {
-		node_cells[cells[i].nodesInd[0]].insert(i);
-		node_cells[cells[i].nodesInd[1]].insert(i);
-		node_cells[cells[i].nodesInd[2]].insert(i);
-	}
+    // Cells
+    log("\t- cells;\n");
+    fscanf(fp, "%d %d", &cCount, &cCountEx);
+    cells = new Cell[cCountEx];
+    for (int i = 0; i < cCountEx; i++)
+    {
+        cells[i].nCount = 3;
+        cells[i].nodesInd = new int[cells[i].nCount];
+        fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), &(cells[i].typeName));
+        cells[i].c.x = (nodes[cells[i].nodesInd[0]].x + nodes[cells[i].nodesInd[1]].x + nodes[cells[i].nodesInd[2]].x) / 3.0;
+        cells[i].c.y = (nodes[cells[i].nodesInd[0]].y + nodes[cells[i].nodesInd[1]].y + nodes[cells[i].nodesInd[2]].y) / 3.0;
+        cells[i].HX = _max_(fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[1]].x),
+                            fabs(nodes[cells[i].nodesInd[1]].x - nodes[cells[i].nodesInd[2]].x),
+                            fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[2]].x));
+        cells[i].HY = _max_(fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[1]].y),
+                            fabs(nodes[cells[i].nodesInd[1]].y - nodes[cells[i].nodesInd[2]].y),
+                            fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[2]].y));
+        cells[i].eCount = 3;
+        cells[i].edgesInd = new int[cells[i].eCount];
+    }
+    std::map<int, std::set<int> > node_cells;
+    for (int i = 0; i < cCountEx; i++) {
+        node_cells[cells[i].nodesInd[0]].insert(i);
+        node_cells[cells[i].nodesInd[1]].insert(i);
+        node_cells[cells[i].nodesInd[2]].insert(i);
+    }
 
-	// Edges
-	log("\t- edges;\n");
-	fscanf(fp, "%d %d", &eCount, &eCountEx);
-	edges = new Edge[eCountEx];
-	for (int i = 0; i < eCountEx; i++)
-	{
-		fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
-		if (edges[i].type != 0) {
-			fscanf(fp, "%s", &(edges[i].typeName));
-		}
-		else {
-			strcpy(edges[i].typeName, "");
-		}
-		int n1, n2;
-		if (edges[i].n1 < edges[i].n2) {
-			n1 = edges[i].n1;
-			n2 = edges[i].n2;
-		}
-		else {
-			n1 = edges[i].n2;
-			n2 = edges[i].n1;
-		}
-		nodeToEdge[edge_t(n1, n2)] = i;
-	}
+    // Edges
+    log("\t- edges;\n");
+    fscanf(fp, "%d %d", &eCount, &eCountEx);
+    edges = new Edge[eCountEx];
+    for (int i = 0; i < eCountEx; i++)
+    {
+        fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
+        if (edges[i].type != 0) {
+            fscanf(fp, "%s", &(edges[i].typeName));
+        }
+        else {
+            strcpy(edges[i].typeName, "");
+        }
+        int n1, n2;
+        if (edges[i].n1 < edges[i].n2) {
+            n1 = edges[i].n1;
+            n2 = edges[i].n2;
+        }
+        else {
+            n1 = edges[i].n2;
+            n2 = edges[i].n1;
+        }
+        nodeToEdge[edge_t(n1, n2)] = i;
+    }
 
-	idx2_t edge_cells;
-	edge_cells.resize(eCountEx);
-	for (int i = 0; i < cCountEx; i++) {
-		for (int j = 0; j < 3; j++) {
-			int n1 = cells[i].nodesInd[j % 3];
-			int n2 = cells[i].nodesInd[(j + 1) % 3];
-			int iEdge = findEdgeByNodes(n1,n2);
-			edge_cells[iEdge].push_back(i);
-			cells[i].edgesInd[j] = iEdge;
-		}
-	}
+    idx2_t edge_cells;
+    edge_cells.resize(eCountEx);
+    for (int i = 0; i < cCountEx; i++) {
+        for (int j = 0; j < 3; j++) {
+            int n1 = cells[i].nodesInd[j % 3];
+            int n2 = cells[i].nodesInd[(j + 1) % 3];
+            int iEdge = findEdgeByNodes(n1,n2);
+            edge_cells[iEdge].push_back(i);
+            cells[i].edgesInd[j] = iEdge;
+        }
+    }
 
-	for (int iEdge = 0; iEdge < eCountEx; iEdge++) {
-		idx_t & ec = edge_cells[iEdge];
-		Edge & e = edges[iEdge];
-		if (ec.size() == 2) {
-			e.c1 = ec[0];
-			e.c2 = ec[1];
-		}
-		else if (ec.size() == 1) {
-			e.c1 = ec[0];
-			e.c2 = -1;
-		}
-		else {
-			log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
-			EXIT(1);
-		}
-		e.cCount = 3;
-		e.c = new Point[e.cCount];
-		double _sqrt3 = 1.0 / sqrt(3.0);
-		// центр ребра
-		e.c[0].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0;
-		e.c[0].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0;
-		// первая точка Гаусса
-		e.c[1].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 - _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
-		e.c[1].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 - _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// вторая точка Гаусса
-		e.c[2].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 + _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
-		e.c[2].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 + _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
-		// нормаль и длина ребра
-		e.n.x = nodes[e.n2].y - nodes[e.n1].y;
-		e.n.y = nodes[e.n1].x - nodes[e.n2].x;
-		e.l = sqrt(e.n.x*e.n.x + e.n.y*e.n.y);
-		e.n.x /= e.l;
-		e.n.y /= e.l;
-		e.cnl1 = fabs(e.n.x*(e.c[0].x - cells[e.c1].c.x) + e.n.y*(e.c[0].y - cells[e.c1].c.y));
-		if (e.c2 > -1) {
-			e.cnl2 = fabs(e.n.x*(cells[e.c2].c.x - e.c[0].x) + e.n.y*(cells[e.c2].c.y - e.c[0].y));
-		}
-		else {
-			e.cnl2 = 0.0;
-		}
-		// коррекция направлений нормалей
-		Vector vc;
-		
-		vc.x = cells[e.c1].c.x - e.c[0].x;
-		vc.y = cells[e.c1].c.y - e.c[0].y;
-		if (scalar_prod(vc, e.n) > 0) {
-			e.n.x *= -1;
-			e.n.y *= -1;
-		}
-	}
+    for (int iEdge = 0; iEdge < eCountEx; iEdge++) {
+        idx_t & ec = edge_cells[iEdge];
+        Edge & e = edges[iEdge];
+        if (ec.size() == 2) {
+            e.c1 = ec[0];
+            e.c2 = ec[1];
+        }
+        else if (ec.size() == 1) {
+            e.c1 = ec[0];
+            e.c2 = -1;
+        }
+        else {
+            log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
+            EXIT(1);
+        }
+        e.cCount = 3;
+        e.c = new Point[e.cCount];
+        double _sqrt3 = 1.0 / sqrt(3.0);
+        // центр ребра
+        e.c[0].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0;
+        e.c[0].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0;
+        // первая точка Гаусса
+        e.c[1].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 - _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
+        e.c[1].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 - _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
+        // вторая точка Гаусса
+        e.c[2].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 + _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
+        e.c[2].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 + _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
+        // нормаль и длина ребра
+        e.n.x = nodes[e.n2].y - nodes[e.n1].y;
+        e.n.y = nodes[e.n1].x - nodes[e.n2].x;
+        e.l = sqrt(e.n.x*e.n.x + e.n.y*e.n.y);
+        e.n.x /= e.l;
+        e.n.y /= e.l;
+        e.cnl1 = fabs(e.n.x*(e.c[0].x - cells[e.c1].c.x) + e.n.y*(e.c[0].y - cells[e.c1].c.y));
+        if (e.c2 > -1) {
+            e.cnl2 = fabs(e.n.x*(cells[e.c2].c.x - e.c[0].x) + e.n.y*(cells[e.c2].c.y - e.c[0].y));
+        }
+        else {
+            e.cnl2 = 0.0;
+        }
+        // коррекция направлений нормалей
+        Vector vc;
 
-	
-	for (int i = 0; i < cCountEx; i++)	{
-		double a = edges[cells[i].edgesInd[0]].l;
-		double b = edges[cells[i].edgesInd[1]].l;
-		double c = edges[cells[i].edgesInd[2]].l;
-		double p = (a + b + c) / 2.0;
-		cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
-
-	}
-
-	recvCount.clear();
-	int sh = cCount;
-	for (int i = 0; i < Parallel::procCount; i++) {
-		fscanf(fp, "%d", &tmp);
-		recvCount.push_back(tmp);
-		recvShift.push_back(sh);
-		sh += tmp;
-	}
-	
-	sendInd.clear();
-	for (int i = 0; i < Parallel::procCount; i++) {
-		int np;
-		fscanf(fp, "%d %d", &tmp, &np);
-		std::vector<int> ind;
-		ind.clear();
-		for (int j = 0; j < np; j++) {
-			fscanf(fp, "%d", &tmp);
-			ind.push_back(tmp);
-		}
-		sendInd.push_back(ind);
-	}
-
-	fclose(fp);
+        vc.x = cells[e.c1].c.x - e.c[0].x;
+        vc.y = cells[e.c1].c.y - e.c[0].y;
+        if (scalar_prod(vc, e.n) > 0) {
+            e.n.x *= -1;
+            e.n.y *= -1;
+        }
+    }
 
 
-	log("  complete...\n");
+    for (int i = 0; i < cCountEx; i++)	{
+        double a = edges[cells[i].edgesInd[0]].l;
+        double b = edges[cells[i].edgesInd[1]].l;
+        double c = edges[cells[i].edgesInd[2]].l;
+        double p = (a + b + c) / 2.0;
+        cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
+
+    }
+
+    recvCount.clear();
+    int sh = cCount;
+    for (int i = 0; i < Parallel::procCount; i++) {
+        fscanf(fp, "%d", &tmp);
+        recvCount.push_back(tmp);
+        recvShift.push_back(sh);
+        sh += tmp;
+    }
+
+    sendInd.clear();
+    for (int i = 0; i < Parallel::procCount; i++) {
+        int np;
+        fscanf(fp, "%d %d", &tmp, &np);
+        std::vector<int> ind;
+        ind.clear();
+        for (int j = 0; j < np; j++) {
+            fscanf(fp, "%d", &tmp);
+            ind.push_back(tmp);
+        }
+        sendInd.push_back(ind);
+    }
+
+    fclose(fp);
+
+
+    log("  complete...\n");
+
+
+}
+
+typedef std::pair<int, int> edge_t;
+typedef std::vector<int> indexes;
+typedef std::map<edge_t, indexes> edge_cells_t;
+
+static edge_t make_edge(int n1, int n2) {
+    if (n1 > n2) std::swap(n1, n2);
+    edge_t e(n1, n2);
+    return e;
+}
+
+void Grid::procMeshFiles()
+{
+    edge_cells_t e2c;
+
+    int p = Parallel::procId;
+    char fName[64];
+    int tmp;
+    sprintf(fName, "mesh/mesh.%04d.proc", p);
+    FILE * fp = fopen(fName, "r");
+    if (!fp) {
+        log("Can not open file '%s'\n", fName);
+        EXIT(1);
+    }
+
+    log("Reading mesh part structure:\n");
+
+    // Nodes
+    log("\t- nodes;\n");
+    fscanf(fp, "%d %d", &nCount, &nCountEx);
+    nodes = new Point[nCountEx];
+    for (int i = 0; i < nCountEx; i++)
+    {
+        fscanf(fp, "%d %lf %lf", &tmp, &(nodes[i].x), &(nodes[i].y));
+    }
+
+    // Cells
+    log("\t- cells;\n");
+    fscanf(fp, "%d %d", &cCount, &cCountEx);
+    cells = new Cell[cCountEx];
+    for (int i = 0; i < cCountEx; i++)
+    {
+        cells[i].nCount = 3;
+        cells[i].nodesInd = new int[cells[i].nCount];
+        fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), (cells[i].typeName));
+        cells[i].c.x = (nodes[cells[i].nodesInd[0]].x + nodes[cells[i].nodesInd[1]].x + nodes[cells[i].nodesInd[2]].x) / 3.0;
+        cells[i].c.y = (nodes[cells[i].nodesInd[0]].y + nodes[cells[i].nodesInd[1]].y + nodes[cells[i].nodesInd[2]].y) / 3.0;
+        cells[i].HX = _max_(fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[1]].x),
+                            fabs(nodes[cells[i].nodesInd[1]].x - nodes[cells[i].nodesInd[2]].x),
+                            fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[2]].x));
+        cells[i].HY = _max_(fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[1]].y),
+                            fabs(nodes[cells[i].nodesInd[1]].y - nodes[cells[i].nodesInd[2]].y),
+                            fabs(nodes[cells[i].nodesInd[0]].y - nodes[cells[i].nodesInd[2]].y));
+        cells[i].eCount = 3;
+        cells[i].edgesInd = new int[cells[i].eCount];
+
+    }
+    //std::map<int, std::set<int> > node_cells;
+    for (int i = 0; i < cCountEx; i++) {
+//        node_cells[cells[i].nodesInd[0]].insert(i);
+//        node_cells[cells[i].nodesInd[1]].insert(i);
+//        node_cells[cells[i].nodesInd[2]].insert(i);
+        for (int k = 0; k < 3; k++) {
+            e2c[make_edge(cells[i].nodesInd[k % 3], cells[i].nodesInd[(k + 1) % 3])].push_back(i);
+        }
+    }
+
+    // Edges
+    log("\t- edges;\n");
+    fscanf(fp, "%d %d", &eCount, &eCountEx);
+    edges = new Edge[eCountEx];
+    for (int i = 0; i < eCountEx; i++)
+    {
+        fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
+        if (edges[i].type != 0) {
+            fscanf(fp, "%s", &(edges[i].typeName));
+        }
+        else {
+            strcpy(edges[i].typeName, "");
+        }
+        int n1, n2;
+        if (edges[i].n1 < edges[i].n2) {
+            n1 = edges[i].n1;
+            n2 = edges[i].n2;
+        }
+        else {
+            n1 = edges[i].n2;
+            n2 = edges[i].n1;
+        }
+        nodeToEdge[edge_t(n1, n2)] = i;
+    }
+
+    idx2_t edge_cells;
+    edge_cells.resize(eCountEx);
+    for (int i = 0; i < cCountEx; i++) {
+        for (int j = 0; j < 3; j++) {
+            int n1 = cells[i].nodesInd[j % 3];
+            int n2 = cells[i].nodesInd[(j + 1) % 3];
+            int iEdge = findEdgeByNodes(n1,n2);
+            edge_cells[iEdge].push_back(i);
+            cells[i].edgesInd[j] = iEdge;
+        }
+    }
+
+    for (int iEdge = 0; iEdge < eCountEx; iEdge++) {
+        idx_t & ec = edge_cells[iEdge];
+        Edge & e = edges[iEdge];
+        if (ec.size() == 2) {
+            e.c1 = ec[0];
+            e.c2 = ec[1];
+        }
+        else if (ec.size() == 1) {
+            e.c1 = ec[0];
+            e.c2 = -1;
+        }
+        else {
+            log("ERROR: edge #%d is not assigned to any cell. Sourse: &s; line: %d\n", iEdge, __FILE__, __LINE__);
+            EXIT(1);
+        }
+        e.cCount = 3;
+        e.c = new Point[e.cCount];
+        double _sqrt3 = 1.0 / sqrt(3.0);
+        // центр ребра
+        e.c[0].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0;
+        e.c[0].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0;
+        // первая точка Гаусса
+        e.c[1].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 - _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
+        e.c[1].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 - _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
+        // вторая точка Гаусса
+        e.c[2].x = (nodes[e.n1].x + nodes[e.n2].x) / 2.0 + _sqrt3*(nodes[e.n2].x - nodes[e.n1].x) / 2.0;
+        e.c[2].y = (nodes[e.n1].y + nodes[e.n2].y) / 2.0 + _sqrt3*(nodes[e.n2].y - nodes[e.n1].y) / 2.0;
+        // нормаль и длина ребра
+        e.n.x = nodes[e.n2].y - nodes[e.n1].y;
+        e.n.y = nodes[e.n1].x - nodes[e.n2].x;
+        e.l = sqrt(e.n.x*e.n.x + e.n.y*e.n.y);
+        e.n.x /= e.l;
+        e.n.y /= e.l;
+        e.cnl1 = fabs(e.n.x*(e.c[0].x - cells[e.c1].c.x) + e.n.y*(e.c[0].y - cells[e.c1].c.y));
+        if (e.c2 > -1) {
+            e.cnl2 = fabs(e.n.x*(cells[e.c2].c.x - e.c[0].x) + e.n.y*(cells[e.c2].c.y - e.c[0].y));
+        }
+        else {
+            e.cnl2 = 0.0;
+        }
+        // коррекция направлений нормалей
+        Vector vc;
+
+        vc.x = cells[e.c1].c.x - e.c[0].x;
+        vc.y = cells[e.c1].c.y - e.c[0].y;
+        if (scalar_prod(vc, e.n) > 0) {
+            e.n.x *= -1;
+            e.n.y *= -1;
+        }
+    }
+
+
+    for (int i = 0; i < cCountEx; i++)	{
+        double a = edges[cells[i].edgesInd[0]].l;
+        double b = edges[cells[i].edgesInd[1]].l;
+        double c = edges[cells[i].edgesInd[2]].l;
+        double p = (a + b + c) / 2.0;
+        cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
+
+    }
+
+    recvCount.clear();
+    int sh = cCount;
+    for (int i = 0; i < Parallel::procCount; i++) {
+        fscanf(fp, "%d", &tmp);
+        recvCount.push_back(tmp);
+        recvShift.push_back(sh);
+        sh += tmp;
+    }
+
+    sendInd.clear();
+    for (int i = 0; i < Parallel::procCount; i++) {
+        int np;
+        fscanf(fp, "%d %d", &tmp, &np);
+        std::vector<int> ind;
+        ind.clear();
+        for (int j = 0; j < np; j++) {
+            fscanf(fp, "%d", &tmp);
+            ind.push_back(tmp);
+        }
+        sendInd.push_back(ind);
+    }
+
+    fclose(fp);
+
+
+    log("  complete...\n");
 
 
 }

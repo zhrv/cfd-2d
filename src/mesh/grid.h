@@ -95,7 +95,8 @@ public:
 	std::vector<int>					recvShift;
 	std::vector< std::vector<int> >		sendInd;
 
-	void readMeshFiles();
+    void readMeshFiles();
+    void procMeshFiles();
 	void saveMeshInfo();
 };
 

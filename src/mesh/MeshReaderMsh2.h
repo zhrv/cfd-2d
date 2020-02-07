@@ -28,6 +28,8 @@ public:
     typedef map<string, indexes> bnd_map;
     typedef set<int> ind_set;
     typedef vector<element> ele_map;
+    typedef std::pair<int, int> edge_t;
+    typedef std::map<edge_t, indexes> edge_cells_t;
 
 private:
     char* fileName;
