@@ -299,7 +299,10 @@ extern void log(const char * format, ...);
 extern void EXIT(int err);
 extern void inverseMatr(double** a_src, double **am, int N);
 
-
+template<typename Base, typename T>
+inline bool instanceof(const T *ptr) {
+    return dynamic_cast<const Base*>(ptr) != nullptr;
+}
 
 /**
  *	Решение задачи о распаде произвольного разрыва

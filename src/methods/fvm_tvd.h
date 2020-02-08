@@ -110,8 +110,9 @@ private:
 	Vector *gradR;
 	Vector *gradP;
 	Vector *gradU;
-	Vector *gradV;
-	
+    Vector *gradV;
+    Vector *gradT;
+
 	//! лимиты
 	double limitRmin;
 	double limitRmax;

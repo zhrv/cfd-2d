@@ -200,7 +200,8 @@ void FVM_TVD::init(char * xmlFileName)
 	gradR		= new Vector[grid.cCountEx];
 	gradP		= new Vector[grid.cCountEx];
 	gradU		= new Vector[grid.cCountEx];
-	gradV		= new Vector[grid.cCountEx];
+    gradV		= new Vector[grid.cCountEx];
+    gradT		= new Vector[grid.cCountEx];
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -257,8 +258,9 @@ void FVM_TVD::calcGrad()
 	memset(gradR, 0, nc*sizeof(Vector));
 	memset(gradP, 0, nc*sizeof(Vector));
 	memset(gradU, 0, nc*sizeof(Vector));
-	memset(gradV, 0, nc*sizeof(Vector));
-	
+    memset(gradV, 0, nc*sizeof(Vector));
+    memset(gradT, 0, nc*sizeof(Vector));
+
     for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
@@ -284,9 +286,11 @@ void FVM_TVD::calcGrad()
 		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
 		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
 		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
-		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
-		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
-		if (c2 > -1) 
+        gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+        gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+        gradT[c1].x += (pL.T+pR.T)/2*n.x*l;
+        gradT[c1].y += (pL.T+pR.T)/2*n.y*l;
+		if (c2 > -1)
 		{
 			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
 			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
@@ -296,6 +300,8 @@ void FVM_TVD::calcGrad()
 			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
 			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
 			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+            gradT[c2].x -= (pL.T+pR.T)/2*n.x*l;
+            gradT[c2].y -= (pL.T+pR.T)/2*n.y*l;
 		}
 
 	}
@@ -305,7 +311,8 @@ void FVM_TVD::calcGrad()
 		gradR[iCell] /= si;
 		gradP[iCell] /= si;
 		gradU[iCell] /= si;
-		gradV[iCell] /= si;
+        gradV[iCell] /= si;
+        gradT[iCell] /= si;
 	}
 
     procExchangeGrads();
@@ -326,6 +333,9 @@ void FVM_TVD::singleTimeStep()
         double l	= grid.edges[iEdge].l*0.5;
         Material &mat = getMaterial(c1);
         double gam = mat.getGamma();
+        double mu = mat.ML;
+        double lambda = 0.;
+        double kt = mat.K;
         Param pL, pR;
         fr = 0.0;
         fu = 0.0;
@@ -340,8 +350,36 @@ void FVM_TVD::singleTimeStep()
             fu += fu1;
             fv += fv1;
             fe += fe1;
-
         }
+
+        if (c2 > -1) {
+            reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[0]);
+            double rl = sqrt(pL.r);
+            double rr = sqrt(pR.r);
+
+            double u_  = (rl*pL.u+rr*pR.u)/(rl+rr);
+            double v_  = (rl*pL.v+rr*pR.v)/(rl+rr);
+            double u_x = (gradU[c1].x+gradU[c2].x)*0.5;
+            double v_x = (gradV[c1].x+gradV[c2].x)*0.5;
+            double t_x = (gradT[c1].x+gradT[c2].x)*0.5;
+            double u_y = (gradU[c1].y+gradU[c2].y)*0.5;
+            double v_y = (gradV[c1].y+gradV[c2].y)*0.5;
+            double t_y = (gradT[c1].y+gradT[c2].y)*0.5;
+
+            double txx = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*u_x;
+            double tyy = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*v_y;
+            double txy = mu*(u_y+v_x);
+
+            fu -= txx*n.x+txy*n.y;
+            fv -= txy*n.x+tyy*n.y;
+            fe -= (u_*txx+v_*txy+kt*t_x)*n.x+(u_*txy+v_*tyy+kt*t_y)*n.y;
+        }
+        else {
+            if (instanceof<CFDBndWallNoSlip>(grid.edges[iEdge].bnd)) {
+
+            }
+        }
+
         ro_int[c1] -= fr*l;
         ru_int[c1] -= fu*l;
         rv_int[c1] -= fv*l;
@@ -767,7 +805,8 @@ void FVM_TVD::done()
 	delete[] gradR;
 	delete[] gradP;
 	delete[] gradU;
-	delete[] gradV;
+    delete[] gradV;
+    delete[] gradT;
 }
 
 
@@ -835,7 +874,7 @@ void FVM_TVD::procExchangeGrads()
     exchange(gradP);
     exchange(gradU);
     exchange(gradV);
-
+    exchange(gradT);
 }
 
 
