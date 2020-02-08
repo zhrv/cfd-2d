@@ -326,11 +326,12 @@ void FVM_TVD::singleTimeStep()
     memset(re_int, 0, grid.cCountEx*sizeof(double));
     for (int iEdge = 0; iEdge < grid.eCount; iEdge++)
     {
+        Edge &edge = grid.edges[iEdge];
         double fr, fu, fv, fe;
-        int c1	= grid.edges[iEdge].c1;
-        int c2	= grid.edges[iEdge].c2;
-        Vector n	= grid.edges[iEdge].n;
-        double l	= grid.edges[iEdge].l*0.5;
+        int c1	= edge.c1;
+        int c2	= edge.c2;
+        Vector n	= edge.n;
+        double l	= edge.l*0.5;
         Material &mat = getMaterial(c1);
         double gam = mat.getGamma();
         double mu = mat.ML;
@@ -341,10 +342,10 @@ void FVM_TVD::singleTimeStep()
         fu = 0.0;
         fv = 0.0;
         fe = 0.0;
-        for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++)
+        for (int iGP = 1; iGP < edge.cCount; iGP++)
         {
             double fr1, fu1, fv1, fe1;
-            reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
+            reconstruct(iEdge, pL, pR, edge.c[iGP]);
             calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, gam);
             fr += fr1;
             fu += fu1;
@@ -353,7 +354,7 @@ void FVM_TVD::singleTimeStep()
         }
 
         if (c2 > -1) {
-            reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[0]);
+            reconstruct(iEdge, pL, pR, edge.c[0]);
             double rl = sqrt(pL.r);
             double rr = sqrt(pR.r);
 
@@ -375,8 +376,22 @@ void FVM_TVD::singleTimeStep()
             fe -= (u_*txx+v_*txy+kt*t_x)*n.x+(u_*txy+v_*tyy+kt*t_y)*n.y;
         }
         else {
-            if (instanceof<CFDBndWallNoSlip>(grid.edges[iEdge].bnd)) {
+            if (instanceof<CFDBndWallNoSlip>(edge.bnd)) {
+                reconstruct(iEdge, pL, pR, edge.c[0]);
+                double Tbnd = edge.bnd->par[0];
+                double vn = pL.u*n.x+pL.v*n.y;
+                Vector Vn = n;
+                Vn *= vn;
+                Vector Vt = Vn;
+                Vt -= Vn;
 
+                double txx = mu*Vt.x/edge.cnl1;
+                double tyy = mu*Vt.y/edge.cnl1;
+                double Q   = kt*(Tbnd-pL.T)/edge.cnl1;
+
+                fu -= txx;
+                fv -= tyy;
+                fe -= Q;
             }
         }
 
@@ -772,8 +787,13 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 	Material& m = getMaterial(c1);
 	if (edge.bnd) {
 		edge.bnd->run(iEdge, pL, pR);
-		m.URS(pR, 2);
-		m.URS(pR, 1);
+		if (instanceof<CFDBndOutlet>(edge.bnd)) {
+		    m.URS(pR, 4);
+		}
+		else {
+            m.URS(pR, 2);
+            m.URS(pR, 1);
+        }
 		pR.E = pR.e + 0.5*(pR.U2());
 		return;
 	}

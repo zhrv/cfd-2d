@@ -34,6 +34,12 @@ void Material::URS(Param &par, int flag)
             par.cz = sqrt(gam*par.p/par.r);
             par.T = par.e/Cv;
             break;
+
+        case 4:		// CFDBndOutlet
+            par.e = par.p/(par.r*(gam-1));
+            par.cz = sqrt(gam*par.p/par.r);
+            par.T = par.e/Cv;
+            break;
 	}
 }
 
