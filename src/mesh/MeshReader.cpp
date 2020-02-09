@@ -22,6 +22,7 @@ MeshReader* MeshReader::create(int type, char* fileName)
             return new MeshReaderGmsh(fileName);
             break;
 	}
+	return nullptr;
 }
 
 int MeshReader::getType(char* name) {

@@ -42,10 +42,10 @@ int SolverHypreFlexGmresPrecAMG::solve(double eps, int& maxIter)
 
 	/* Flexible GMRES */
 	{
-		int    num_iterations;
+//		int    num_iterations;
 		double final_res_norm;
 		int    restart = 30;
-		int    modify = 1;
+//		int    modify = 1;
 
 
 		/* Create solver */

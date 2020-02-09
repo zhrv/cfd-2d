@@ -425,7 +425,7 @@ void FVM_TVD::singleTimeStep()
 void FVM_TVD::run() 
 {
     double			t		= 0.0;
-	unsigned int	step	= 0;
+	int	            step	= 0;
 	while (t <= TMAX && step <= STEP_MAX)
 	{
 		if (!STEADY) {

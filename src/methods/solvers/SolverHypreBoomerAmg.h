@@ -8,6 +8,6 @@ class SolverHypreBoomerAmg : public SolverHypre
 public:
 
 	virtual int solve(double eps, int& maxIter);
-	virtual char* getName() { return "HYPRE BoomerAMG"; }
+	virtual char* getName() { return (char*)"HYPRE BoomerAMG"; }
 };
 

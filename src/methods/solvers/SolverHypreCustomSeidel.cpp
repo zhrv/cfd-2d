@@ -19,7 +19,7 @@ SolverHypreCustomSeidel::~SolverHypreCustomSeidel()
 
 int SolverHypreCustomSeidel::solve(double eps, int& maxIter)
 {
-	int result = MatrixSolver::RESULT_OK;
+//	int result = MatrixSolver::RESULT_OK;
 
 	/* Assemble after setting the coefficients */
 	HYPRE_IJMatrixAssemble(A);

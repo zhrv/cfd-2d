@@ -23,9 +23,9 @@ Method* Solver::initMethod(char* fileName)
 	}
 	
 	TiXmlNode* task = 0;
-	TiXmlElement* el = 0;
-	TiXmlNode* node0 = 0;
-	TiXmlNode* node1 = 0;
+//	TiXmlElement* el = 0;
+//	TiXmlNode* node0 = 0;
+//	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 	//char methodName[50];
 	const char * methodName = task->ToElement()->Attribute("method");
