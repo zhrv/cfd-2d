@@ -717,6 +717,26 @@ void Parallel::recv(int pid, int tag, int n, Vector* x)
     }
     //delete[] buf;
 }
+
+double Parallel::glob_min(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+double Parallel::glob_max(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+
 /*
 void Parallel::bcast(int n, double* x)
 {

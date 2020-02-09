@@ -216,6 +216,12 @@ void FVM_TVD::init(char * xmlFileName)
 	memcpy(rv_old, rv, grid.cCountEx*sizeof(double));
 	memcpy(re_old, re, grid.cCountEx*sizeof(double));
 
+	if (!STEADY) {
+		double rec_tau = getGlobalTimeStep();
+		if (TAU > rec_tau) {
+			log("Recommended TAU is %16.8e, but %16.8e is used.\n", rec_tau, TAU);
+		}
+	}
 	calcTimeStep();
 	save(0);
 }
@@ -249,7 +255,23 @@ void FVM_TVD::calcTimeStep()
 	exchange(cTau);
 }
 
-void FVM_TVD::calcGrad() 
+
+double FVM_TVD::getGlobalTimeStep()
+{
+	double tau = 1.e+300;
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		Param p;
+		convertConsToPar(iCell, p);
+		if (tau > CFL* grid.cells[iCell].S / (p.magU()+p.cz)/*_max_(abs(p.u) + p.cz, abs(p.v) + p.cz)*/) {
+			tau = CFL * grid.cells[iCell].S / (p.magU()+p.cz)/*_max_(abs(p.u) + p.cz, abs(p.v) + p.cz)*/;
+		}
+	}
+	return Parallel::glob_min(tau);
+}
+
+
+void FVM_TVD::calcGrad()
 {
 	int nc = grid.cCountEx;
 	int ne = grid.eCount;
@@ -382,12 +404,12 @@ void FVM_TVD::singleTimeStep()
                 double vn = pL.u*n.x+pL.v*n.y;
                 Vector Vn = n;
                 Vn *= vn;
-                Vector Vt = Vn;
+                Vector Vt(pL.u, pL.v);
                 Vt -= Vn;
 
-                double txx = mu*Vt.x/edge.cnl1;
-                double tyy = mu*Vt.y/edge.cnl1;
-                double Q   = kt*(Tbnd-pL.T)/edge.cnl1;
+                double txx = -mu*Vt.x/edge.cnl1;
+                double tyy = -mu*Vt.y/edge.cnl1;
+                double Q   = -kt*(Tbnd-pL.T)/edge.cnl1;
 
                 fu -= txx;
                 fv -= tyy;
@@ -459,6 +481,7 @@ void FVM_TVD::run()
 
 			Param par;
 			convertConsToPar(iCell, par);
+			if (par.isNaN()) 				{ setCellFlagLim(iCell); }
 			if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
 			if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
 			if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
@@ -745,36 +768,35 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
-		Point &PE = p;
-		Point P1 = grid.cells[c1].c;
-		Point P2 = grid.cells[c2].c;
-		Vector DL1;
-		Vector DL2;
-		DL1.x=PE.x-P1.x;
-		DL1.y=PE.y-P1.y;
-		DL2.x=PE.x-P2.x;
-		DL2.y=PE.y-P2.y;
-		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
-		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
-		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
-		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
-		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
-		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
-		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
-		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
+//		Point &PE = p;
+//		Point P1 = grid.cells[c1].c;
+//		Point P2 = grid.cells[c2].c;
+//		Vector DL1;
+//		Vector DL2;
+//		DL1.x=PE.x-P1.x;
+//		DL1.y=PE.y-P1.y;
+//		DL2.x=PE.x-P2.x;
+//		DL2.y=PE.y-P2.y;
+//		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+//		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
+//		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+//		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+//		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+//		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
+//		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+//		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
 	} else {
 		int c1 = grid.edges[iEdge].c1;
 		convertConsToPar(c1, pL);
-		//return;
-		Point &PE = p;
-		Point P1 = grid.cells[c1].c;
-		Vector DL1;
-		DL1.x = PE.x - P1.x;
-		DL1.y = PE.y - P1.y;
-		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
-		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
-		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
-		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
+//		Point &PE = p;
+//		Point P1 = grid.cells[c1].c;
+//		Vector DL1;
+//		DL1.x = PE.x - P1.x;
+//		DL1.y = PE.y - P1.y;
+//		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
+//		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
+//		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
+//		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
 		boundaryCond(iEdge, pL, pR);
 	}
 }

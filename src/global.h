@@ -193,6 +193,21 @@ struct Param
 	
 	inline double U2() { return  u*u + v*v; }
 	inline double magU() { return sqrt(U2()); }
+
+	inline bool isNaN() {
+	    bool res = false;
+        res |= isnan(r);
+        res |= isnan(p);
+        res |= isnan(e);
+        res |= isnan(E);
+        res |= isnan(u);
+        res |= isnan(v);
+        res |= isnan(cz);
+        res |= isnan(T);
+        res |= isnan(ML);
+        res |= isnan(gam);
+        return res;
+	}
 };
 
 /**
@@ -279,6 +294,10 @@ struct Parallel
 	static void recv(int pid, int tag, int n, int* data);
     static void recv(int pid, int tag, int n, VECTOR* data);
     static void recv(int pid, int tag, int n, Vector* data);
+
+
+    static double glob_min(double data);
+    static double glob_max(double data);
 
 	//static void bcast(int tag, int n, double* data);
 	//static void bcast(int tag, int n, int* data);
