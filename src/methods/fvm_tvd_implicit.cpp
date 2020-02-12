@@ -407,7 +407,7 @@ void FVM_TVD_IMPLICIT::calcAM(double **dst4, double **rightEgnVecl4, double **eg
 
 void FVM_TVD_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
-	double WI, UN, UT;
+	double WI/*, UN, UT*/;
 	//double unl = pL.u*n.x+pL.v*n.y;
 	//double unr = pR.u*n.x+pR.v*n.y;
 	//double utl = pL.u*n.y-pL.v*n.x;
@@ -480,7 +480,7 @@ void FVM_TVD_IMPLICIT::run()
 	int						nc = grid.cCount; // количество ячеек.
 	int						ne = grid.eCount; // количество ребер.
 	double					t = 0.0;
-	unsigned int			step = 0;
+	int			            step = 0;
 
 	MatrixSolver			*solverMtx = MatrixSolver::create("HYPRE_GMRES");
 	double					**eigenMtx4, **rEigenVector4, **lEigenVector4;
@@ -845,7 +845,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -854,7 +854,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -863,7 +863,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -903,7 +903,7 @@ void FVM_TVD_IMPLICIT::save(int step)
 		if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		fprintf(fp, "%25.16f ", cTau[i]);

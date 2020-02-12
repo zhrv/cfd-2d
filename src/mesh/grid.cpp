@@ -303,7 +303,7 @@ void Grid::readMeshFiles()
     {
         cells[i].nCount = 3;
         cells[i].nodesInd = new int[cells[i].nCount];
-        fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), &(cells[i].typeName));
+        fscanf(fp, "%d %d %d %d %s", &tmp, &(cells[i].nodesInd[0]), &(cells[i].nodesInd[1]), &(cells[i].nodesInd[2]), (cells[i].typeName));
         cells[i].c.x = (nodes[cells[i].nodesInd[0]].x + nodes[cells[i].nodesInd[1]].x + nodes[cells[i].nodesInd[2]].x) / 3.0;
         cells[i].c.y = (nodes[cells[i].nodesInd[0]].y + nodes[cells[i].nodesInd[1]].y + nodes[cells[i].nodesInd[2]].y) / 3.0;
         cells[i].HX = _max_(fabs(nodes[cells[i].nodesInd[0]].x - nodes[cells[i].nodesInd[1]].x),
@@ -330,7 +330,7 @@ void Grid::readMeshFiles()
     {
         fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
         if (edges[i].type != 0) {
-            fscanf(fp, "%s", &(edges[i].typeName));
+            fscanf(fp, "%s", (edges[i].typeName));
         }
         else {
             strcpy(edges[i].typeName, "");
@@ -524,7 +524,7 @@ void Grid::procMeshFiles()
     {
         fscanf(fp, "%d %d %d %d", &tmp, &(edges[i].n1), &(edges[i].n2), &(edges[i].type));
         if (edges[i].type != 0) {
-            fscanf(fp, "%s", &(edges[i].typeName));
+            fscanf(fp, "%s", (edges[i].typeName));
         }
         else {
             strcpy(edges[i].typeName, "");
@@ -658,7 +658,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "POINT: %25.15e %25.15e\n", p.x, p.y);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = nCount; i < nCountEx; i++) {
 		Point & p = nodes[i];
 		fprintf(fp, "============================================================\n");
@@ -683,7 +683,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "TYPE: %s\n", c.typeName);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = cCount; i < cCountEx; i++) {
 		Cell & c = cells[i];
 		fprintf(fp, "============================================================\n");
@@ -713,7 +713,7 @@ void Grid::saveMeshInfo() {
 		fprintf(fp, "TYPE: %s\n", e.typeName);
 		fprintf(fp, "============================================================\n\n\n");
 	}
-	fprintf(fp, "\n********************* Extended *********************\n", cCount, cCountEx);
+	fprintf(fp, "\n********************* Extended *********************\n");
 	for (int i = eCount; i < eCountEx; i++) {
 	}
 	fclose(fp);

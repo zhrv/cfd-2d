@@ -14,7 +14,7 @@ MeshReaderMsh2::edge_t make_edge(int n1, int n2) {
 
 int MeshReaderMsh2::find_edge(int n1, int n2)
 {
-    for (int i = 0; i < edges.size(); i++) {
+    for (size_t i = 0; i < edges.size(); i++) {
         if (((edges[i][4] == n1) && (edges[i][5] == n2)) || ((edges[i][4] == n2) && (edges[i][5] == n1)) ){
             return i;
         }

@@ -186,7 +186,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		par.ML /= MU_;
 		par.E = par.e + par.U2()*0.5;
 
-		int zhrv = 0;
 	}
 
 	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
@@ -433,9 +432,6 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 
 			//cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
 			cellJ[i] = 0.5*(a1*b2 - a2*b1);
-			if (cellJ[i] <= 0) {
-				int zhrv = 0;
-			}
 		}
 	}
 	else if (GP_CELL_COUNT == 3) {
@@ -478,7 +474,7 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
 			double gp1 = -3.0 / 5.0;
-			double gp2 = 0.0;
+//			double gp2 = 0.0;
 			double gp3 = 3.0 / 5.0;
 			double x1 = grid.nodes[grid.edges[i].n1].x;
 			double y1 = grid.nodes[grid.edges[i].n1].y;
@@ -901,7 +897,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -910,7 +906,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -921,7 +917,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -961,7 +957,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		fprintf(fp, "%25.16f ", cTau[i]*TIME_);
@@ -1254,7 +1250,7 @@ void FEM_DG_IMPLICIT::calcAy_(double **dst4, Param par, double GAM)
 
 void FEM_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
-	double WI, UN, UT;
+	double WI/*, UN, UT*/;
 	//double unl = pL.u*n.x+pL.v*n.y;
 	//double unr = pR.u*n.x+pR.v*n.y;
 	//double utl = pL.u*n.y-pL.v*n.x;
@@ -1313,7 +1309,7 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 void FEM_DG_IMPLICIT::calcIntegral()
 {
 	double fRO, fRU, fRV, fRE;
-	double FR, FU, FV, FE;
+//	double FR, FU, FV, FE;
 	double **mx = allocMtx4();
 	double **my = allocMtx4();
 
@@ -1791,7 +1787,7 @@ void FEM_DG_IMPLICIT::run()
 			t += TAU;
 		}
 
-		long tmStart = clock();
+//		long tmStart = clock();
 		solverErr = 0;
 		solverMtx->zero();
 
@@ -1830,7 +1826,7 @@ void FEM_DG_IMPLICIT::run()
 
 			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
 			{
-				Cell &cell = grid.cells[cellIndex];
+//				Cell &cell = grid.cells[cellIndex];
 
 				//if (cellIsLim(cellIndex))	continue;
 				for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
@@ -1845,7 +1841,7 @@ void FEM_DG_IMPLICIT::run()
 				limiter->run();
 			}
 
-			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+			for (int cellIndex = 0/*, ind = 0*/; cellIndex < grid.cCount; cellIndex++)
 			{
 				Cell &cell = grid.cells[cellIndex];
 

@@ -7,11 +7,11 @@
 std::vector<int> MeshReaderGmsh::getIntersection(index_list &sets)
 {
 	std::vector <int> result;  // To store the reaultant set 
-	int smallSetInd = 0;  // Initialize index of smallest set 
-	int minSize = sets[0].size(); // Initialize size of smallest set 
+	size_t smallSetInd = 0;  // Initialize index of smallest set
+	size_t minSize = sets[0].size(); // Initialize size of smallest set
 
 	// sort all the sets, and also find the smallest set 
-	for (int i = 1; i < sets.size(); i++)
+	for (size_t i = 1; i < sets.size(); i++)
 	{
 		// sort this set 
 		std::sort(sets[i].begin(), sets[i].end());
@@ -28,7 +28,7 @@ std::vector<int> MeshReaderGmsh::getIntersection(index_list &sets)
 
 	// Add all the elements of smallest set to a map, if already present, 
 	// update the frequency 
-	for (int i = 0; i < sets[smallSetInd].size(); i++)
+	for (size_t i = 0; i < sets[smallSetInd].size(); i++)
 	{
 		if (elementsMap.find(sets[smallSetInd][i]) == elementsMap.end())
 			elementsMap[sets[smallSetInd][i]] = 1;
@@ -47,7 +47,7 @@ std::vector<int> MeshReaderGmsh::getIntersection(index_list &sets)
 		bool bFound = true;
 
 		// Iterate through all sets 
-		for (int j = 0; j < sets.size(); j++)
+		for (size_t j = 0; j < sets.size(); j++)
 		{
 			// If this set is not the smallest set, then do binary search in it 
 			if (j != smallSetInd)
@@ -358,13 +358,6 @@ void MeshReaderGmsh::read(Grid* g)
 		else {
 			throw Exception((char*)"Boundary edge #%d not defined in msh file.", Exception::TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE);
 		}
-	}
-
-	for (int i = 0; i < g->eCount; i++) {
-	    Edge &e = g->edges[i];
-	    if (e.type == Edge::TYPE_NAMED and strcmp(e.typeName, "") == 0) {
-	        int kkk=0;
-	    }
 	}
 
 	/*for (int i = 0; i < g->eCount; i++) {

@@ -264,10 +264,10 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
          double RE, double PE, double UE, double VE, double WE, double GAM) {
 
 	double AGAM  =  (GAM-1.0);
-	double BGAM  =  (2.0*sqrt(GAM/AGAM));
-	double CGAM  =  (1.0/GAM);
+//	double BGAM  =  (2.0*sqrt(GAM/AGAM));
+//	double CGAM  =  (1.0/GAM);
 	double DGAM  =  (2.0/AGAM);
-	double EGAM  =  (AGAM/(GAM+1.0));
+//	double EGAM  =  (AGAM/(GAM+1.0));
 	double GGAM  =  (sqrt(GAM*AGAM));
 	double HGAM  =  (AGAM/2.0);
 	double FGAM  =  (3.0*GAM-1.0);
@@ -277,7 +277,7 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 	double RGAM  =  (4.0*GAM);
 	double SGAM  =  (GAM*AGAM);
 	double TGAM  =  (QGAM/2.0);
-	double UGAM  =  (sqrt(AGAM/GAM));
+//	double UGAM  =  (sqrt(AGAM/GAM));
 
 	double US = 0.0, UF = 0.0;
 
@@ -717,6 +717,26 @@ void Parallel::recv(int pid, int tag, int n, Vector* x)
     }
     //delete[] buf;
 }
+
+double Parallel::glob_min(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+double Parallel::glob_max(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+
 /*
 void Parallel::bcast(int n, double* x)
 {
