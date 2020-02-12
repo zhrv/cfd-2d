@@ -382,7 +382,7 @@ void FVM_TVD::singleTimeStep()
                 double vn = pL.u*n.x+pL.v*n.y;
                 Vector Vn = n;
                 Vn *= vn;
-                Vector Vt = Vn;
+                Vector Vt(pL.u, pL.v);
                 Vt -= Vn;
 
                 double txx = mu*Vt.x/edge.cnl1;
