@@ -269,14 +269,13 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 
     /* Чтение данных сетки. */
-    node0 = task->FirstChild("mesh");
-    const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
-    const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
-    MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
-    mr->read(&grid);
-//	node0 = task->FirstChild("mesh");
-//	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-//	grid.initFromFiles((char*)fName);
+//    node0 = task->FirstChild("mesh");
+//    const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+//    const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+//    MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+//    mr->read(&grid);
+
+    grid.readMeshFiles();
 
     /* Определение ГУ для каждого ребра. */
     for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {

@@ -14,11 +14,24 @@ Edge::~Edge()
 	delete[] c;
 }
 
-Grid::~Grid() 
+Grid::~Grid()
 {
 	delete[] nodes;
 	delete[] cells;
 	delete[] edges;
+}
+
+int Edge::getOtherCell(int c)
+{
+    if (c1 == c) {
+        return c2;
+    }
+    else if (c2 == c) {
+        return c1;
+    }
+    else {
+        return -1;
+    }
 }
 
 void Grid::replaceEdges(int if1, int if2) 
@@ -412,12 +425,16 @@ void Grid::readMeshFiles()
 
 
     for (int i = 0; i < cCountEx; i++)	{
-        double a = edges[cells[i].edgesInd[0]].l;
-        double b = edges[cells[i].edgesInd[1]].l;
-        double c = edges[cells[i].edgesInd[2]].l;
+        Cell &cell = cells[i];
+        double a = edges[cell.edgesInd[0]].l;
+        double b = edges[cell.edgesInd[1]].l;
+        double c = edges[cell.edgesInd[2]].l;
         double p = (a + b + c) / 2.0;
-        cells[i].S = sqrt(p*(p - a)*(p - b)*(p - c));
+        cell.S = sqrt(p*(p - a)*(p - b)*(p - c));
 
+        cell.neigh[0] = edges[cell.edgesInd[0]].getOtherCell(i);
+        cell.neigh[1] = edges[cell.edgesInd[1]].getOtherCell(i);
+        cell.neigh[2] = edges[cell.edgesInd[2]].getOtherCell(i);
     }
 
     recvCount.clear();

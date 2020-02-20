@@ -110,19 +110,19 @@ void CFDBndInlet::run(int iEdge, Param& pL, Param& pR)
 void CFDBndOutlet::run(int iEdge, Param& pL, Param& pR) // @todo исправить - необходимо учитывать шаг сетки
 {
 	pR = pL;
-	double u2 = pL.U2();
-	if (u2 < pL.cz*pL.cz) {
-        double u = sqrt(u2);
-
-        pR.p = par[0];
-        pR.r = pow( pR.p / (pL.p / pow( pL.r, pL.gam )), 1.0 / pL.gam );
-
-        double v = ( u + 2.0*pL.cz/(pL.gam - 1.0) - 2.0 / ( pL.gam - 1.0 ) * sqrt( pL.gam * pR.p / pR.r ) ) / u;
-
-        pR.u = v * pL.u;
-        pR.v = v * pL.v;
-
-	}
+//	double u2 = pL.U2();
+//	if (u2 < pL.cz*pL.cz) {
+//        double u = sqrt(u2);
+//
+//        pR.p = par[0];
+//        pR.r = pow( pR.p / (pL.p / pow( pL.r, pL.gam )), 1.0 / pL.gam );
+//
+//        double v = ( u + 2.0*pL.cz/(pL.gam - 1.0) - 2.0 / ( pL.gam - 1.0 ) * sqrt( pL.gam * pR.p / pR.r ) ) / u;
+//
+//        pR.u = v * pL.u;
+//        pR.v = v * pL.v;
+//
+//	}
 }
 
 void CFDBndWallNoSlip::run(int iEdge, Param& pL, Param& pR)

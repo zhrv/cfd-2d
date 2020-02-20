@@ -375,47 +375,47 @@ void FVM_TVD::singleTimeStep()
             fe += fe1;
         }
 
-        if (c2 > -1) {
-            reconstruct(iEdge, pL, pR, edge.c[0]);
-            double rl = sqrt(pL.r);
-            double rr = sqrt(pR.r);
-
-            double u_  = (rl*pL.u+rr*pR.u)/(rl+rr);
-            double v_  = (rl*pL.v+rr*pR.v)/(rl+rr);
-            double u_x = (gradU[c1].x+gradU[c2].x)*0.5;
-            double v_x = (gradV[c1].x+gradV[c2].x)*0.5;
-            double t_x = (gradT[c1].x+gradT[c2].x)*0.5;
-            double u_y = (gradU[c1].y+gradU[c2].y)*0.5;
-            double v_y = (gradV[c1].y+gradV[c2].y)*0.5;
-            double t_y = (gradT[c1].y+gradT[c2].y)*0.5;
-
-            double txx = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*u_x;
-            double tyy = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*v_y;
-            double txy = mu*(u_y+v_x);
-
-            fu -= txx*n.x+txy*n.y;
-            fv -= txy*n.x+tyy*n.y;
-            fe -= (u_*txx+v_*txy+kt*t_x)*n.x+(u_*txy+v_*tyy+kt*t_y)*n.y;
-        }
-        else {
-            if (instanceof<CFDBndWallNoSlip>(edge.bnd)) {
-                reconstruct(iEdge, pL, pR, edge.c[0]);
-                double Tbnd = edge.bnd->par[0];
-                double vn = pL.u*n.x+pL.v*n.y;
-                Vector Vn = n;
-                Vn *= vn;
-                Vector Vt(pL.u, pL.v);
-                Vt -= Vn;
-
-                double txx = -mu*Vt.x/edge.cnl1;
-                double tyy = -mu*Vt.y/edge.cnl1;
-                double Q   = -kt*(Tbnd-pL.T)/edge.cnl1;
-
-                fu -= txx;
-                fv -= tyy;
-                fe -= Q;
-            }
-        }
+//        if (c2 > -1) {
+//            reconstruct(iEdge, pL, pR, edge.c[0]);
+//            double rl = sqrt(pL.r);
+//            double rr = sqrt(pR.r);
+//
+//            double u_  = (rl*pL.u+rr*pR.u)/(rl+rr);
+//            double v_  = (rl*pL.v+rr*pR.v)/(rl+rr);
+//            double u_x = (gradU[c1].x+gradU[c2].x)*0.5;
+//            double v_x = (gradV[c1].x+gradV[c2].x)*0.5;
+//            double t_x = (gradT[c1].x+gradT[c2].x)*0.5;
+//            double u_y = (gradU[c1].y+gradU[c2].y)*0.5;
+//            double v_y = (gradV[c1].y+gradV[c2].y)*0.5;
+//            double t_y = (gradT[c1].y+gradT[c2].y)*0.5;
+//
+//            double txx = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*u_x;
+//            double tyy = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*v_y;
+//            double txy = mu*(u_y+v_x);
+//
+//            fu -= txx*n.x+txy*n.y;
+//            fv -= txy*n.x+tyy*n.y;
+//            fe -= (u_*txx+v_*txy+kt*t_x)*n.x+(u_*txy+v_*tyy+kt*t_y)*n.y;
+//        }
+//        else {
+//            if (instanceof<CFDBndWallNoSlip>(edge.bnd)) {
+//                reconstruct(iEdge, pL, pR, edge.c[0]);
+//                double Tbnd = edge.bnd->par[0];
+//                double vn = pL.u*n.x+pL.v*n.y;
+//                Vector Vn = n;
+//                Vn *= vn;
+//                Vector Vt(pL.u, pL.v);
+//                Vt -= Vn;
+//
+//                double txx = -mu*Vt.x/edge.cnl1;
+//                double tyy = -mu*Vt.y/edge.cnl1;
+//                double Q   = -kt*(Tbnd-pL.T)/edge.cnl1;
+//
+//                fu -= txx;
+//                fv -= tyy;
+//                fe -= Q;
+//            }
+//        }
 
         ro_int[c1] -= fr*l;
         ru_int[c1] -= fu*l;

@@ -42,6 +42,7 @@ class Edge
 public:
 	Edge(): cCount(0), c(nullptr) {};
 	~Edge();
+	int getOtherCell(int c);
 
 	int      n1;        // узел в начале
 	int      n2;        // узел в конце
