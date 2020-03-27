@@ -3,7 +3,7 @@
 
 FILE * hLog;
 
-double Material::gR = 8.314472;	// м2 кг с-2 К-1 Моль-1
+double Material::gR = 8.314472;	// �2 �� �-2 �-1 ����-1
 
 
 void Material::URS(Param &par, int flag)
@@ -19,7 +19,7 @@ void Material::URS(Param &par, int flag)
 	
 	case 1:		// e=e(r,p)
 		par.e = par.p/(par.r*(gam-1));
-		par.T = par.e/Cv;				// TODO: проверить правильность
+		par.T = par.e/Cv;				// TODO: ��������� ������������
 		break;
 	
 	case 2:		// r=r(T,p)
@@ -27,6 +27,10 @@ void Material::URS(Param &par, int flag)
 		par.cz = sqrt(gam*par.p/par.r);
 		break;
 	}
+}
+
+void Material::getML(Param &par) {
+    par.ML = ML;
 }
 
 void log(char * format, ...)
@@ -55,9 +59,6 @@ void EXIT(int err)
 
 
 /**
- *	Решение задачи о распаде произвольного разрыва
- *	(с) ИПМ им. М.В.Келдыша РАН, Тишкин, Никишин, Змитренко
- *
  *	c==========================================================
  *	C    Nikichine
  *	C    module for tube.for /Zmitrenko/
@@ -410,7 +411,7 @@ void roe_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 
 	double AGAM  =  (GAM-1.0);
 
-	// Схема ROE
+	// ����� ROE
 	
 	double fG = GAM;
 

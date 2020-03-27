@@ -14,6 +14,9 @@ public:
 	virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p);
 	virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, double x, double y);
 
+	void getTensorComponents(double &fTAU_XX, double &fTAU_XY, double &fTAU_YY, int iCell, Point p);
+	void getTensorComponents(double &fTAU_XX, double &fTAU_XY, double &fTAU_YY, int iCell, double x, double y);
+
 	virtual double getField(int fld, int iCell, Point p);
 	virtual double getField(int fld, int iCell, double x, double y);
 
@@ -55,10 +58,16 @@ private:
 	void incCFL();
 	void decCFL();
 
-	void calcIntegral();		//!< вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-	void calcMatrWithTau();		//!< вычисляем матрицы перед производной по времени
-	void calcMatrFlux();		//!< Вычисляем потоковые величины 
-	void calcRHS();				//!< Вычисляем столбец правых членов
+	void calcIntegral();			//!< вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
+	void calcMatrWithTau();			//!< вычисляем матрицы перед производной по времени
+	void calcMatrFlux();			//!< Вычисляем потоковые величины
+	void calcRHS();					//!< Вычисляем столбец правых членов
+	void calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
+	void calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx
+	void calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
+	void calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
+	void calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
+    void calcDiffusionRHS();					//!< Вычисляем столбец правых членов
 
 	void calcLiftForce();
 
@@ -66,6 +75,10 @@ private:
 	void freeMtx4(double **mtx4);
 	void multMtx4(double **dst4, double **srcA4, double **srcB4);
 	void clearMtx4(double **mtx4);
+	double** allocMtx7();
+	void freeMtx7(double **mtx7);
+	void multMtx7(double **dst7, double **srcA7, double **srcB7);
+	void clearMtx7(double **mtx7);
 	void multMtxToVal(double **dst, double x, int N);
 	void fillMtx(double** dst, double x, int N);
 
@@ -77,6 +90,7 @@ private:
 	void calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n);
 	void _calcA(double **dst4, double **rightEgnVecl4, double **egnVal4, double **leftEgnVecl4);
 	void calcA(double **dst4, double c, double GAM, double u, double nx, double v, double ny, double H);
+    void calcJ(double **dst7, double r, double u, double nx, double v, double ny, double mu, double tau_xx, double tau_xy, double tau_yy);
 	void calcAx(double **dst4, double c, double GAM, double u, double v, double H);
 	void calcAy(double **dst4, double c, double GAM, double u, double v, double H);
 	void calcAx_(double **dst4, Param par, double GAM);
@@ -118,7 +132,7 @@ private:
 	int				bCount;
 	Material	   *materials;
 	Region		   *regions;
-	Boundary	   *boundaries;
+	CFDBoundaries  boundaries;
 
 
 	double			***fields;
@@ -192,12 +206,16 @@ protected:
 	const static int GP_EDGE_COUNT = 2;
 
 	const static int FIELD_COUNT = 4;
+	const static int FIELD_COUNT_EXT = 7;
 	const static int FIELD_RO = 0;
 	const static int FIELD_RU = 1;
 	const static int FIELD_RV = 2;
 	const static int FIELD_RE = 3;
+	const static int FIELD_TAU_XX = 4;
+	const static int FIELD_TAU_XY = 5;
+	const static int FIELD_TAU_YY = 6;
 
-	const static int MATR_DIM = FIELD_COUNT * BASE_FUNC_COUNT;
+	const static int MATR_DIM = FIELD_COUNT_EXT * BASE_FUNC_COUNT;
 
 	inline double getGAM(int iCell) { return getMaterial(iCell).getGamma(); } // TODO: сделать
 };

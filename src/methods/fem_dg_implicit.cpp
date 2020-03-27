@@ -170,8 +170,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 		par.cz /= U_;
 		par.ML /= MU_;
 		par.E = par.e + par.U2()*0.5;
-
-		int zhrv = 0;
 	}
 
 	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
@@ -186,48 +184,79 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 
 	// чтение параметров о ГРАНИЧНЫХ УСЛОВИЯХ
-	node0 = task->FirstChild("boundaries");
-	node0->ToElement()->Attribute("count", &bCount);
-	boundaries = new Boundary[bCount];
-	TiXmlNode* bNode = node0->FirstChild("boundCond");
-	for (int i = 0; i < bCount; i++)
-	{
-		Boundary & b = boundaries[i];
-		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
-		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
-		if (strcmp(str, "BOUND_WALL") == 0)
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_WALL;
-		}
-		else
-		if (strcmp(str, "BOUND_OUTLET") == 0)
-		{
-			b.parCount = 0;
-			b.par = NULL;
-			b.type = Boundary::BOUND_OUTLET;
-		}
-		else
-		if (strcmp(str, "BOUND_INLET") == 0)
-		{
-			b.parCount = 4;
-			b.par = new double[4];
-			b.type = Boundary::BOUND_INLET;
+    node0 = task->FirstChild("boundaries");
+    TiXmlNode* bNode = node0->FirstChild("boundCond");
+    while (bNode != NULL)
+    {
+        int edgeType;
+        bNode->ToElement()->Attribute("edgeType", &edgeType);
 
-			node1 = bNode->FirstChild("parameters");
-			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
-			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
-			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
-			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
-		}
-		else {
-			log("ERROR: unsupported boundary condition type '%s'", str);
-			EXIT(1);
-		}
+        CFDBoundary * b;
 
-		bNode = bNode->NextSibling("boundCond");
-	}
+        try {
+            b = CFDBoundary::create(bNode, &grid);
+        }
+        catch (Exception e) {
+            log("ERROR: %s\n", e.getMessage());
+            exit(e.getType());
+        }
+
+        // TODO: !!!! ??????? ??? ????????????????
+        if (b->parCount == 4) {
+            b->par[0] /= U_;
+            b->par[1] /= U_;
+            b->par[2] /= T_;
+            b->par[3] /= P_;
+        }
+
+        boundaries.push_back(b);
+
+        bNode = bNode->NextSibling("boundCond");
+    }
+
+    bCount = boundaries.size();
+//	node0 = task->FirstChild("boundaries");
+//	node0->ToElement()->Attribute("count", &bCount);
+//	//boundaries = new CFDBoundaries[bCount];
+//	TiXmlNode* bNode = node0->FirstChild("boundCond");
+//	for (int i = 0; i < bCount; i++)
+//	{
+//		CFDBoundary & b = boundaries[i];
+//		bNode->ToElement()->Attribute("edgeType", &b.edgeType);
+//		const char * str = bNode->FirstChild("type")->ToElement()->GetText();
+//		if (strcmp(str, "BOUND_WALL") == 0)
+//		{
+//			b.parCount = 0;
+//			b.par = NULL;
+//			b.type = Boundary::BOUND_WALL;
+//		}
+//		else
+//		if (strcmp(str, "BOUND_OUTLET") == 0)
+//		{
+//			b.parCount = 0;
+//			b.par = NULL;
+//			b.type = Boundary::BOUND_OUTLET;
+//		}
+//		else
+//		if (strcmp(str, "BOUND_INLET") == 0)
+//		{
+//			b.parCount = 4;
+//			b.par = new double[4];
+//			b.type = Boundary::BOUND_INLET;
+//
+//			node1 = bNode->FirstChild("parameters");
+//			node1->FirstChild("T")->ToElement()->Attribute("value", &b.par[0]); b.par[0] /= T_;
+//			node1->FirstChild("P")->ToElement()->Attribute("value", &b.par[1]); b.par[1] /= P_;
+//			node1->FirstChild("Vx")->ToElement()->Attribute("value", &b.par[2]); b.par[2] /= U_;
+//			node1->FirstChild("Vy")->ToElement()->Attribute("value", &b.par[3]); b.par[3] /= U_;
+//		}
+//		else {
+//			log("ERROR: unsupported boundary condition type '%s'", str);
+//			EXIT(1);
+//		}
+//
+//		bNode = bNode->NextSibling("boundCond");
+//	}
 
 	
 	node0 = task->FirstChild("mesh");
@@ -235,6 +264,51 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	grid.initFromFiles((char*)fName);
 
 	memAlloc();
+
+    /* определение ГУ для каждого ребра. */
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge & e = grid.edges[iEdge];
+        if (e.type == Edge::TYPE_INNER) {
+            e.bnd = NULL;
+            continue;
+        }
+        if (e.type == Edge::TYPE_NAMED) {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (strcmp(e.typeName, boundaries[i]->name) == 0)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+
+            e.bnd = boundaries[iBound];
+        }
+        else {
+            int iBound = -1;
+            for (int i = 0; i < bCount; i++)
+            {
+                if (e.type == boundaries[i]->edgeType)
+                {
+                    iBound = i;
+                    break;
+                }
+            }
+            if (iBound < 0)
+            {
+                log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+                EXIT(1);
+            }
+            e.bnd = boundaries[iBound];
+            strcpy(e.typeName, boundaries[iBound]->name);
+        }
+    }
 
 	// инициализация лимитера
 	limiter = LimiterDG::create(limiterName, this);
@@ -251,6 +325,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	//solverMtx = new SolverZeidel();
 	solverMtx = MatrixSolver::create(solverName);
 	solverMtx->init(grid.cCount, MATR_DIM);
+	//solverMtx->init(&(grid), FIELD_COUNT, BASE_FUNC_COUNT, 1);
 	log("Solver type: %s.\n", solverMtx->getName());
 
 	node0->FirstChild("iterations")->ToElement()->Attribute("value", &SOLVER_ITER);
@@ -277,6 +352,9 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	{
 		Region & reg = getRegion(i);
 		convertParToCons(i, reg.par);
+        memset(tau_xx[i], 0, sizeof(double)*BASE_FUNC_COUNT);
+        memset(tau_xy[i], 0, sizeof(double)*BASE_FUNC_COUNT);
+        memset(tau_yy[i], 0, sizeof(double)*BASE_FUNC_COUNT);
 	}
 
 	calcTimeStep();
@@ -459,6 +537,9 @@ void FEM_DG_IMPLICIT::memAlloc()
 	ru = new double*[n];
 	rv = new double*[n];
 	re = new double*[n];
+    tau_xx = new double*[n];
+    tau_xy = new double*[n];
+    tau_yy = new double*[n];
 
 	cellGP = new Point*[n];
 	cellGW = new double*[n];
@@ -476,13 +557,15 @@ void FEM_DG_IMPLICIT::memAlloc()
 		ru[i] = new double[BASE_FUNC_COUNT];
 		rv[i] = new double[BASE_FUNC_COUNT];
 		re[i] = new double[BASE_FUNC_COUNT];
+        tau_xx[i] = new double[BASE_FUNC_COUNT];
+        tau_xy[i] = new double[BASE_FUNC_COUNT];
+        tau_yy[i] = new double[BASE_FUNC_COUNT];
 
 		cellGP[i] = new Point[GP_CELL_COUNT];
 		cellGW[i] = new double[GP_CELL_COUNT];
 
 		matrA[i] = allocMtx(BASE_FUNC_COUNT);
 		matrInvA[i] = allocMtx(BASE_FUNC_COUNT);
-
 	}
 
 	for (int i = 0; i < grid.eCount; i++) {
@@ -496,11 +579,14 @@ void FEM_DG_IMPLICIT::memAlloc()
 	tmpCFL = new double[n];
 	tmpArrInt = new int[n];
 
-	fields = new double**[4];
+	fields = new double**[FIELD_COUNT_EXT];
 	fields[FIELD_RO] = ro;
 	fields[FIELD_RU] = ru;
 	fields[FIELD_RV] = rv;
 	fields[FIELD_RE] = re;
+	fields[FIELD_TAU_XX] = tau_xx;
+	fields[FIELD_TAU_XY] = tau_xy;
+	fields[FIELD_TAU_YY] = tau_yy;
 
 	matrSmall = allocMtx(BASE_FUNC_COUNT);
 	matrSmall2 = allocMtx(BASE_FUNC_COUNT);
@@ -518,6 +604,9 @@ void FEM_DG_IMPLICIT::memFree()
 		delete[] ru[i];
 		delete[] rv[i];
 		delete[] re[i];
+        delete[] tau_xx[i];
+        delete[] tau_xy[i];
+        delete[] tau_yy[i];
 
 		delete[] cellGP[i];
 		delete[] cellGW[i];
@@ -531,6 +620,9 @@ void FEM_DG_IMPLICIT::memFree()
 	delete[] ru;
 	delete[] rv;
 	delete[] re;
+    delete[] tau_xx;
+    delete[] tau_xy;
+    delete[] tau_yy;
 
 	delete[] cellGP;
 	delete[] cellGW;
@@ -1223,8 +1315,8 @@ void FEM_DG_IMPLICIT::calcIntegral()
 {
 	double fRO, fRU, fRV, fRE;
 	double FR, FU, FV, FE;
-	double **mx = allocMtx4();
-	double **my = allocMtx4();
+	double **mx = allocMtx7();
+	double **my = allocMtx7();
 
 	for (int iCell = 0; iCell < grid.cCount; iCell++) {
 		
@@ -1246,9 +1338,9 @@ void FEM_DG_IMPLICIT::calcIntegral()
 				for (int j = 0; j < FIELD_COUNT; j++) {
 					for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 						for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-							matrSmall[ii][jj] = -mx[i][j] * getDfDx(jj, iCell, p);
-							matrSmall[ii][jj] -= my[i][j] * getDfDy(jj, iCell, p);
-							matrSmall[ii][jj] *= getF(ii, iCell, p);
+							matrSmall[ii][jj] = -mx[i][j] * getDfDx(ii, iCell, p);
+							matrSmall[ii][jj] -= my[i][j] * getDfDy(ii, iCell, p);
+							matrSmall[ii][jj] *= getF(jj, iCell, p);
 							matrSmall[ii][jj] *= w;
 						}
 					}
@@ -1263,8 +1355,8 @@ void FEM_DG_IMPLICIT::calcIntegral()
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
 	}
 
-	freeMtx4(mx);
-	freeMtx4(my);
+	freeMtx7(mx);
+	freeMtx7(my);
 
 }
 
@@ -1324,8 +1416,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 					for (int j = 0; j < FIELD_COUNT; j++) {
 						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
-								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c2, p) * getF(jj, c1, p) * w;
+								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
+								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(jj, c2, p) * getF(ii, c1, p) * w;
 							}
 						}
 						addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
@@ -1372,8 +1464,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 					for (int j = 0; j < FIELD_COUNT; j++) {
 						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(ii, c2, p) * getF(jj, c2, p) * w;
-								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(ii, c1, p) * getF(jj, c2, p) * w;
+								matrSmall[ii][jj]  = Amtx4P[i][j] * getF(jj, c2, p) * getF(ii, c2, p) * w;
+								matrSmall2[ii][jj] = Amtx4M[i][j] * getF(jj, c1, p) * getF(ii, c2, p) * w;
 							}
 						}
 						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
@@ -1400,7 +1492,8 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
-				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1); // T=T(e)
 
 				boundaryCond(iEdge, par1, par2);
 
@@ -1417,7 +1510,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 					for (int j = 0; j < FIELD_COUNT; j++) {
 						for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
 							for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-								matrSmall[ii][jj] = Amtx4P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+								matrSmall[ii][jj] = Amtx4P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
 							}
 						}
 						addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
@@ -1605,8 +1698,9 @@ void FEM_DG_IMPLICIT::calcRHS()
 					Param par1;
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat = getMaterial(c1);
-					mat.URS(par1, 0); // p=p(r,e)
-					
+                    mat.URS(par1, 0); // p=p(r,e)
+                    mat.URS(par1, 1);
+
 					Param par2;
 					boundaryCond(iEdge, par1, par2);
 
@@ -1696,6 +1790,7 @@ void FEM_DG_IMPLICIT::run()
 
 		/* Заполняем правую часть */
 		calcRHS();
+//		calcDiffusionRHS();
 
 		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
 		if (STEADY) {
@@ -1713,9 +1808,13 @@ void FEM_DG_IMPLICIT::run()
 		/* Заполняем элементы матрицы */
 		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
 		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-		calcMatrFlux();			// Вычисляем потоковые величины 
+		calcMatrFlux();			// Вычисляем потоковые величины
 
-
+//        calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
+//        calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx
+//        calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
+//        calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
+//        calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
 
 		/* Решаем СЛАУ */
 		int maxIter = SOLVER_ITER;
@@ -1732,7 +1831,7 @@ void FEM_DG_IMPLICIT::run()
 				Cell &cell = grid.cells[cellIndex];
 
 				//if (cellIsLim(cellIndex))	continue;
-				for (int iFld = 0; iFld < FIELD_COUNT; iFld++) {
+				for (int iFld = 0; iFld < FIELD_COUNT_EXT; iFld++) {
 					for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
 						fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
 					}
@@ -1885,49 +1984,65 @@ void FEM_DG_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, P
 
 void FEM_DG_IMPLICIT::boundaryCond(int iEdge, Param& pL, Param& pR)
 {
-	int iBound = -1;
-	for (int i = 0; i < bCount; i++)
-	{
-		if (grid.edges[iEdge].type == boundaries[i].edgeType)
-		{
-			iBound = i;
-			break;
-		}
-	}
-	if (iBound < 0)
-	{
-		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
-		EXIT(1);
-	}
-	Boundary& b = boundaries[iBound];
-	int c1 = grid.edges[iEdge].c1;
-	Material& m = getMaterial(c1);
-	switch (b.type)
-	{
-	case Boundary::BOUND_INLET:
-		pR.T = b.par[0];		//!< температура
-		pR.p = b.par[1];		//!< давление
-		pR.u = b.par[2];		//!< первая компонента вектора скорости
-		pR.v = b.par[3];		//!< вторая компонента вектора скорости
-
-		m.URS(pR, 2);
-		m.URS(pR, 1);
-		break;
-
-	case Boundary::BOUND_OUTLET:
-		pR = pL;
-		break;
-
-	case Boundary::BOUND_WALL:
-		pR = pL;
-		double Un = pL.u*grid.edges[iEdge].n.x + pL.v*grid.edges[iEdge].n.y;
-		Vector V;
-		V.x = grid.edges[iEdge].n.x*Un*2.0;
-		V.y = grid.edges[iEdge].n.y*Un*2.0;
-		pR.u = pL.u - V.x;
-		pR.v = pL.v - V.y;
-		break;
-	}
+    Edge &edge = grid.edges[iEdge];
+    int c1 = edge.c1;
+    Material& m = getMaterial(c1);
+    if (edge.bnd) {
+        edge.bnd->run(iEdge, pL, pR);
+        m.URS(pR, 2);
+        m.URS(pR, 1);
+        pR.E = pR.e + 0.5*(pR.U2());
+        return;
+    }
+    else {
+        char msg[128];
+        sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
+        throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
+    }
+//	int iBound = -1;
+//	for (int i = 0; i < bCount; i++)
+//	{
+//		if (grid.edges[iEdge].type == boundaries[i].edgeType)
+//		{
+//			iBound = i;
+//			break;
+//		}
+//	}
+//	if (iBound < 0)
+//	{
+//		log("ERROR (boundary condition): unknown edge type of edge %d...\n", iEdge);
+//		EXIT(1);
+//	}
+//	Boundary& b = boundaries[iBound];
+//    CFDBoundary *b = grid.edges[iEdge].bnd;
+//	int c1 = grid.edges[iEdge].c1;
+//	Material& m = getMaterial(c1);
+//	switch (b->name)
+//	{
+//	    case CFDBoundary::TYPE_INLET:
+//		pR.T = b->par[0];		//!< температура
+//		pR.p = b->par[1];		//!< давление
+//		pR.u = b->par[2];		//!< первая компонента вектора скорости
+//		pR.v = b->par[3];		//!< вторая компонента вектора скорости
+//
+//		m.URS(pR, 2);
+//		m.URS(pR, 1);
+//		break;
+//
+//	case Boundary::BOUND_OUTLET:
+//		pR = pL;
+//		break;
+//
+//	case Boundary::BOUND_WALL:
+//		pR = pL;
+//		double Un = pL.u*grid.edges[iEdge].n.x + pL.v*grid.edges[iEdge].n.y;
+//		Vector V;
+//		V.x = grid.edges[iEdge].n.x*Un*2.0;
+//		V.y = grid.edges[iEdge].n.y*Un*2.0;
+//		pR.u = pL.u - V.x;
+//		pR.v = pL.v - V.y;
+//		break;
+//	}
 }
 
 void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int j)
@@ -1969,3 +2084,792 @@ void FEM_DG_IMPLICIT::calcLiftForce()
 		}
 	}
 }
+
+double **FEM_DG_IMPLICIT::allocMtx7() {
+    double		**tempMtx7 = new double*[7];
+    for (int i = 0; i < 7; ++i) tempMtx7[i] = new double[7];
+    return tempMtx7;
+}
+
+void FEM_DG_IMPLICIT::freeMtx7(double **mtx7) {
+    for (int i = 0; i < 7; ++i)
+        delete[] mtx7[i];
+    delete[] mtx7;
+}
+
+void FEM_DG_IMPLICIT::multMtx7(double **dst7, double **srcA7, double **srcB7) {
+    double sum;
+    for (int i = 0; i < 7; ++i)
+    {
+        for (int j = 0; j < 7; ++j)
+        {
+            sum = 0;
+            for (int k = 0; k < 7; ++k)
+                sum += srcA7[i][k] * srcB7[k][j];
+            dst7[i][j] = sum;
+        }
+    }
+}
+
+void FEM_DG_IMPLICIT::clearMtx7(double **mtx7) {
+    for (int i = 0; i < 7; ++i)
+        for (int j = 0; j < 7; ++j)
+            mtx7[i][j] = 0;
+}
+
+void FEM_DG_IMPLICIT::getTensorComponents(double &fTAU_XX, double &fTAU_XY, double &fTAU_YY, int iCell, Point p) {
+    getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p.x, p.y);
+}
+
+void
+FEM_DG_IMPLICIT::getTensorComponents(double &fTAU_XX, double &fTAU_XY, double &fTAU_YY, int iCell, double x, double y) {
+    fTAU_XX = getField(FIELD_TAU_XX, iCell, x, y);
+    fTAU_XY = getField(FIELD_TAU_XY, iCell, x, y);
+    fTAU_YY = getField(FIELD_TAU_YY, iCell, x, y);
+}
+
+void FEM_DG_IMPLICIT::calcMatrTensor() {
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+        fillMtx(matrBig, 0.0, MATR_DIM);
+
+
+        for (int i = 0; i < BASE_FUNC_COUNT; i++) {
+            for (int j = 0; j < BASE_FUNC_COUNT; j++) {
+                matrSmall[i][j] = matrA[iCell][i][j];
+            }
+        }
+
+        for (int ii = FIELD_COUNT; ii < FIELD_COUNT_EXT; ii++) {
+            addSmallMatrToBigMatr(matrBig, matrSmall, ii, ii);
+        }
+
+        solverMtx->addMatrElement(iCell, iCell, matrBig);
+
+    }
+}
+
+void FEM_DG_IMPLICIT::calcDiffusionIntegral() {
+    double fRO, fRU, fRV, fRE, fTAU_XX, fTAU_XY, fTAU_YY;
+    double FR, FU, FV, FE;
+    double **mx = allocMtx7();
+    double **my = allocMtx7();
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+        fillMtx(matrBig, 0.0, MATR_DIM);
+
+        for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+            Point& p = cellGP[iCell][iGP];
+            double w = cellGW[iCell][iGP];
+            getFields(fRO, fRU, fRV, fRE, iCell, p);
+            Param par;
+            consToPar(fRO, fRU, fRV, fRE, par);
+            getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p);
+            Material& mat = getMaterial(iCell);
+            mat.URS(par, 0); // p=p(r,e)
+            double H = par.E + par.p / par.r;
+            // TODO: посчитать динамическую вязкость
+            calcJ(mx, par.r, par.u, 1.0, par.v, 0.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
+            calcJ(my, par.r, par.u, 0.0, par.v, 1.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
+            for (int i = 0; i < FIELD_COUNT; i++) {
+                for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                    for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                        for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                            matrSmall[ii][jj] = mx[i][j] * getDfDx(ii, iCell, p);
+                            matrSmall[ii][jj] += my[i][j] * getDfDy(ii, iCell, p);
+                            matrSmall[ii][jj] *= getF(jj, iCell, p); // basis function
+                            matrSmall[ii][jj] *= w;
+                        }
+                    }
+                    addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                }
+            }
+
+        }
+
+        multMtxToVal(matrBig, cellJ[iCell] * SIGMA, MATR_DIM);
+
+        solverMtx->addMatrElement(iCell, iCell, matrBig);
+    }
+
+    freeMtx7(mx);
+    freeMtx7(my);
+}
+
+void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
+    double  **Amtx7P, **Amtx7M;
+
+    Amtx7P = allocMtx7();
+    Amtx7M = allocMtx7();
+
+
+    double fRO1, fRU1, fRV1, fRE1, fRO2, fRU2, fRV2, fRE2, fTAU_XX1, fTAU_XY1, fTAU_YY1, fTAU_XX2, fTAU_XY2, fTAU_YY2;
+    Param par1, par2;
+
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge& edge = grid.edges[iEdge];
+        Vector&	n = grid.edges[iEdge].n;
+        int c1 = edge.c1;
+        int c2 = edge.c2;
+
+        if (c2 >= 0) {
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+                mat1.getML(par1);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+                mat2.getML(par2);
+                getTensorComponents(fTAU_XX2, fTAU_XY2, fTAU_YY2, c2, p);
+
+                calcJ(Amtx7P, par1.r, par1.u, n.x, par1.v, n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+                calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+                for (int i = 0; i < FIELD_COUNT; i++) {
+                    for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
+                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c2, p) * getF(ii, c1, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c1, c1, matrBig);
+            solverMtx->addMatrElement(c1, c2, matrBig2);
+
+
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+                mat1.getML(par1);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+                mat2.getML(par2);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                calcJ(Amtx7P, par1.r, par1.u, -n.x, par1.v, -n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+                calcJ(Amtx7M, par2.r, par2.u, -n.x, par2.v, -n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+                for (int i = 0; i < FIELD_COUNT; i++) {
+                    for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c2, p) * getF(ii, c2, p) * w;
+                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c1, p) * getF(ii, c2, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c2, c2, matrBig);
+            solverMtx->addMatrElement(c2, c1, matrBig2);
+
+        }
+//        else {
+//
+//            fillMtx(matrBig, 0.0, MATR_DIM);
+//
+//            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                Point& p = edgeGP[iEdge][iGP];
+//                double w = edgeGW[iEdge][iGP];
+//                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+//                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+//                Material& mat1 = getMaterial(c1);
+//                mat1.URS(par1, 0); // p=p(r,e)
+//                mat1.getML(par1);
+//
+//                boundaryCond(iEdge, par1, par2);
+//
+////                Param average;
+////                calcRoeAverage(average, par1, par2, getGAM(c1), n);
+////
+////                double H = average.E + average.p / average.r;
+//
+////                eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+////                rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+////                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+////                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+//                calcJ(Amtx7P, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+//                //calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+//                for (int i = 0; i < FIELD_COUNT; i++) {
+//                    for (int j = 0; j < FIELD_COUNT; j++) {
+//                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+//                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+//                                matrSmall[ii][jj] = Amtx7P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+//                            }
+//                        }
+//                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+//                    }
+//                }
+//
+//            }
+//            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+//
+//            solverMtx->addMatrElement(c1, c1, matrBig);
+//
+//        }
+    }
+
+    freeMtx7(Amtx7P);
+    freeMtx7(Amtx7M);
+}
+
+void FEM_DG_IMPLICIT::calcTensorIntegral() {
+    double fRO, fRU, fRV, fRE, fTAU_XX, fTAU_XY, fTAU_YY;
+    double FR, FU, FV, FE;
+    double **mx = allocMtx7();
+    double **my = allocMtx7();
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+
+        fillMtx(matrBig, 0.0, MATR_DIM);
+
+        for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+            Point& p = cellGP[iCell][iGP];
+            double w = cellGW[iCell][iGP];
+            getFields(fRO, fRU, fRV, fRE, iCell, p);
+            Param par;
+            consToPar(fRO, fRU, fRV, fRE, par);
+            getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p);
+            Material& mat = getMaterial(iCell);
+            mat.URS(par, 0); // p=p(r,e)
+            mat.getML(par);
+
+            calcJ(mx, par.r, par.u, 1.0, par.v, 0.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
+            calcJ(my, par.r, par.u, 0.0, par.v, 1.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
+            for (int i = FIELD_COUNT; i < FIELD_COUNT_EXT; i++) {
+                for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                    for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                        for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                            matrSmall[ii][jj] = mx[i][j] * getDfDx(ii, iCell, p);
+                            matrSmall[ii][jj] += my[i][j] * getDfDy(ii, iCell, p);
+                            matrSmall[ii][jj] *= getF(jj, iCell, p);
+                            matrSmall[ii][jj] *= w;
+                        }
+                    }
+                    addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                }
+            }
+
+        }
+
+        multMtxToVal(matrBig, cellJ[iCell] * SIGMA, MATR_DIM);
+
+        solverMtx->addMatrElement(iCell, iCell, matrBig);
+    }
+
+    freeMtx7(mx);
+    freeMtx7(my);
+}
+
+void FEM_DG_IMPLICIT::calcMatrTensorFlux() {
+    double  **Amtx7P, **Amtx7M;//, **mtx7;
+
+    //mtx7 = allocMtx7();
+    Amtx7P = allocMtx7();
+    Amtx7M = allocMtx7();
+
+
+    double fRO1, fRU1, fRV1, fRE1, fRO2, fRU2, fRV2, fRE2, fTAU_XX1, fTAU_XY1, fTAU_YY1, fTAU_XX2, fTAU_XY2, fTAU_YY2;
+    Param par1, par2;
+
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        Edge& edge = grid.edges[iEdge];
+        Vector&	n = grid.edges[iEdge].n;
+        int c1 = edge.c1;
+        int c2 = edge.c2;
+
+        if (c2 >= 0) {
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+                mat1.getML(par1);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+                mat2.getML(par2);
+                getTensorComponents(fTAU_XX2, fTAU_XY2, fTAU_YY2, c2, p);
+
+                calcJ(Amtx7P, par1.r, par1.u, n.x, par1.v, n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+                calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+                for (int i = FIELD_COUNT; i < FIELD_COUNT_EXT; i++) {
+                    for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
+                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c2, p) * getF(ii, c1, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c1, c1, matrBig);
+            solverMtx->addMatrElement(c1, c2, matrBig2);
+
+
+
+            fillMtx(matrBig, 0.0, MATR_DIM);
+            fillMtx(matrBig2, 0.0, MATR_DIM);
+
+            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                Point& p = edgeGP[iEdge][iGP];
+                double w = edgeGW[iEdge][iGP];
+                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+                Material& mat1 = getMaterial(c1);
+                mat1.URS(par1, 0); // p=p(r,e)
+                mat1.getML(par1);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
+                consToPar(fRO2, fRU2, fRV2, fRE2, par2);
+                Material& mat2 = getMaterial(c2);
+                mat2.URS(par2, 0); // p=p(r,e)
+                mat2.getML(par2);
+                getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                calcJ(Amtx7P, par1.r, par1.u, -n.x, par1.v, -n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+                calcJ(Amtx7M, par2.r, par2.u, -n.x, par2.v, -n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+                for (int i = FIELD_COUNT; i < FIELD_COUNT_EXT; i++) {
+                    for (int j = 0; j < FIELD_COUNT_EXT; j++) {
+                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c2, p) * getF(ii, c2, p) * w;
+                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c1, p) * getF(ii, c2, p) * w;
+                            }
+                        }
+                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+                        addSmallMatrToBigMatr(matrBig2, matrSmall2, i, j);
+                    }
+                }
+
+            }
+
+            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+            multMtxToVal(matrBig2, edgeJ[iEdge] * SIGMA, MATR_DIM);
+
+            solverMtx->addMatrElement(c2, c2, matrBig);
+            solverMtx->addMatrElement(c2, c1, matrBig2);
+
+        }
+//        else {
+//
+//            fillMtx(matrBig, 0.0, MATR_DIM);
+//
+//            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+//                Point& p = edgeGP[iEdge][iGP];
+//                double w = edgeGW[iEdge][iGP];
+//                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
+//                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
+//                Material& mat1 = getMaterial(c1);
+//                mat1.URS(par1, 0); // p=p(r,e)
+//                mat1.getML(par1);
+//
+//                boundaryCond(iEdge, par1, par2);
+//
+////                Param average;
+////                calcRoeAverage(average, par1, par2, getGAM(c1), n);
+////
+////                double H = average.E + average.p / average.r;
+//
+////                eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
+////                rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
+////                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
+////                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
+//                calcJ(Amtx7P, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
+//                //calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
+//                for (int i = 0; i < FIELD_COUNT; i++) {
+//                    for (int j = 0; j < FIELD_COUNT; j++) {
+//                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
+//                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
+//                                matrSmall[ii][jj] = Amtx7P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
+//                            }
+//                        }
+//                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
+//                    }
+//                }
+//
+//            }
+//            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
+//
+//            solverMtx->addMatrElement(c1, c1, matrBig);
+//
+//        }
+    }
+
+    freeMtx7(Amtx7P);
+    freeMtx7(Amtx7M);
+//    freeMtx4(mtx7);
+}
+
+void
+FEM_DG_IMPLICIT::calcJ(double **dst7, double r, double u, double nx, double v, double ny, double mu, double tau_xx, double tau_xy,
+                       double tau_yy) {
+    double **mtx7 = allocMtx7();
+
+    mtx7[0][0] = 0.0;   mtx7[0][1] = 0.0;   mtx7[0][2] = 0.0;   mtx7[0][3] = 0.0;   mtx7[0][4] = 0.0;   mtx7[0][5] = 0.0;   mtx7[0][6] = 0.0;
+    mtx7[1][0] = 0.0;   mtx7[1][1] = 0.0;   mtx7[1][2] = 0.0;   mtx7[1][3] = 0.0;   mtx7[1][4] = nx;   mtx7[1][5] = ny;   mtx7[1][6] = 0.0;
+    mtx7[2][0] = 0.0;   mtx7[2][1] = 0.0;   mtx7[2][2] = 0.0;   mtx7[2][3] = 0.0;   mtx7[2][4] = 0.0;   mtx7[2][5] = nx;   mtx7[2][6] = ny;
+    mtx7[3][0] = -(nx*(tau_xx*u + tau_xy*v) + ny*(tau_xy*u + tau_yy*v)) / r;   mtx7[3][1] = (tau_xx*nx + tau_xy*ny)/r;   mtx7[3][2] = (tau_xy*nx + tau_yy*ny) / r;   mtx7[3][3] = 0.0;   mtx7[3][4] = u*nx;   mtx7[3][5] = v*nx + u*ny;   mtx7[3][6] = v*ny;
+    mtx7[4][0] = -mu*(4.*u*nx - 2.*v*ny) / 3. / r;   mtx7[4][1] = 4.*mu*nx / 3. / r;   mtx7[4][2] = -2.*mu*ny / 3. / r;   mtx7[4][3] = 0.0;   mtx7[4][4] = 0.0;   mtx7[4][5] = 0.0;   mtx7[4][6] = 0.0;
+    mtx7[5][0] = -mu*((v - 2.*u / 3.)*nx + (u - 2.*v / 3.)*ny) / r;   mtx7[5][1] = mu*(-2.*nx / 3. + ny) / r;   mtx7[5][2] = mu*(nx - 2.*ny / 3.) / r;   mtx7[5][3] = 0.0;   mtx7[5][4] = 0.0;   mtx7[5][5] = 0.0;   mtx7[5][6] = 0.0;
+    mtx7[6][0] = -mu*(-2.*u*nx + 4.*v*ny) / 3. / r;   mtx7[6][1] = -2.*mu*nx / 3. / r;   mtx7[6][2] = 4.*mu*ny / 3. / r;   mtx7[6][3] = 0.0;   mtx7[6][4] = 0.0;   mtx7[6][5] = 0.0;   mtx7[6][6] = 0.0;
+    dst7 = mtx7;
+    freeMtx4(mtx7);
+}
+
+void FEM_DG_IMPLICIT::calcDiffusionRHS() {
+    /* volume integral */
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+        for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+            double s1 = 0.0;
+            double s2 = 0.0;
+            double s3 = 0.0;
+            double s4 = 0.0;
+            double s5 = 0.0;
+            double s6 = 0.0;
+            double s7 = 0.0;
+            for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                Point& p = cellGP[iCell][iGP];
+                double w = cellGW[iCell][iGP];
+                double fRO, fRU, fRV, fRE, fTAU_XX, fTAU_XY, fTAU_YY;
+                getFields(fRO, fRU, fRV, fRE, iCell, p);
+                Param par;
+                consToPar(fRO, fRU, fRV, fRE, par);
+                getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p);
+                Material& mat = getMaterial(iCell);
+                mat.URS(par, 0); // p=p(r,e)
+                mat.getML(par);
+
+                double F1 = 0.;
+                double F2 = fTAU_XX;
+                double F3 = fTAU_XY;
+                double F4 = fTAU_XX*par.u + fTAU_XY*par.v;
+                double F5 = par.ML*(4.*par.u / 3.);
+                double F6 = par.ML*(par.v - 2.*par.u / 3.);
+                double F7 = par.ML*(-2.*par.u / 3.);
+
+                double G1 = 0.;
+                double G2 = fTAU_XY;
+                double G3 = fTAU_YY;
+                double G4 = fTAU_XY*par.u + fTAU_YY*par.v;
+                double G5 = par.ML*(-2.*par.v / 3.);
+                double G6 = par.ML*(par.u - 2.*par.v / 3.);
+                double G7 = par.ML*(4.*par.v / 3.);
+
+                double dFdx = getDfDx(iBF, iCell, p) * w;
+                double dFdy = getDfDy(iBF, iCell, p) * w;
+
+                s1 += (F1*dFdx + G1*dFdy);
+                s2 += (F2*dFdx + G2*dFdy);
+                s3 += (F3*dFdx + G3*dFdy);
+                s4 += (F4*dFdx + G4*dFdy);
+                s5 += (F5*dFdx + G5*dFdy);
+                s6 += (F6*dFdx + G6*dFdy);
+                s7 += (F7*dFdx + G7*dFdy);
+            }
+            s1 *= cellJ[iCell];
+            s2 *= cellJ[iCell];
+            s3 *= cellJ[iCell];
+            s4 *= cellJ[iCell];
+            s5 *= cellJ[iCell];
+            s6 *= cellJ[iCell];
+            s7 *= cellJ[iCell];
+
+            int shift = 0;
+            tmpArr[shift + iBF] = -s1; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s2; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s3; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s4; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s5; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s6; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s7; //shift += BASE_FUNC_COUNT;
+        }
+
+        solverMtx->addRightElement(iCell, tmpArr);
+    }
+    // W^m contribution
+    for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        memset(tmpArr, 0, sizeof(double)*MATR_DIM);
+        for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+            double s5 = 0.0;
+            double s6 = 0.0;
+            double s7 = 0.0;
+            for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+                Point& p = cellGP[iCell][iGP];
+                double w = cellGW[iCell][iGP];
+                double fTAU_XX, fTAU_XY, fTAU_YY;
+                getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p);
+
+                double cGP = w*getF(iBF, iCell, p);
+
+                s5 += fTAU_XX*cGP;
+                s6 += fTAU_XY*cGP;
+                s7 += fTAU_YY*cGP;
+            }
+            s5 *= cellJ[iCell];
+            s6 *= cellJ[iCell];
+            s7 *= cellJ[iCell];
+
+            int shift = FIELD_COUNT*BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s5; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s6; shift += BASE_FUNC_COUNT;
+            tmpArr[shift + iBF] = -s7; //shift += BASE_FUNC_COUNT;
+        }
+
+        solverMtx->addRightElement(iCell, tmpArr);
+    }
+
+    /* surf integral */
+
+    memset(tmpCFL, 0, grid.cCount*sizeof(double));
+
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
+        memset(tmpArr1, 0, sizeof(double)*MATR_DIM);
+        memset(tmpArr2, 0, sizeof(double)*MATR_DIM);
+
+        int c1 = grid.edges[iEdge].c1;
+        int c2 = grid.edges[iEdge].c2;
+        Vector n = grid.edges[iEdge].n;
+        if (c2 >= 0) {
+            for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+                //double s11 = 0.0;
+                double s21 = 0.0;
+                double s31 = 0.0;
+                double s41 = 0.0;
+                double s51 = 0.0;
+                double s61 = 0.0;
+                double s71 = 0.0;
+
+                //double s12 = 0.0;
+                double s22 = 0.0;
+                double s32 = 0.0;
+                double s42 = 0.0;
+                double s52 = 0.0;
+                double s62 = 0.0;
+                double s72 = 0.0;
+                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                    double fRO, fRU, fRV, fRE, fTAU_XX1, fTAU_XY1, fTAU_YY1, fTAU_XX2, fTAU_XY2, fTAU_YY2;
+                    double FS2, FS3, FS4, FS5, FS6, FS7;
+
+                    Point& p = edgeGP[iEdge][iGP];
+                    double w = edgeGW[iEdge][iGP];
+
+                    getFields(fRO, fRU, fRV, fRE, c1, p);
+                    Param par1;
+                    consToPar(fRO, fRU, fRV, fRE, par1);
+                    Material& mat1 = getMaterial(c1);
+                    mat1.URS(par1, 0); // p=p(r,e)
+                    getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                    getFields(fRO, fRU, fRV, fRE, c2, p);
+                    Param par2;
+                    consToPar(fRO, fRU, fRV, fRE, par2);
+                    Material& mat2 = getMaterial(c2);
+                    mat2.URS(par2, 0); // p=p(r,e)
+                    getTensorComponents(fTAU_XX2, fTAU_XY2, fTAU_YY2, c2, p);
+
+                    FS2 = 0.5*((fTAU_XX1 + fTAU_XX2)*n.x + (fTAU_XY1 + fTAU_XY2)*n.y);
+                    FS3 = 0.5*((fTAU_XY1 + fTAU_XY2)*n.x + (fTAU_YY1 + fTAU_YY2)*n.y);
+                    FS4 = 0.5*((fTAU_XX1*par1.u + fTAU_XY1*par1.v + fTAU_XX2*par2.u + fTAU_XY2*par2.v)*n.x + (fTAU_XY1*par1.u + fTAU_YY1*par1.v + fTAU_XY2*par2.u + fTAU_YY2*par2.v)*n.y);
+                    FS5 = 0.5*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
+                    FS6 = 0.5*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
+                    FS7 = 0.5*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
+                    // вычисляем спектральный радиус для вычисления шага по времени
+//                    if (STEADY) {
+//                        double u1 = sqrt(par1.U2()) + par1.cz;
+//                        double u2 = sqrt(par2.U2()) + par2.cz;
+//                        double lambda = _max_(u1, u2);
+//                        lambda *= w;
+//                        lambda *= edgeJ[iEdge];
+//                        tmpCFL[c1] += lambda;
+//                        tmpCFL[c2] += lambda;
+//                    }
+
+                    double cGP1 = w * getF(iBF, c1, p);
+                    double cGP2 = w * getF(iBF, c2, p);
+
+                    //s11 += 0.;
+                    s21 += FS2*cGP1;
+                    s31 += FS3*cGP1;
+                    s41 += FS4*cGP1;
+                    s51 += FS5*cGP1;
+                    s61 += FS6*cGP1;
+                    s71 += FS7*cGP1;
+
+                    //s12 += 0.;
+                    s22 += FS2*cGP2;
+                    s32 += FS3*cGP2;
+                    s42 += FS4*cGP2;
+                    s52 += FS5*cGP2;
+                    s62 += FS6*cGP2;
+                    s72 += FS7*cGP2;
+                }
+
+                //s11 *= edgeJ[iEdge];
+                s21 *= edgeJ[iEdge];
+                s31 *= edgeJ[iEdge];
+                s41 *= edgeJ[iEdge];
+                s51 *= edgeJ[iEdge];
+                s61 *= edgeJ[iEdge];
+                s71 *= edgeJ[iEdge];
+
+                int shift = BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s21; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s31; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s41; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s51; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s61; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s71; //shift += BASE_FUNC_COUNT;
+
+                s22 *= edgeJ[iEdge];
+                s32 *= edgeJ[iEdge];
+                s42 *= edgeJ[iEdge];
+                s52 *= edgeJ[iEdge];
+                s62 *= edgeJ[iEdge];
+                s72 *= edgeJ[iEdge];
+
+                shift = BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s22; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s32; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s42; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s52; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s62; shift += BASE_FUNC_COUNT;
+                tmpArr2[shift + iBF] = -s72; //shift += BASE_FUNC_COUNT;
+            }
+
+            solverMtx->addRightElement(c1, tmpArr1);
+            solverMtx->addRightElement(c2, tmpArr2);
+        }
+        else {
+            if (strcmp(grid.edges[iEdge].typeName, CFDBoundary::TYPE_WALL_NO_SLIP) == 0){
+                for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+                    //double sRO1 = 0.0;
+                    double sRU1 = 0.0;
+                    double sRV1 = 0.0;
+                    double sRE1 = 0.0;
+
+                    double fRO, fRU, fRV, fRE;
+                    double FR, FU, FV, FE;
+                    double fDL = grid.edges[iEdge].l;
+                    Point  pC  = grid.edges[iEdge].c[0];
+
+                    getFields(fRO, fRU, fRV, fRE, c1, pC);
+                    Param par1;
+                    consToPar(fRO, fRU, fRV, fRE, par1);
+                    Material& mat = getMaterial(c1);
+                    mat.getML(par1);
+
+                    // вектор скорости в ячейке
+                    Vector vV( par1.u, par1.v);
+                    //Определяем заданную скорость вращения на регионе
+                    Vector vOmega(0., 0.);
+                    Vector vOmegaR = vOmega; //vector_prod( vOmega, pC ); TODO: в двумерном пространстве векторное произведение вырождается в скаляр
+                    Vector vVwall = vOmegaR;
+                    vV -= vVwall;
+
+                    // значение скорости по нормали
+                    double fVn = scalar_prod( vV, n );
+
+                    // нормальная компонента скорости
+                    Vector vVn = n;  vVn *= fVn;
+
+                    // тангенциальная компонента скорости
+                    Vector vVt = vV;  vVt -= vVn;
+
+                    double fMU = par1.ML;			// молекулярная вязкость
+                    double fKP = 0.0;			// коэффициент теплопроводности TODO: добавить в код
+
+                    Vector vRP  = grid.edges[iEdge].c[0];
+                    vRP -= grid.cells[c1].c;			// расстояние от центра ячейки до центра грани
+                    double fLP_ = scalar_prod(vRP, n);		// от точки P' до центра грани
+
+                    Vector vRP_ = n;  vRP_ *= - fLP_;  vRP_ += vRP;
+
+                    fLP_ = 1.0 / fLP_;
+
+                    Vector vTauN;
+
+                    vTauN.x = - fMU * vVt.x * fLP_;
+                    vTauN.y = - fMU * vVt.y * fLP_;
+
+                    double fQV = scalar_prod( vTauN, vVwall );			// работа вязких сил
+
+                    double fQT = 0.0;		// тепловой поток на границе
+
+                    sRU1 += vTauN.x*fDL;
+                    sRV1 += vTauN.y*fDL;
+                    sRE1 += (fQV + fQT) * fDL;
+
+                    int shift = BASE_FUNC_COUNT;
+                    tmpArr1[shift + iBF] = sRU1; shift += BASE_FUNC_COUNT;
+                    tmpArr1[shift + iBF] = sRV1; shift += BASE_FUNC_COUNT;
+                    tmpArr1[shift + iBF] = sRE1; //shift += BASE_FUNC_COUNT;
+
+                }
+            }
+
+            solverMtx->addRightElement(c1, tmpArr1);
+        }
+    }
+}
+

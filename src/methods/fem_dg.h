@@ -8,10 +8,14 @@ class FEM_DG : public Method
 protected:
 	const static int BASE_FUNC_COUNT = 3;
 
-	double **ro;
-	double **ru;
-	double **rv;
-	double **re;
+    double **ro;
+    double **ru;
+    double **rv;
+    double **re;
+
+    double **tau_xx;
+    double **tau_xy;
+    double **tau_yy;
 
 public:
 	virtual void getFields(double &fRO, double &fRU, double &fRV, double &fRE, int iCell, Point p) = 0;
