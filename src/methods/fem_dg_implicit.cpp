@@ -137,7 +137,7 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	// параметры обезразмеривания
 	L_ = 1.0;
 	R_ = maxR;					// характерная плотность = начальная плотность
-	P_ = maxP;					// характерное давление = начальное давление 
+	P_ = maxP;					// характерное давление = начальное давление
 	T_ = maxT;					// характерная температура = начальная температура
 	U_ = sqrt(P_ / R_);		// характерная скорость = sqrt( P_ / R_ )
 	E_ = POW_2(U_);			// характерная энергия  = U_**2
@@ -1790,7 +1790,8 @@ void FEM_DG_IMPLICIT::run()
 
 		/* Заполняем правую часть */
 		calcRHS();
-//		calcDiffusionRHS();
+        /* Заполняем правую часть от диффузионных членов уравнений */
+		calcDiffusionRHS();
 
 		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
 		if (STEADY) {
@@ -1810,11 +1811,12 @@ void FEM_DG_IMPLICIT::run()
 		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
 		calcMatrFlux();			// Вычисляем потоковые величины
 
-//        calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
-//        calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx
-//        calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
-//        calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
-//        calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
+		/* Заполняем элементы матрицы от диффузионных членов уравнений */
+        calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
+        calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx и (dG / dU)*dFi / dx
+        calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
+        //calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
+        //calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
 
 		/* Решаем СЛАУ */
 		int maxIter = SOLVER_ITER;
@@ -2168,11 +2170,12 @@ void FEM_DG_IMPLICIT::calcDiffusionIntegral() {
             getTensorComponents(fTAU_XX, fTAU_XY, fTAU_YY, iCell, p);
             Material& mat = getMaterial(iCell);
             mat.URS(par, 0); // p=p(r,e)
+            mat.getML(par);
             double H = par.E + par.p / par.r;
-            // TODO: посчитать динамическую вязкость
+
             calcJ(mx, par.r, par.u, 1.0, par.v, 0.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
             calcJ(my, par.r, par.u, 0.0, par.v, 1.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
-            for (int i = 0; i < FIELD_COUNT; i++) {
+            for (int i = 0; i < FIELD_COUNT_EXT; i++) {
                 for (int j = 0; j < FIELD_COUNT_EXT; j++) {
                     for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
                         for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
@@ -2237,12 +2240,12 @@ void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
 
                 calcJ(Amtx7P, par1.r, par1.u, n.x, par1.v, n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
                 calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
-                for (int i = 0; i < FIELD_COUNT; i++) {
+                for (int i = 0; i < FIELD_COUNT_EXT; i++) {
                     for (int j = 0; j < FIELD_COUNT_EXT; j++) {
                         for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
                             for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
-                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c2, p) * getF(ii, c1, p) * w;
+                                matrSmall[ii][jj]  = Amtx7P[i][j] * getF(jj, c1, p) * getF(ii, c1, p) * w;
+                                matrSmall2[ii][jj] = Amtx7M[i][j] * getF(jj, c2, p) * getF(ii, c1, p) * w;
                             }
                         }
                         addSmallMatrToBigMatr(matrBig,  matrSmall, i, j);
@@ -2282,12 +2285,12 @@ void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
 
                 calcJ(Amtx7P, par1.r, par1.u, -n.x, par1.v, -n.y, par1.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
                 calcJ(Amtx7M, par2.r, par2.u, -n.x, par2.v, -n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
-                for (int i = 0; i < FIELD_COUNT; i++) {
+                for (int i = 0; i < FIELD_COUNT_EXT; i++) {
                     for (int j = 0; j < FIELD_COUNT_EXT; j++) {
                         for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
                             for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-                                matrSmall[ii][jj]  = 0.5 * Amtx7P[i][j] * getF(jj, c2, p) * getF(ii, c2, p) * w;
-                                matrSmall2[ii][jj] = 0.5 * Amtx7M[i][j] * getF(jj, c1, p) * getF(ii, c2, p) * w;
+                                matrSmall[ii][jj]  = Amtx7P[i][j] * getF(jj, c2, p) * getF(ii, c2, p) * w;
+                                matrSmall2[ii][jj] = Amtx7M[i][j] * getF(jj, c1, p) * getF(ii, c2, p) * w;
                             }
                         }
                         addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
@@ -2304,49 +2307,6 @@ void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
             solverMtx->addMatrElement(c2, c1, matrBig2);
 
         }
-//        else {
-//
-//            fillMtx(matrBig, 0.0, MATR_DIM);
-//
-//            for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-//                Point& p = edgeGP[iEdge][iGP];
-//                double w = edgeGW[iEdge][iGP];
-//                getFields(fRO1, fRU1, fRV1, fRE1, c1, p);
-//                consToPar(fRO1, fRU1, fRV1, fRE1, par1);
-//                Material& mat1 = getMaterial(c1);
-//                mat1.URS(par1, 0); // p=p(r,e)
-//                mat1.getML(par1);
-//
-//                boundaryCond(iEdge, par1, par2);
-//
-////                Param average;
-////                calcRoeAverage(average, par1, par2, getGAM(c1), n);
-////
-////                double H = average.E + average.p / average.r;
-//
-////                eigenValues(eigenMtx4, average.cz, average.u, n.x, average.v, n.y);
-////                rightEigenVector(rEigenVector4, average.cz, average.u, n.x, average.v, n.y, H);
-////                leftEigenVector(lEigenVector4, average.cz, getGAM(c1), average.u, n.x, average.v, n.y);
-////                calcAP(Amtx4P, rEigenVector4, eigenMtx4, lEigenVector4);
-//                calcJ(Amtx7P, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX1, fTAU_XY1, fTAU_YY1);
-//                //calcJ(Amtx7M, par2.r, par2.u, n.x, par2.v, n.y, par2.ML, fTAU_XX2, fTAU_XY2, fTAU_YY2);
-//                for (int i = 0; i < FIELD_COUNT; i++) {
-//                    for (int j = 0; j < FIELD_COUNT; j++) {
-//                        for (int ii = 0; ii < BASE_FUNC_COUNT; ii++) {
-//                            for (int jj = 0; jj < BASE_FUNC_COUNT; jj++) {
-//                                matrSmall[ii][jj] = Amtx7P[i][j] * getF(ii, c1, p) * getF(jj, c1, p) * w;
-//                            }
-//                        }
-//                        addSmallMatrToBigMatr(matrBig, matrSmall, i, j);
-//                    }
-//                }
-//
-//            }
-//            multMtxToVal(matrBig, edgeJ[iEdge] * SIGMA, MATR_DIM);
-//
-//            solverMtx->addMatrElement(c1, c1, matrBig);
-//
-//        }
     }
 
     freeMtx7(Amtx7P);
@@ -2576,6 +2536,7 @@ FEM_DG_IMPLICIT::calcJ(double **dst7, double r, double u, double nx, double v, d
 }
 
 void FEM_DG_IMPLICIT::calcDiffusionRHS() {
+
     /* volume integral */
 
     for (int iCell = 0; iCell < grid.cCount; iCell++) {
@@ -2719,6 +2680,7 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
                     consToPar(fRO, fRU, fRV, fRE, par1);
                     Material& mat1 = getMaterial(c1);
                     mat1.URS(par1, 0); // p=p(r,e)
+                    mat1.getML(par1);
                     getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
 
                     getFields(fRO, fRU, fRV, fRE, c2, p);
@@ -2726,24 +2688,15 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
                     consToPar(fRO, fRU, fRV, fRE, par2);
                     Material& mat2 = getMaterial(c2);
                     mat2.URS(par2, 0); // p=p(r,e)
+                    mat2.getML(par2);
                     getTensorComponents(fTAU_XX2, fTAU_XY2, fTAU_YY2, c2, p);
 
                     FS2 = 0.5*((fTAU_XX1 + fTAU_XX2)*n.x + (fTAU_XY1 + fTAU_XY2)*n.y);
                     FS3 = 0.5*((fTAU_XY1 + fTAU_XY2)*n.x + (fTAU_YY1 + fTAU_YY2)*n.y);
                     FS4 = 0.5*((fTAU_XX1*par1.u + fTAU_XY1*par1.v + fTAU_XX2*par2.u + fTAU_XY2*par2.v)*n.x + (fTAU_XY1*par1.u + fTAU_YY1*par1.v + fTAU_XY2*par2.u + fTAU_YY2*par2.v)*n.y);
-                    FS5 = 0.5*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
-                    FS6 = 0.5*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
-                    FS7 = 0.5*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
-                    // вычисляем спектральный радиус для вычисления шага по времени
-//                    if (STEADY) {
-//                        double u1 = sqrt(par1.U2()) + par1.cz;
-//                        double u2 = sqrt(par2.U2()) + par2.cz;
-//                        double lambda = _max_(u1, u2);
-//                        lambda *= w;
-//                        lambda *= edgeJ[iEdge];
-//                        tmpCFL[c1] += lambda;
-//                        tmpCFL[c2] += lambda;
-//                    }
+                    FS5 = 0.5*(par1.ML + par2.ML)*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
+                    FS6 = 0.5*(par1.ML + par2.ML)*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
+                    FS7 = 0.5*(par1.ML + par2.ML)*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
 
                     double cGP1 = w * getF(iBF, c1, p);
                     double cGP2 = w * getF(iBF, c2, p);
