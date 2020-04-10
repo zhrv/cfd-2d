@@ -2533,20 +2533,15 @@ void FEM_DG_IMPLICIT::calcMatrTensorFlux() {
 //    freeMtx4(mtx7);
 }
 
-void
-FEM_DG_IMPLICIT::calcJ(double **dst7, double r, double u, double nx, double v, double ny, double mu, double tau_xx, double tau_xy,
-                       double tau_yy) {
-    double **mtx7 = allocMtx7();
-
-    mtx7[0][0] = 0.0;   mtx7[0][1] = 0.0;   mtx7[0][2] = 0.0;   mtx7[0][3] = 0.0;   mtx7[0][4] = 0.0;   mtx7[0][5] = 0.0;   mtx7[0][6] = 0.0;
-    mtx7[1][0] = 0.0;   mtx7[1][1] = 0.0;   mtx7[1][2] = 0.0;   mtx7[1][3] = 0.0;   mtx7[1][4] = nx;   mtx7[1][5] = ny;   mtx7[1][6] = 0.0;
-    mtx7[2][0] = 0.0;   mtx7[2][1] = 0.0;   mtx7[2][2] = 0.0;   mtx7[2][3] = 0.0;   mtx7[2][4] = 0.0;   mtx7[2][5] = nx;   mtx7[2][6] = ny;
-    mtx7[3][0] = -(nx*(tau_xx*u + tau_xy*v) + ny*(tau_xy*u + tau_yy*v)) / r;   mtx7[3][1] = (tau_xx*nx + tau_xy*ny)/r;   mtx7[3][2] = (tau_xy*nx + tau_yy*ny) / r;   mtx7[3][3] = 0.0;   mtx7[3][4] = u*nx;   mtx7[3][5] = v*nx + u*ny;   mtx7[3][6] = v*ny;
-    mtx7[4][0] = -mu*(4.*u*nx - 2.*v*ny) / 3. / r;   mtx7[4][1] = 4.*mu*nx / 3. / r;   mtx7[4][2] = -2.*mu*ny / 3. / r;   mtx7[4][3] = 0.0;   mtx7[4][4] = 0.0;   mtx7[4][5] = 0.0;   mtx7[4][6] = 0.0;
-    mtx7[5][0] = -mu*((v - 2.*u / 3.)*nx + (u - 2.*v / 3.)*ny) / r;   mtx7[5][1] = mu*(-2.*nx / 3. + ny) / r;   mtx7[5][2] = mu*(nx - 2.*ny / 3.) / r;   mtx7[5][3] = 0.0;   mtx7[5][4] = 0.0;   mtx7[5][5] = 0.0;   mtx7[5][6] = 0.0;
-    mtx7[6][0] = -mu*(-2.*u*nx + 4.*v*ny) / 3. / r;   mtx7[6][1] = -2.*mu*nx / 3. / r;   mtx7[6][2] = 4.*mu*ny / 3. / r;   mtx7[6][3] = 0.0;   mtx7[6][4] = 0.0;   mtx7[6][5] = 0.0;   mtx7[6][6] = 0.0;
-    dst7 = mtx7;
-    freeMtx4(mtx7);
+void FEM_DG_IMPLICIT::calcJ(double **dst7, double r, double u, double nx, double v, double ny, double mu, double tau_xx, double tau_xy,
+                            double tau_yy) {
+    dst7[0][0] = 0.0; dst7[0][1] = 0.0; dst7[0][2] = 0.0; dst7[0][3] = 0.0; dst7[0][4] = 0.0; dst7[0][5] = 0.0; dst7[0][6] = 0.0;
+    dst7[1][0] = 0.0; dst7[1][1] = 0.0; dst7[1][2] = 0.0; dst7[1][3] = 0.0; dst7[1][4] = nx; dst7[1][5] = ny; dst7[1][6] = 0.0;
+    dst7[2][0] = 0.0; dst7[2][1] = 0.0; dst7[2][2] = 0.0; dst7[2][3] = 0.0; dst7[2][4] = 0.0; dst7[2][5] = nx; dst7[2][6] = ny;
+    dst7[3][0] = -(nx*(tau_xx*u + tau_xy*v) + ny*(tau_xy*u + tau_yy*v)) / r; dst7[3][1] = (tau_xx*nx + tau_xy*ny)/r; dst7[3][2] = (tau_xy*nx + tau_yy*ny) / r; dst7[3][3] = 0.0; dst7[3][4] = u*nx; dst7[3][5] = v*nx + u*ny; dst7[3][6] = v*ny;
+    dst7[4][0] = -mu*(4.*u*nx - 2.*v*ny) / 3. / r; dst7[4][1] = 4.*mu*nx / 3. / r; dst7[4][2] = -2.*mu*ny / 3. / r; dst7[4][3] = 0.0; dst7[4][4] = 0.0; dst7[4][5] = 0.0; dst7[4][6] = 0.0;
+    dst7[5][0] = -mu*((v - 2.*u / 3.)*nx + (u - 2.*v / 3.)*ny) / r; dst7[5][1] = mu*(-2.*nx / 3. + ny) / r; dst7[5][2] = mu*(nx - 2.*ny / 3.) / r; dst7[5][3] = 0.0; dst7[5][4] = 0.0; dst7[5][5] = 0.0; dst7[5][6] = 0.0;
+    dst7[6][0] = -mu*(-2.*u*nx + 4.*v*ny) / 3. / r; dst7[6][1] = -2.*mu*nx / 3. / r; dst7[6][2] = 4.*mu*ny / 3. / r; dst7[6][3] = 0.0; dst7[6][4] = 0.0; dst7[6][5] = 0.0; dst7[6][6] = 0.0;
 }
 
 void FEM_DG_IMPLICIT::calcDiffusionRHS() {
