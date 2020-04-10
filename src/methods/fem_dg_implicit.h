@@ -192,10 +192,11 @@ private:
 	double			P_		= 1.0;
 	double			T_		= 1.0;
 	double			E_		= 1.0;
-	double			CV_ = 1.0;
-	double			MU_ = 1.0;
-	double			KP_ = 1.0;
-	double			TIME_ = 1.0;
+	double			CV_   = 1.0;
+	double			MU_   = 1.0;
+	double			KP_   = 1.0;
+    double			TAU_  = 1.0;
+    double			TIME_ = 1.0;
 
 protected:
 	const static int FLUX_GODUNOV = 0;

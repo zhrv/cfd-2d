@@ -3,6 +3,7 @@
 #include "SolverHypreBoomerAmg.h"
 #include "SolverHyprePcg.h"
 #include "SolverHypreGmres.h"
+#include "SolverHypreBiCGStab.h"
 #include "SolverHypreFlexGmres.h"
 #include "SolverHypreFlexGmresPrecAMG.h"
 #include "SolverZeidel.h"
@@ -28,10 +29,14 @@ MatrixSolver* MatrixSolver::create(const char* solverName)
 		return new SolverHypreFlexGmresPrecAMG();
 	}
 	else
-	if (strcmp(solverName, "HYPRE_GMRES") == 0) {
-		return new SolverHypreGmres();
-	}
-	else
+    if (strcmp(solverName, "HYPRE_GMRES") == 0) {
+        return new SolverHypreGmres();
+    }
+    else
+    if (strcmp(solverName, "HYPRE_BiCGStab") == 0) {
+        return new SolverHypreBiCGStab();
+    }
+    else
 	if (strcmp(solverName, "CUSTOM_HYPRE_SEIDEL") == 0) {
 		return new SolverHypreCustomSeidel();
 	}

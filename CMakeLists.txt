@@ -58,7 +58,7 @@ set(SOLVERS_SRC
 		src/methods/solvers/SolverHypreGmres.cpp
 		src/methods/solvers/SolverHyprePcg.cpp
 		src/methods/solvers/SolverZeidel.cpp
-)
+        src/methods/solvers/SolverHypreBiCGStab.cpp src/methods/solvers/SolverHypreBiCGStab.h)
 
 set(MESH_SRC
 		src/mesh/grid.cpp
