@@ -107,32 +107,56 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 	node0->ToElement()->Attribute("count", &regCount);
 	regions = new Region[regCount];
 	TiXmlNode* regNode = node0->FirstChild("region");
-	for (int i = 0; i < regCount; i++)
-	{
-		Region & reg = regions[i];
-		regNode->ToElement()->Attribute("id", &reg.id);
-		regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
-		regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
+//	for (int i = 0; i < regCount; i++)
+//	{
+//		Region & reg = regions[i];
+//		regNode->ToElement()->Attribute("id", &reg.id);
+//		regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
+//		regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
+//
+//		node1 = regNode->FirstChild("parameters");
+//		node1->FirstChild("Vx")->ToElement()->Attribute("value", &reg.par.u);
+//		node1->FirstChild("Vy")->ToElement()->Attribute("value", &reg.par.v);
+//		node1->FirstChild("T")->ToElement()->Attribute("value", &reg.par.T);
+//		node1->FirstChild("P")->ToElement()->Attribute("value", &reg.par.p);
+//
+//		Material& mat = materials[reg.matId];
+//		mat.URS(reg.par, 2);	// r=r(p,T)
+//		mat.URS(reg.par, 1);	// e=e(p,r)
+//		reg.par.ML = mat.ML;
+//
+//		regNode = regNode->NextSibling("region");
+//
+//		if (reg.par.p > maxP) maxP = reg.par.p;
+//		if (reg.par.r > maxR) maxR = reg.par.r;
+//		if (reg.par.T > maxT) maxT = reg.par.T;
+//		if (reg.par.U2() > maxU) maxU = reg.par.U2();
+//	}
+    for (int i = 0; i < regCount; i++) {
+        Region &reg = regions[i];
+        regNode->ToElement()->Attribute("id", &reg.id);
+        regNode->FirstChild("material")->ToElement()->Attribute("id", &reg.matId);
+        regNode->FirstChild("cell")->ToElement()->Attribute("type", &reg.cellType);
 
-		node1 = regNode->FirstChild("parameters");
-		node1->FirstChild("Vx")->ToElement()->Attribute("value", &reg.par.u);
-		node1->FirstChild("Vy")->ToElement()->Attribute("value", &reg.par.v);
-		node1->FirstChild("T")->ToElement()->Attribute("value", &reg.par.T);
-		node1->FirstChild("P")->ToElement()->Attribute("value", &reg.par.p);
+        reg.name = regNode->FirstChild("name")->ToElement()->GetText();
 
-		Material& mat = materials[reg.matId];
-		mat.URS(reg.par, 2);	// r=r(p,T)
-		mat.URS(reg.par, 1);	// e=e(p,r)
-		reg.par.ML = mat.ML;
+        node1 = regNode->FirstChild("parameters");
+        node1->FirstChild("Vx")->ToElement()->Attribute("value", &reg.par.u);
+        node1->FirstChild("Vy")->ToElement()->Attribute("value", &reg.par.v);
+        node1->FirstChild("T")->ToElement()->Attribute("value", &reg.par.T);
+        node1->FirstChild("P")->ToElement()->Attribute("value", &reg.par.p);
 
-		regNode = regNode->NextSibling("region");
+        Material &mat = materials[reg.matId];
+        mat.URS(reg.par, 2);    // r=r(p,T)
+        mat.URS(reg.par, 1);    // e=e(p,r)
 
-		if (reg.par.p > maxP) maxP = reg.par.p;
-		if (reg.par.r > maxR) maxR = reg.par.r;
-		if (reg.par.T > maxT) maxT = reg.par.T;
-		if (reg.par.U2() > maxU) maxU = reg.par.U2();
-	}
+        regNode = regNode->NextSibling("region");
 
+        if (reg.par.p > maxP) maxP = reg.par.p;
+        if (reg.par.r > maxR) maxR = reg.par.r;
+        if (reg.par.T > maxT) maxT = reg.par.T;
+        if (reg.par.U2() > maxU) maxU = reg.par.U2();
+    }
 	maxU = sqrt(maxU);
 
     // параметры обезразмеривания
@@ -273,10 +297,13 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 //		bNode = bNode->NextSibling("boundCond");
 //	}
 
-	
-	node0 = task->FirstChild("mesh");
-	const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	grid.initFromFiles((char*)fName);
+
+    /* Чтение данных сетки. */
+    node0 = task->FirstChild("mesh");
+    const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+    const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+    MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+    mr->read(&grid);
 
 	memAlloc();
 
@@ -365,8 +392,9 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
-		Region & reg = getRegion(i);
-		convertParToCons(i, reg.par);
+        Cell & c = grid.cells[i];
+        Region & reg = getRegion(c.typeName);
+        convertParToCons(i, reg.par);
         memset(tau_xx[i], 0, sizeof(double)*BASE_FUNC_COUNT);
         memset(tau_xy[i], 0, sizeof(double)*BASE_FUNC_COUNT);
         memset(tau_yy[i], 0, sizeof(double)*BASE_FUNC_COUNT);
@@ -687,10 +715,27 @@ Region   &	FEM_DG_IMPLICIT::getRegion(int iCell)
 	return getRegionByCellType(grid.cells[iCell].type);
 }
 
+Region & FEM_DG_IMPLICIT::getRegionByName(char* name)
+{
+    for (int i = 0; i < regCount; i++)
+    {
+        if (strcmp(regions[i].name.c_str(), name) == 0) return regions[i];
+    }
+    log("ERROR: unknown cell name '%s'...\n", name);
+    EXIT(1);
+}
+
+Region & FEM_DG_IMPLICIT::getRegion(char * name)
+{
+    return getRegionByName(name);
+}
+
+
+
 Material &	FEM_DG_IMPLICIT::getMaterial(int iCell)
 {
-	Region & reg = getRegion(iCell);
-	return materials[reg.matId];
+    Region & reg = getRegion(grid.cells[iCell].typeName);
+    return materials[reg.matId];
 }
 
 

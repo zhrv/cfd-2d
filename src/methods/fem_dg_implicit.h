@@ -220,5 +220,8 @@ protected:
 	const static int MATR_DIM = FIELD_COUNT_EXT * BASE_FUNC_COUNT;
 
 	inline double getGAM(int iCell) { return getMaterial(iCell).getGamma(); } // TODO: сделать
+    Region &getRegionByName(char *name);
+
+    Region &getRegion(char *name);
 };
 
