@@ -183,7 +183,6 @@ int SolverJacobi::solve(double eps, int& maxIter)
 			}
 			err += fabs(tmp-b[i]);
 		}
-		int qqqqq = 0; // ZHRV_WARN
 	}
 	if (step >= maxIter)
 	{

@@ -13,7 +13,7 @@ int MeshReaderSalomeUnv::find_index(int val)
 
 int MeshReaderSalomeUnv::find_edge(int n1, int n2)
 {
-	for (int i = 0; i < edges.size(); i++) {
+	for (size_t i = 0; i < edges.size(); i++) {
 		if (((edges[i][3] == n1) && (edges[i][4] == n2)) || ((edges[i][3] == n2) && (edges[i][4] == n1)) ){
 			return i;
 		}
@@ -273,7 +273,7 @@ void MeshReaderSalomeUnv::read_block(string_list * sl, ifstream& fin)
 	while (minusCnt < 2 && !fin.eof()) {
 		fin.getline(s, 256);
 		str.assign(s);
-		int pos = str.find("-1");
+		size_t pos = str.find("-1");
 		if (pos != string::npos) {
 			if (pos == str.length() - 2) {
 				minusCnt++;
@@ -406,7 +406,7 @@ void MeshReaderSalomeUnv::parse_block_2467(string_list sl, Grid * g)
 		char bnd_name[128];
 		sscanf(it->c_str(), "%d %d %d %d %d %d %d %d", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5], &tmp[6], &tmp[7]); it++;
 		int n = tmp[7];
-		sscanf(it->c_str(), "%s", &bnd_name); it++;
+		sscanf(it->c_str(), "%s", bnd_name); it++;
 		p.clear();
 		for (int i = 0; i < n/2; i++) {
 			sscanf(it->c_str(), "%d %d %d %d %d %d %d %d", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5], &tmp[6], &tmp[7]); it++;

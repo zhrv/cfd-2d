@@ -171,8 +171,6 @@ void FEM_RKDG::init(char * xmlFileName) // TODO: освободить памят
 		par.cz /= U_;
 		par.ML /= MU_;
 		par.E = par.e + par.U2()*0.5;
-
-		int zhrv = 0;
 	}
 
 	Material::gR *= R_ * T_ / P_;	// Газовая постоянная
@@ -508,9 +506,6 @@ void FEM_RKDG::calcGaussPar()
 
 			cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
 			//cellJ[i] = 0.5*(a1*b2 - a2*b1);
-			if (cellJ[i] <= 0) {
-				int zhrv = 0;
-			}
 		}
 	}
 	else if (GP_CELL_COUNT == 3) {
@@ -551,7 +546,7 @@ void FEM_RKDG::calcGaussPar()
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
 			double gp1 = -3.0 / 5.0;
-			double gp2 = 0.0;
+//			double gp2 = 0.0;
 			double gp3 = 3.0 / 5.0;
 			double x1 = grid.nodes[grid.edges[i].n1].x;
 			double y1 = grid.nodes[grid.edges[i].n1].y;
@@ -601,8 +596,8 @@ void FEM_RKDG::run()
 {
 
 
-	int nc = grid.cCount;
-	int ne = grid.eCount;
+//	int nc = grid.cCount;
+//	int ne = grid.eCount;
 
 	double			t		= 0.0;
 	unsigned int	step	= 0;
@@ -680,7 +675,7 @@ void FEM_RKDG::save(int step)
 		
 		
 		for (int pid = 0; pid < Parallel::procCount; pid++) {
-			fprintf(fp, "    <Piece Source=\"vtk_data/res_%010d.%04d.vtu\"/>\n", step, pid);
+			fprintf(fp, "    <Piece Source=\"res_%010d.%04d.vtu\"/>\n", step, pid);
 		}
 		fprintf(fp, "  </PUnstructuredGrid>\n");
 
@@ -689,7 +684,7 @@ void FEM_RKDG::save(int step)
 		log("File '%s' saved...\n", fName);
 	}
 
-	sprintf(fName, "vtk_data/res_%010d.%04d.vtu", step, Parallel::procId);
+	sprintf(fName, "res_%010d.%04d.vtu", step, Parallel::procId);
 	log("File '%s' saved...\n", fName);
 	fp = fopen(fName, "w");
 	fprintf(fp, "<?xml version=\"1.0\"?>\n");
@@ -829,7 +824,7 @@ void FEM_RKDG::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCountEx) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCountEx);
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		Param p;
@@ -838,7 +833,7 @@ void FEM_RKDG::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCountEx) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCountEx);
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		Param p;
@@ -847,7 +842,7 @@ void FEM_RKDG::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCountEx) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCountEx);
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		Param p;
@@ -887,14 +882,14 @@ void FEM_RKDG::save(int step)
 		if ((i + 1) % 8 == 0 || i + 1 == grid.cCountEx) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCountEx);
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		fprintf(fp, "%25.16f ", cTau[i]*TIME_);
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCountEx) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS SQUARE float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS SQUARE float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCountEx; i++)
 	{
 		fprintf(fp, "%25.16f ", grid.cells[i].S*L_*L_);
@@ -1438,7 +1433,7 @@ void FEM_RKDG::convertConsToPar(int iCell, Param & par)
 
 
 
-VECTOR& FEM_RKDG::getF(int iCell, Point pt)
+VECTOR FEM_RKDG::getF(int iCell, Point pt)
 {
 	if (FUNC_COUNT == 3 )
 	{

@@ -25,7 +25,12 @@ protected:
 	 *	Преобразование консервативных переменных в примитивные
 	 */
 	void convertConsToPar(int iCell, Param & par);
-	
+
+    /**
+     *  Вычисление одного шага по времени
+     */
+	void singleTimeStep();
+
 	/**
 	 *	Вычисление параметров справа и слева от границы ячейки
 	 */
@@ -41,6 +46,11 @@ protected:
 	 *	меньше вычисленного, то используется значение, заданное в XML
 	 */
 	void calcTimeStep();
+
+    /**
+     *	Вычисление шага по времени по всем процессорам
+     */
+    double getGlobalTimeStep();
 
 	/**
 	 *	Запись значений газодинамических параметров в файл
@@ -64,6 +74,8 @@ protected:
 	Region & getRegionByName(char* name);
 	Region & getRegion(char * name);
 
+    void procExchangeFields();
+    void procExchangeGrads();
 private:
 	double TMAX;
 	double TAU;
@@ -103,8 +115,9 @@ private:
 	Vector *gradR;
 	Vector *gradP;
 	Vector *gradU;
-	Vector *gradV;
-	
+    Vector *gradV;
+    Vector *gradT;
+
 	//! лимиты
 	double limitRmin;
 	double limitRmax;

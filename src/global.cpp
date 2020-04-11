@@ -9,24 +9,26 @@ double Material::gR = 8.314472;	// �2 �� �-2 �-1 ����-1
 void Material::URS(Param &par, int flag)
 {
 	double Cv = Cp-gR/M;
-	double gam = Cp/Cv; 
+	double gam = Cp/Cv;
+	par.gam = gam;
+	par.ML = ML;
 	switch (flag)
 	{
-	case 0:		// p=p(r,e)
-		par.p = par.r*par.e*(gam-1);
-		par.cz = sqrt(gam*par.p/par.r);
-		break;
-	
-	case 1:		// e=e(r,p)
-		par.e = par.p/(par.r*(gam-1));
-		par.T = par.e/Cv;				// TODO: ��������� ������������
-		break;
-	
-	case 2:		// r=r(T,p)
-		par.r = par.p*M/(par.T*gR);
-		par.cz = sqrt(gam*par.p/par.r);
-		break;
-	}
+        case 0:		// p=p(r,e)
+            par.p = par.r*par.e*(gam-1);
+            par.cz = sqrt(gam*par.p/par.r);
+            break;
+
+        case 1:		// e=e(r,p)
+            par.e = par.p/(par.r*(gam-1));
+            par.T = par.e/Cv;
+            break;
+
+        case 2:		// r=r(T,p)
+            par.r = par.p*M/(par.T*gR);
+            par.cz = sqrt(gam*par.p/par.r);
+            break;
+        }
 }
 
 void Material::getML(Param &par) {
@@ -35,18 +37,34 @@ void Material::getML(Param &par) {
 
 void log(char * format, ...)
 {
-	if (!Parallel::isRoot()) return;
-	va_list arglist;
+    if (!Parallel::isRoot()) return;
+    va_list arglist;
 
     va_start(arglist,format);
 
-        vprintf(format, arglist);
-        vfprintf(hLog, format, arglist);
+    vprintf(format, arglist);
+    vfprintf(hLog, format, arglist);
 
     va_end(arglist);
-	
-	fflush(stdout);
-	fflush(hLog);
+
+    fflush(stdout);
+    fflush(hLog);
+}
+
+void log(const char * format, ...)
+{
+    if (!Parallel::isRoot()) return;
+    va_list arglist;
+
+    va_start(arglist,format);
+
+    vprintf(format, arglist);
+    vfprintf(hLog, format, arglist);
+
+    va_end(arglist);
+
+    fflush(stdout);
+    fflush(hLog);
 }
 
 void EXIT(int err)
@@ -235,10 +253,10 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
          double RE, double PE, double UE, double VE, double WE, double GAM) {
 
 	double AGAM  =  (GAM-1.0);
-	double BGAM  =  (2.0*sqrt(GAM/AGAM));
-	double CGAM  =  (1.0/GAM);
+//	double BGAM  =  (2.0*sqrt(GAM/AGAM));
+//	double CGAM  =  (1.0/GAM);
 	double DGAM  =  (2.0/AGAM);
-	double EGAM  =  (AGAM/(GAM+1.0));
+//	double EGAM  =  (AGAM/(GAM+1.0));
 	double GGAM  =  (sqrt(GAM*AGAM));
 	double HGAM  =  (AGAM/2.0);
 	double FGAM  =  (3.0*GAM-1.0);
@@ -248,7 +266,7 @@ void rim_orig(double& RI, double& EI, double& PI, double& UI, double& VI, double
 	double RGAM  =  (4.0*GAM);
 	double SGAM  =  (GAM*AGAM);
 	double TGAM  =  (QGAM/2.0);
-	double UGAM  =  (sqrt(AGAM/GAM));
+//	double UGAM  =  (sqrt(AGAM/GAM));
 
 	double US = 0.0, UF = 0.0;
 
@@ -596,8 +614,8 @@ double * Parallel::buf;
 void Parallel::init(int* argc, char*** argv)
 {
 	MPI_Init(argc, argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &procCount);
-	MPI_Comm_rank(MPI_COMM_WORLD, &procId);
+	MPI_Comm_size(MPI_COMM_WORLD, &(Parallel::procCount));
+	MPI_Comm_rank(MPI_COMM_WORLD, &(Parallel::procId));
 }
 
 void Parallel::done()
@@ -617,19 +635,34 @@ void Parallel::send(int pid, int tag, int n, int* x)
 
 void Parallel::send(int pid, int tag, int n, VECTOR* x)
 {
-	int nv = x[0].n;
-	int size = nv*n;
-	//double * buf = new double[size];
-	int k = 0;
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < nv; j++) {
-			buf[k] = x[i][j];
-			k++;
-		}
-	}
-	MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+    int nv = x[0].n;
+    int size = nv*n;
+    //double * buf = new double[size];
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < nv; j++) {
+            buf[k] = x[i][j];
+            k++;
+        }
+    }
+    MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
 
-	//delete[] buf;
+    //delete[] buf;
+}
+
+void Parallel::send(int pid, int tag, int n, Vector* x)
+{
+    int nv = 2;
+    int size = nv*n;
+    //double * buf = new double[size];
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        buf[k++] = x[i].x;
+        buf[k++] = x[i].y;
+    }
+    MPI_Send(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD);
+
+    //delete[] buf;
 }
 
 void Parallel::recv(int pid, int tag, int n, double* x)
@@ -644,20 +677,55 @@ void Parallel::recv(int pid, int tag, int n, int* x)
 
 void Parallel::recv(int pid, int tag, int n, VECTOR* x)
 {
-	int nv = x[0].n;
-	int size = nv*n;
-	double * buf = new double[size];
-	MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+    int nv = x[0].n;
+    int size = nv*n;
+    //auto * buf = new double[size];
+    MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
 
-	int k = 0;
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < nv; j++) {
-			x[i][j] = buf[k];
-			k++;
-		}
-	}
-	delete[] buf;
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < nv; j++) {
+            x[i][j] = buf[k];
+            k++;
+        }
+    }
+    //delete[] buf;
 }
+
+void Parallel::recv(int pid, int tag, int n, Vector* x)
+{
+    int nv = 2;
+    int size = nv*n;
+    //auto * buf = new double[size];
+    MPI_Recv(buf, size, MPI_DOUBLE, pid, tag, MPI_COMM_WORLD, &mpiSt);
+
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        x[i].x = buf[k++];
+        x[i].y = buf[k++];
+    }
+    //delete[] buf;
+}
+
+double Parallel::glob_min(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+double Parallel::glob_max(double x)
+{
+    double x_local = x;
+    double x_glob;
+    //auto * buf = new double[size];
+    MPI_Allreduce(&x_local, &x_glob, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return x_glob;
+}
+
+
 /*
 void Parallel::bcast(int n, double* x)
 {

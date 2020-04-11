@@ -18,7 +18,7 @@ const unsigned int CELL_FLAG_LIM	= 0x000002;
 class Cell 
 {
 public:
-	Cell(): nodesInd(NULL), edgesInd(NULL), nCount(0), eCount(0) {};
+	Cell(): nCount(0), eCount(0), nodesInd(NULL), edgesInd(NULL) {};
 	~Cell();
 
 	int   nCount;
@@ -40,8 +40,9 @@ public:
 class Edge 
 {
 public:
-	Edge(): c(NULL), cCount(0) {};
+	Edge(): cCount(0), c(nullptr) {};
 	~Edge();
+	int getOtherCell(int c);
 
 	int      n1;        // узел в начале
 	int      n2;        // узел в конце
@@ -95,7 +96,8 @@ public:
 	std::vector<int>					recvShift;
 	std::vector< std::vector<int> >		sendInd;
 
-	void readMeshFiles();
+    void readMeshFiles();
+    void procMeshFiles();
 	void saveMeshInfo();
 };
 

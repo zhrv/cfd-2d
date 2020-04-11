@@ -121,12 +121,13 @@ void FVM_TVD::init(char * xmlFileName)
 	bCount = boundaries.size();
 
 	/* Чтение данных сетки. */
-	node0 = task->FirstChild("mesh");
-	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
-	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
-	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
-	mr->read(&grid);
+//	node0 = task->FirstChild("mesh");
+//	const char* fName = node0->FirstChild("name")->ToElement()->Attribute("value");
+//	const char* tName = node0->FirstChild("filesType")->ToElement()->Attribute("value");
+//	MeshReader* mr = MeshReader::create(MeshReader::getType((char*)tName), (char*)fName);
+//	mr->read(&grid);
 
+    grid.readMeshFiles();
 
 	/* Определение ГУ для каждого ребра. */
 	for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
@@ -173,28 +174,34 @@ void FVM_TVD::init(char * xmlFileName)
 		}
 	}
 
+    Parallel::buf = new double[100*grid.cCountEx];
+    dBuf = new double[grid.cCountEx];
+    iBuf = new int[grid.cCountEx];
+    vBuf = new VECTOR[grid.cCountEx];
+    pBuf = new Point[grid.cCountEx];
 
-	cTau = new double[grid.cCount];
+	cTau    = new double[grid.cCountEx];
 
-	ro		= new double[grid.cCount];
-	ru		= new double[grid.cCount];
-	rv		= new double[grid.cCount];
-	re		= new double[grid.cCount];
+	ro		= new double[grid.cCountEx];
+	ru		= new double[grid.cCountEx];
+	rv		= new double[grid.cCountEx];
+	re		= new double[grid.cCountEx];
 
-	ro_old	= new double[grid.cCount];
-	ru_old	= new double[grid.cCount];
-	rv_old	= new double[grid.cCount];
-	re_old	= new double[grid.cCount];
+	ro_old	= new double[grid.cCountEx];
+	ru_old	= new double[grid.cCountEx];
+	rv_old	= new double[grid.cCountEx];
+	re_old	= new double[grid.cCountEx];
 
-	ro_int	= new double[grid.cCount];
-	ru_int	= new double[grid.cCount];
-	rv_int	= new double[grid.cCount];
-	re_int	= new double[grid.cCount];
+	ro_int	= new double[grid.cCountEx];
+	ru_int	= new double[grid.cCountEx];
+	rv_int	= new double[grid.cCountEx];
+	re_int	= new double[grid.cCountEx];
 
-	gradR		= new Vector[grid.cCount];
-	gradP		= new Vector[grid.cCount];
-	gradU		= new Vector[grid.cCount];
-	gradV		= new Vector[grid.cCount];
+	gradR		= new Vector[grid.cCountEx];
+	gradP		= new Vector[grid.cCountEx];
+	gradU		= new Vector[grid.cCountEx];
+    gradV		= new Vector[grid.cCountEx];
+    gradT		= new Vector[grid.cCountEx];
 
 	for (int i = 0; i < grid.cCount; i++)
 	{
@@ -202,12 +209,19 @@ void FVM_TVD::init(char * xmlFileName)
 		Region & reg = getRegion(c.typeName);
 		convertParToCons(i, reg.par);
 	}
+	procExchangeFields();
 
-	memcpy(ro_old, ro, grid.cCount*sizeof(double));
-	memcpy(ru_old, ru, grid.cCount*sizeof(double));
-	memcpy(rv_old, rv, grid.cCount*sizeof(double));
-	memcpy(re_old, re, grid.cCount*sizeof(double));
+	memcpy(ro_old, ro, grid.cCountEx*sizeof(double));
+	memcpy(ru_old, ru, grid.cCountEx*sizeof(double));
+	memcpy(rv_old, rv, grid.cCountEx*sizeof(double));
+	memcpy(re_old, re, grid.cCountEx*sizeof(double));
 
+	if (!STEADY) {
+		double rec_tau = getGlobalTimeStep();
+		if (TAU > rec_tau) {
+			log("Recommended TAU is %16.8e, but %16.8e is used.\n", rec_tau, TAU);
+		}
+	}
 	calcTimeStep();
 	save(0);
 }
@@ -224,32 +238,51 @@ void FVM_TVD::calcTimeStep()
 		}
 	}
 	else {
-		for (int iCell = 0; iCell < grid.cCount; iCell++)
-		{
-			Param p;
-			convertConsToPar(iCell, p);
-			if (TAU > CFL* grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz)) {
-				TAU = CFL * grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
-			}
-		}
+//		for (int iCell = 0; iCell < grid.cCount; iCell++)
+//		{
+//			Param p;
+//			convertConsToPar(iCell, p);
+//			if (TAU > CFL* grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz)) {
+//				TAU = CFL * grid.cells[iCell].S / _max_(abs(p.u) + p.cz, abs(p.v) + p.cz);
+//			}
+//		}
 		for (int iCell = 0; iCell < grid.cCount; iCell++) {
 			cTau[iCell] = TAU;
 		}
 		log("time step: %25.16E\n", TAU);
 	}
+
+	exchange(cTau);
 }
 
-void FVM_TVD::calcGrad() 
+
+double FVM_TVD::getGlobalTimeStep()
 {
-	int nc = grid.cCount;
+	double tau = 1.e+300;
+	for (int iCell = 0; iCell < grid.cCount; iCell++)
+	{
+		Param p;
+		convertConsToPar(iCell, p);
+		if (tau > CFL* grid.cells[iCell].S / (p.magU()+p.cz)/*_max_(abs(p.u) + p.cz, abs(p.v) + p.cz)*/) {
+			tau = CFL * grid.cells[iCell].S / (p.magU()+p.cz)/*_max_(abs(p.u) + p.cz, abs(p.v) + p.cz)*/;
+		}
+	}
+	return Parallel::glob_min(tau);
+}
+
+
+void FVM_TVD::calcGrad()
+{
+	int nc = grid.cCountEx;
 	int ne = grid.eCount;
 	
 
 	memset(gradR, 0, nc*sizeof(Vector));
 	memset(gradP, 0, nc*sizeof(Vector));
 	memset(gradU, 0, nc*sizeof(Vector));
-	memset(gradV, 0, nc*sizeof(Vector));
-	
+    memset(gradV, 0, nc*sizeof(Vector));
+    memset(gradT, 0, nc*sizeof(Vector));
+
     for (int iEdge = 0; iEdge < ne; iEdge++)
 	{
 			
@@ -275,9 +308,11 @@ void FVM_TVD::calcGrad()
 		gradP[c1].y += (pL.p+pR.p)/2*n.y*l;
 		gradU[c1].x += (pL.u+pR.u)/2*n.x*l;
 		gradU[c1].y += (pL.u+pR.u)/2*n.y*l;
-		gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
-		gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
-		if (c2 > -1) 
+        gradV[c1].x += (pL.v+pR.v)/2*n.x*l;
+        gradV[c1].y += (pL.v+pR.v)/2*n.y*l;
+        gradT[c1].x += (pL.T+pR.T)/2*n.x*l;
+        gradT[c1].y += (pL.T+pR.T)/2*n.y*l;
+		if (c2 > -1)
 		{
 			gradR[c2].x -= (pL.r+pR.r)/2*n.x*l;
 			gradR[c2].y -= (pL.r+pR.r)/2*n.y*l;
@@ -287,27 +322,133 @@ void FVM_TVD::calcGrad()
 			gradU[c2].y -= (pL.u+pR.u)/2*n.y*l;
 			gradV[c2].x -= (pL.v+pR.v)/2*n.x*l;
 			gradV[c2].y -= (pL.v+pR.v)/2*n.y*l;
+            gradT[c2].x -= (pL.T+pR.T)/2*n.x*l;
+            gradT[c2].y -= (pL.T+pR.T)/2*n.y*l;
 		}
 
 	}
 	for (int iCell = 0; iCell < nc; iCell++)
 	{
-		register double si = grid.cells[iCell].S;
+		double si = grid.cells[iCell].S;
 		gradR[iCell] /= si;
 		gradP[iCell] /= si;
 		gradU[iCell] /= si;
-		gradV[iCell] /= si;
+        gradV[iCell] /= si;
+        gradT[iCell] /= si;
 	}
+
+    procExchangeGrads();
+}
+
+void FVM_TVD::singleTimeStep()
+{
+    memset(ro_int, 0, grid.cCountEx*sizeof(double));
+    memset(ru_int, 0, grid.cCountEx*sizeof(double));
+    memset(rv_int, 0, grid.cCountEx*sizeof(double));
+    memset(re_int, 0, grid.cCountEx*sizeof(double));
+    for (int iEdge = 0; iEdge < grid.eCount; iEdge++)
+    {
+        Edge &edge = grid.edges[iEdge];
+        double fr, fu, fv, fe;
+        int c1	= edge.c1;
+        int c2	= edge.c2;
+        Vector n	= edge.n;
+        double l	= edge.l*0.5;
+        Material &mat = getMaterial(c1);
+        double gam = mat.getGamma();
+        double mu = mat.ML;
+        double lambda = 0.;
+        double kt = mat.K;
+        Param pL, pR;
+        fr = 0.0;
+        fu = 0.0;
+        fv = 0.0;
+        fe = 0.0;
+        for (int iGP = 1; iGP < edge.cCount; iGP++)
+        {
+            double fr1, fu1, fv1, fe1;
+            reconstruct(iEdge, pL, pR, edge.c[iGP]);
+            calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, gam);
+            fr += fr1;
+            fu += fu1;
+            fv += fv1;
+            fe += fe1;
+        }
+
+//        if (c2 > -1) {
+//            reconstruct(iEdge, pL, pR, edge.c[0]);
+//            double rl = sqrt(pL.r);
+//            double rr = sqrt(pR.r);
+//
+//            double u_  = (rl*pL.u+rr*pR.u)/(rl+rr);
+//            double v_  = (rl*pL.v+rr*pR.v)/(rl+rr);
+//            double u_x = (gradU[c1].x+gradU[c2].x)*0.5;
+//            double v_x = (gradV[c1].x+gradV[c2].x)*0.5;
+//            double t_x = (gradT[c1].x+gradT[c2].x)*0.5;
+//            double u_y = (gradU[c1].y+gradU[c2].y)*0.5;
+//            double v_y = (gradV[c1].y+gradV[c2].y)*0.5;
+//            double t_y = (gradT[c1].y+gradT[c2].y)*0.5;
+//
+//            double txx = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*u_x;
+//            double tyy = (lambda-(2./3.)*mu)*(u_x+v_y)-2.*mu*v_y;
+//            double txy = mu*(u_y+v_x);
+//
+//            fu -= txx*n.x+txy*n.y;
+//            fv -= txy*n.x+tyy*n.y;
+//            fe -= (u_*txx+v_*txy+kt*t_x)*n.x+(u_*txy+v_*tyy+kt*t_y)*n.y;
+//        }
+//        else {
+//            if (instanceof<CFDBndWallNoSlip>(edge.bnd)) {
+//                reconstruct(iEdge, pL, pR, edge.c[0]);
+//                double Tbnd = edge.bnd->par[0];
+//                double vn = pL.u*n.x+pL.v*n.y;
+//                Vector Vn = n;
+//                Vn *= vn;
+//                Vector Vt(pL.u, pL.v);
+//                Vt -= Vn;
+//
+//                double txx = -mu*Vt.x/edge.cnl1;
+//                double tyy = -mu*Vt.y/edge.cnl1;
+//                double Q   = -kt*(Tbnd-pL.T)/edge.cnl1;
+//
+//                fu -= txx;
+//                fv -= tyy;
+//                fe -= Q;
+//            }
+//        }
+
+        ro_int[c1] -= fr*l;
+        ru_int[c1] -= fu*l;
+        rv_int[c1] -= fv*l;
+        re_int[c1] -= fe*l;
+        if (c2 > -1)
+        {
+            ro_int[c2] += fr*l;
+            ru_int[c2] += fu*l;
+            rv_int[c2] += fv*l;
+            re_int[c2] += fe*l;
+        }
+
+    }
+
+    for (int iCell = 0; iCell < grid.cCount; iCell++)
+    {
+        if (cellIsLim(iCell)) continue;
+        double cfl = cTau[iCell]/grid.cells[iCell].S;
+        ro[iCell] += cfl*ro_int[iCell];
+        ru[iCell] += cfl*ru_int[iCell];
+        rv[iCell] += cfl*rv_int[iCell];
+        re[iCell] += cfl*re_int[iCell];
+    }
+
+    procExchangeFields();
 }
 
 void FVM_TVD::run() 
 {
-	int nc = grid.cCount;
-	int ne = grid.eCount;
-
-	double			t		= 0.0;
-	unsigned int	step	= 0;
-	while (t < TMAX && step < STEP_MAX) 
+    double			t		= 0.0;
+	int	            step	= 0;
+	while (t <= TMAX && step <= STEP_MAX)
 	{
 		if (!STEADY) {
 			t += TAU; 
@@ -315,119 +456,21 @@ void FVM_TVD::run()
 			calcTimeStep();
 		}
 		step++;
-		memcpy(ro_old, ro, nc*sizeof(double));
-		memcpy(ru_old, ru, nc*sizeof(double));
-		memcpy(rv_old, rv, nc*sizeof(double));
-		memcpy(re_old, re, nc*sizeof(double));
+		memcpy(ro_old, ro, grid.cCount*sizeof(double));
+		memcpy(ru_old, ru, grid.cCount*sizeof(double));
+		memcpy(rv_old, rv, grid.cCount*sizeof(double));
+		memcpy(re_old, re, grid.cCount*sizeof(double));
 
 		// первый подшаг метода Р.-К.
-		memset(ro_int, 0, nc*sizeof(double));
-		memset(ru_int, 0, nc*sizeof(double));
-		memset(rv_int, 0, nc*sizeof(double));
-		memset(re_int, 0, nc*sizeof(double));
 		calcGrad();
-		for (int iEdge = 0; iEdge < ne; iEdge++)
-		{
-			double fr, fu, fv, fe;
-			int c1	= grid.edges[iEdge].c1;
-			int c2	= grid.edges[iEdge].c2;
-			Vector n	= grid.edges[iEdge].n;
-			double l	= grid.edges[iEdge].l*0.5;
-			Param pL, pR;
-			fr = 0.0;
-			fu = 0.0;
-			fv = 0.0;
-			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++)
-			{
-				double fr1, fu1, fv1, fe1;
-				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
-				fr += fr1;
-				fu += fu1;
-				fv += fv1;
-				fe += fe1;
-
-			}
-			ro_int[c1] -= fr*l;
-			ru_int[c1] -= fu*l;
-			rv_int[c1] -= fv*l;
-			re_int[c1] -= fe*l;
-			if (c2 > -1) 
-			{
-				ro_int[c2] += fr*l;
-				ru_int[c2] += fu*l;
-				rv_int[c2] += fv*l;
-				re_int[c2] += fe*l;
-			}
-
-		}
-		for (int iCell = 0; iCell < nc; iCell++)
-		{
-			if (cellIsLim(iCell)) continue;
-			register double cfl = cTau[iCell]/grid.cells[iCell].S;
-			ro[iCell] += cfl*ro_int[iCell];
-			ru[iCell] += cfl*ru_int[iCell];
-			rv[iCell] += cfl*rv_int[iCell];
-			re[iCell] += cfl*re_int[iCell];
-		}
+        singleTimeStep();
 
 		// второй подшаг метода Р.-К.
-		memset(ro_int, 0, nc*sizeof(double));
-		memset(ru_int, 0, nc*sizeof(double));
-		memset(rv_int, 0, nc*sizeof(double));
-		memset(re_int, 0, nc*sizeof(double));
 		calcGrad();
-		for (int iEdge = 0; iEdge < ne; iEdge++)
-		{
-			double fr, fu, fv, fe;
-			int c1	= grid.edges[iEdge].c1;
-			int c2	= grid.edges[iEdge].c2;
-			Vector n	= grid.edges[iEdge].n;
-			double l	= grid.edges[iEdge].l*0.5;
-			Param pL, pR;
-			fr = 0.0;
-			fu = 0.0;
-			fv = 0.0;
-			fe = 0.0;
-			for (int iGP = 1; iGP < grid.edges[iEdge].cCount; iGP++) 
-            {
-				double fr1, fu1, fv1, fe1;
-				reconstruct(iEdge, pL, pR, grid.edges[iEdge].c[iGP]);
-				double __GAM = 1.4; // TODO: сделать правильное вычисление показателя адиабаты
-				calcFlux(fr1, fu1, fv1, fe1, pL, pR, n, __GAM);
-				fr += fr1;
-				fu += fu1;
-				fv += fv1;
-				fe += fe1;
-
-			}
-			ro_int[c1] -= fr*l;
-			ru_int[c1] -= fu*l;
-			rv_int[c1] -= fv*l;
-			re_int[c1] -= fe*l;
-			if (c2 > -1) 
-			{
-				ro_int[c2] += fr*l;
-				ru_int[c2] += fu*l;
-				rv_int[c2] += fv*l;
-				re_int[c2] += fe*l;
-			}
-
-		}
-		for (int iCell = 0; iCell < nc; iCell++)
-		{
-			if (cellIsLim(iCell)) continue;
-			register double cfl = cTau[iCell]/grid.cells[iCell].S;
-			ro[iCell] += cfl*ro_int[iCell];
-			ru[iCell] += cfl*ru_int[iCell];
-			rv[iCell] += cfl*rv_int[iCell];
-			re[iCell] += cfl*re_int[iCell];
-		}
+		singleTimeStep();
 
 		// полусумма: формула (4.10) из icase-1997-65.pdf
-		for (int iCell = 0; iCell < nc; iCell++)
+		for (int iCell = 0; iCell < grid.cCount; iCell++)
 		{
 			if (cellIsLim(iCell)) continue;
 
@@ -438,6 +481,7 @@ void FVM_TVD::run()
 
 			Param par;
 			convertConsToPar(iCell, par);
+			if (par.isNaN()) 				{ setCellFlagLim(iCell); }
 			if (par.r < limitRmin)			{ par.r = limitRmin; setCellFlagLim(iCell); }
 			if (par.r > limitRmax)			{ par.r = limitRmax; setCellFlagLim(iCell); }
 			if (par.p < limitPmin)			{ par.p = limitPmin; setCellFlagLim(iCell); }
@@ -446,12 +490,17 @@ void FVM_TVD::run()
 			if (fabs(par.v) > limitUmax)	{ par.v = limitUmax; setCellFlagLim(iCell); }
 		}
 
+        procExchangeFields();
+
 		remediateLimCells();
 
+        procExchangeFields();
 
 		if (step % FILE_SAVE_STEP == 0)
 		{
-			save(step);
+            Parallel::barrier();
+
+            save(step);
 		}
 		if (step % PRINT_STEP == 0)
 		{
@@ -500,113 +549,181 @@ void FVM_TVD::remediateLimCells()
 
 void FVM_TVD::save(int step)
 {
-	char fName[50];
+    char fName[50];
+    FILE * fp;
+    if (Parallel::isRoot()) {
+        sprintf(fName, "res_%010d.pvtu", step);
+        fp = fopen(fName, "w");
+        fprintf(fp, "<?xml version=\"1.0\"?>\n");
+        fprintf(fp, "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+        fprintf(fp, "  <PUnstructuredGrid GhostLevel=\"0\">\n");
+        fprintf(fp, "    <PPoints><PDataArray type=\"Float32\" NumberOfComponents = \"3\" /></PPoints>\n");
+        fprintf(fp, "    <PCellData Scalars=\"Density, Pressure, Total_pressure, Temperature, Mach, Proc, TAU\" Vectors=\"Velocity\">\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Density\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Pressure\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Total_pressure\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Temperature\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Mach\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"Velocity\" format=\"ascii\" NumberOfComponents=\"3\"/>\n");
+        fprintf(fp, "      <PDataArray type=\"Int32\" Name=\"Proc\" format=\"ascii\" />\n");
+        fprintf(fp, "      <PDataArray type=\"Float32\" Name=\"TAU\" format=\"ascii\" />\n");
+        fprintf(fp, "    </PCellData>\n");
 
-	sprintf(fName, "res_%010d.vtk", step);
-	FILE * fp = fopen(fName, "w");
-	fprintf(fp, "# vtk DataFile Version 2.0\n");
-	fprintf(fp, "GASDIN data file\n");
-	fprintf(fp, "ASCII\n");
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
-	fprintf(fp, "POINTS %d float\n", grid.nCount);
-	for (int i = 0; i < grid.nCount; i++)
-	{
-		fprintf(fp, "%f %f %f  ", grid.nodes[i].x,  grid.nodes[i].y, 0.0);
-		if (i+1 % 8 == 0) fprintf(fp, "\n");
-	}
-	fprintf(fp, "\n");
-	fprintf(fp, "CELLS %d %d\n", grid.cCount, 4*grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "3 %d %d %d\n", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
-	}
-	fprintf(fp, "\n");
+        for (int pid = 0; pid < Parallel::procCount; pid++) {
+            fprintf(fp, "    <Piece Source=\"res_%010d.%04d.vtu\"/>\n", step, pid);
+        }
+        fprintf(fp, "  </PUnstructuredGrid>\n");
 
-	fprintf(fp, "CELL_TYPES %d\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++) fprintf(fp, "5\n");
-	fprintf(fp, "\n");
+        fprintf(fp, "</VTKFile>\n");
+        fclose(fp);
+        log("File '%s' saved...\n", fName);
+    }
+    sprintf(fName, "res_%010d.%04d.vtu", step, Parallel::procId);
+    fp = fopen(fName, "w");
+    fprintf(fp, "<?xml version=\"1.0\"?>\n");
+    fprintf(fp, "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+    fprintf(fp, "  <UnstructuredGrid GhostLevel=\"0\">\n");
+    fprintf(fp, "    <Piece NumberOfPoints=\"%d\" NumberOfCells=\"%d\">\n", grid.nCount, grid.cCount);
+    fprintf(fp, "      <Points>\n");
+    fprintf(fp, "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.nCount; i++) {
+        fprintf(fp, "%25.15f %25.15f %25.15f ", grid.nodes[i].x, grid.nodes[i].y, 0.0);
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "        </DataArray>\n");
+    fprintf(fp, "      </Points>\n");
+    fprintf(fp, "      <Cells>\n");
+    fprintf(fp, "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        fprintf(fp, "%d ", (i + 1) * 3);
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "        </DataArray>\n");
+    fprintf(fp, "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        fprintf(fp, "%d %d %d ", grid.cells[i].nodesInd[0], grid.cells[i].nodesInd[1], grid.cells[i].nodesInd[2]);
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "        </DataArray>\n");
+    fprintf(fp, "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        fprintf(fp, "%d ", 5);
+    }
+    fprintf(fp, "\n");
+    fprintf(fp, "        </DataArray>\n");
+    fprintf(fp, "      </Cells>\n");
 
-	fprintf(fp, "CELL_DATA %d\nSCALARS Density float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		Param p;
-		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.r);
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		Param p;
-		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", p.p);
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+    fprintf(fp, "      <CellData Scalars=\"Density, Pressure, Total_pressure, Temperature, Mach, Proc, TAU\" Vectors=\"Velocity\">\n");
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
+    // плотность
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Density\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", p.r);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
+
+    // давление
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Pressure\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f ", p.p);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
+
+    // полное давление
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Total_pressure\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        Material &mat = getMaterial(i);
+        double gam = mat.getGamma();
+        double agam = gam - 1.0;
+        Param p;
+        convertConsToPar(i, p);
+        double M2 = (p.u*p.u+p.v*p.v)/(gam*p.p/p.r);
+        fprintf(fp, "%f ", p.p*::pow(1.0+0.5*M2*agam, gam/(gam-1.0)) );
+        if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
+
+    // температура
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Temperature\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
 		Param p;
 		convertConsToPar(i, p);
 		fprintf(fp, "%25.16f ", p.T);
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+    }
+    fprintf(fp, "        </DataArray>\n");
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
+    // число Маха
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"Mach\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
 		Param p;
 		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f ", (p.u*p.u+p.v*p.v)/p.cz);
+		fprintf(fp, "%25.16f ", sqrt(p.u*p.u+p.v*p.v)/p.cz);
 		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+    }
+    fprintf(fp, "        </DataArray>\n");
 
-	fprintf(fp, "VECTORS Velosity float\n");
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		Param p;
-		convertConsToPar(i, p);
-		fprintf(fp, "%25.16f %25.16f %25.16f ", p.u, p.v, 0.0);
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+    // скорость
+    fprintf(fp,
+            "        <DataArray type=\"Float32\" Name=\"Velocity\" format=\"ascii\" NumberOfComponents=\"3\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        Param p;
+        convertConsToPar(i, p);
+        fprintf(fp, "%25.16f %25.16f %25.16f ", p.u, p.v, 0.0);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
 
-	fprintf(fp, "SCALARS Total_pressure float 1\nLOOKUP_TABLE default\n");
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		Material &mat = getMaterial(i);
-		double gam = mat.getGamma();
-		double agam = gam - 1.0;
-		Param p;
-		convertConsToPar(i, p);
-		double M2 = (p.u*p.u+p.v*p.v)/(gam*p.p/p.r);
-		fprintf(fp, "%f ", p.p*::pow(1.0+0.5*M2*agam, gam/(gam-1.0)) );
-		if ((i+1) % 8 == 0  ||  i+1 == grid.cCount) fprintf(fp, "\n");
-	}
+    // номер процессора
+    fprintf(fp, "        <DataArray type=\"Int32\" Name=\"Proc\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        fprintf(fp, "%d ", Parallel::procId);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
-	for (int i = 0; i < grid.cCount; i++)
-	{
-		fprintf(fp, "%25.16f ", cTau[i]);
-		if (i+1 % 8 == 0 || i+1 == grid.cCount) fprintf(fp, "\n");
-	}
-
-
-
-	fclose(fp);
-	printf("File '%s' saved...\n", fName);
+    // шаг по времени
+    fprintf(fp, "        <DataArray type=\"Float32\" Name=\"TAU\" format=\"ascii\">\n");
+    fprintf(fp, "          ");
+    for (int i = 0; i < grid.cCount; i++) {
+        fprintf(fp, "%25.16f ", cTau[i]);
+        if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
+    }
+    fprintf(fp, "        </DataArray>\n");
+    fprintf(fp, "      </CellData>\n");
 
 
+    fprintf(fp, "    </Piece>\n");
+
+
+    fprintf(fp, "  </UnstructuredGrid>\n");
+
+    fprintf(fp, "</VTKFile>\n");
+    fclose(fp);
 }
 
 void FVM_TVD::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
 {
 	{	// GODUNOV FLUX
 		double RI, EI, PI, UI, VI, WI, UN, UT;
-		//double unl = pL.u*n.x+pL.v*n.y;
-		//double unr = pR.u*n.x+pR.v*n.y;
-		//rim(RI, EI, PI, UN, UI, VI,  pL.r, pL.p, unl, pL.u, pL.v,  pR.r, pR.p, unr, pR.u, pR.v, n, GAM);
-			
 		double unl = pL.u*n.x+pL.v*n.y;
 		double unr = pR.u*n.x+pR.v*n.y;
 		double utl = pL.u*n.y-pL.v*n.x;
@@ -651,41 +768,35 @@ void FVM_TVD::reconstruct(int iEdge, Param& pL, Param& pR, Point p)
 		int c2	= grid.edges[iEdge].c2;
 		convertConsToPar(c1, pL);
 		convertConsToPar(c2, pR);
-		//return;
-		//Point PE = grid.edges[iEdge].c[0];
-		Point &PE = p;
-		Point P1 = grid.cells[c1].c;
-		Point P2 = grid.cells[c2].c;
-		Vector DL1;
-		Vector DL2;
-		DL1.x=PE.x-P1.x;
-		DL1.y=PE.y-P1.y;
-		DL2.x=PE.x-P2.x;
-		DL2.y=PE.y-P2.y;
-		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
-		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
-		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
-		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
-		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
-		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
-		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
-		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
-
-
+//		Point &PE = p;
+//		Point P1 = grid.cells[c1].c;
+//		Point P2 = grid.cells[c2].c;
+//		Vector DL1;
+//		Vector DL2;
+//		DL1.x=PE.x-P1.x;
+//		DL1.y=PE.y-P1.y;
+//		DL2.x=PE.x-P2.x;
+//		DL2.y=PE.y-P2.y;
+//		pL.r+=gradR[c1].x*DL1.x+gradR[c1].y*DL1.y;
+//		pL.p+=gradP[c1].x*DL1.x+gradP[c1].y*DL1.y;
+//		pL.u+=gradU[c1].x*DL1.x+gradU[c1].y*DL1.y;
+//		pL.v+=gradV[c1].x*DL1.x+gradV[c1].y*DL1.y;
+//		pR.r+=gradR[c2].x*DL2.x+gradR[c2].y*DL2.y;
+//		pR.p+=gradP[c2].x*DL2.x+gradP[c2].y*DL2.y;
+//		pR.u+=gradU[c2].x*DL2.x+gradU[c2].y*DL2.y;
+//		pR.v+=gradV[c2].x*DL2.x+gradV[c2].y*DL2.y;
 	} else {
 		int c1 = grid.edges[iEdge].c1;
 		convertConsToPar(c1, pL);
-		//return;
-		Point &PE = p;
-		Point P1 = grid.cells[c1].c;
-		Vector DL1;
-		DL1.x = PE.x - P1.x;
-		DL1.y = PE.y - P1.y;
-		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
-		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
-		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
-		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
-
+//		Point &PE = p;
+//		Point P1 = grid.cells[c1].c;
+//		Vector DL1;
+//		DL1.x = PE.x - P1.x;
+//		DL1.y = PE.y - P1.y;
+//		pL.r += gradR[c1].x*DL1.x + gradR[c1].y*DL1.y;
+//		pL.p += gradP[c1].x*DL1.x + gradP[c1].y*DL1.y;
+//		pL.u += gradU[c1].x*DL1.x + gradU[c1].y*DL1.y;
+//		pL.v += gradV[c1].x*DL1.x + gradV[c1].y*DL1.y;
 		boundaryCond(iEdge, pL, pR);
 	}
 }
@@ -698,8 +809,13 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 	Material& m = getMaterial(c1);
 	if (edge.bnd) {
 		edge.bnd->run(iEdge, pL, pR);
-		m.URS(pR, 2);
-		m.URS(pR, 1);
+		if (instanceof<CFDBndOutlet>(edge.bnd)) {
+		    m.URS(pR, 4);
+		}
+		else {
+            m.URS(pR, 2);
+            m.URS(pR, 1);
+        }
 		pR.E = pR.e + 0.5*(pR.U2());
 		return;
 	}
@@ -708,23 +824,6 @@ void FVM_TVD::boundaryCond(int iEdge, Param& pL, Param& pR)
 		sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
 		throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
 	}
-	
-
-	//Edge &edge = grid.edges[iEdge];
-	//int c1	= grid.edges[iEdge].c1;
-	//Material& m = getMaterial(c1);
-	//if (edge.bnd) {
-	//	edge.bnd->run(iEdge, pL, pR);
-	//	m.URS(pR, 2);
-	//	m.URS(pR, 1);
-	//	return;
-	//}
-	//else {
-	//	char msg[128];
-	//	sprintf(msg, "Not defined boundary condition for edge %d\n", iEdge);
-	//	throw Exception(msg, Exception::TYPE_BOUND_UNKNOWN);
-	//}
-
 }
 
 
@@ -748,7 +847,8 @@ void FVM_TVD::done()
 	delete[] gradR;
 	delete[] gradP;
 	delete[] gradU;
-	delete[] gradV;
+    delete[] gradV;
+    delete[] gradT;
 }
 
 
@@ -807,9 +907,25 @@ void FVM_TVD::convertConsToPar(int iCell, Param & par)
 	par.v = rv[iCell]/ro[iCell];
 	par.E = re[iCell]/ro[iCell];
 	par.e = par.E-0.5*(par.u*par.u+par.v*par.v);
-	Material& mat = getMaterial(iCell);
-	mat.URS(par, 0);
-	mat.URS(par, 1);
+	getMaterial(iCell).URS(par, 3);
+}
+
+void FVM_TVD::procExchangeGrads()
+{
+    exchange(gradR);
+    exchange(gradP);
+    exchange(gradU);
+    exchange(gradV);
+    exchange(gradT);
+}
+
+
+void FVM_TVD::procExchangeFields()
+{
+    exchange(ro);
+    exchange(ru);
+    exchange(rv);
+    exchange(re);
 }
 
 

@@ -5,6 +5,7 @@
 #include <cfloat>
 #include "LimiterDG.h"
 #include "MatrixSolver.h"
+#include "MeshReader.h"
 
 #define POW_2(x) ((x)*(x))
 
@@ -435,9 +436,6 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 
 			//cellJ[i] = 0.5*fabs(a1*b2 - a2*b1);
 			cellJ[i] = 0.5*(a1*b2 - a2*b1);
-			if (cellJ[i] <= 0) {
-				int zhrv = 0;
-			}
 		}
 	}
 	else if (GP_CELL_COUNT == 3) {
@@ -480,7 +478,7 @@ void FEM_DG_IMPLICIT::calcGaussPar()
 	if (GP_EDGE_COUNT == 3) {
 		for (int i = 0; i < grid.eCount; i++) {
 			double gp1 = -3.0 / 5.0;
-			double gp2 = 0.0;
+//			double gp2 = 0.0;
 			double gp3 = 3.0 / 5.0;
 			double x1 = grid.nodes[grid.edges[i].n1].x;
 			double y1 = grid.nodes[grid.edges[i].n1].y;
@@ -722,6 +720,7 @@ void FEM_DG_IMPLICIT::convertConsToPar(int iCell, Param & par)
 	par.e = par.E - 0.5*(par.u*par.u + par.v*par.v);
 	Material& mat = getMaterial(iCell);
 	mat.URS(par, 0);
+    mat.URS(par, 1);
 }
 
 double FEM_DG_IMPLICIT::getField(int fldId, int iCell, double x, double y)
@@ -916,7 +915,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Pressure float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -925,7 +924,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS Temperature float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -936,7 +935,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if (i + 1 % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS MachNumber float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		Param p;
@@ -976,7 +975,7 @@ void FEM_DG_IMPLICIT::save(int step)
 		if ((i + 1) % 8 == 0 || i + 1 == grid.cCount) fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n", grid.cCount);
+	fprintf(fp, "SCALARS TAU float 1\nLOOKUP_TABLE default\n");
 	for (int i = 0; i < grid.cCount; i++)
 	{
 		fprintf(fp, "%25.16f ", cTau[i]*TIME_);
@@ -1269,7 +1268,7 @@ void FEM_DG_IMPLICIT::calcAy_(double **dst4, Param par, double GAM)
 
 void FEM_DG_IMPLICIT::calcRoeAverage(Param& average, Param pL, Param pR, double GAM, Vector n)
 {
-	double WI, UN, UT;
+	double WI/*, UN, UT*/;
 	//double unl = pL.u*n.x+pL.v*n.y;
 	//double unr = pR.u*n.x+pR.v*n.y;
 	//double utl = pL.u*n.y-pL.v*n.x;
@@ -1344,7 +1343,8 @@ void FEM_DG_IMPLICIT::calcIntegral()
 			consToPar(fRO, fRU, fRV, fRE, par);
 			Material& mat = getMaterial(iCell);
 			mat.URS(par, 0); // p=p(r,e)
-			double H = par.E + par.p / par.r;
+            mat.URS(par, 1);
+            double H = par.E + par.p / par.r;
 			calcA(mx, par.cz, getGAM(iCell), par.u, 1.0, par.v, 0.0, H);
 			calcA(my, par.cz, getGAM(iCell), par.u, 0.0, par.v, 1.0, H);
 			//calcAx_(my, par, getGAM(iCell));
@@ -1410,11 +1410,13 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1);
 				
 				getFields(fRO2, fRU2, fRV2, fRE2, c2, p); 
 				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
 				Material& mat2 = getMaterial(c2);
 				mat2.URS(par2, 0); // p=p(r,e)
+                mat2.URS(par2, 1);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1459,11 +1461,13 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 				consToPar(fRO1, fRU1, fRV1, fRE1, par1);
 				Material& mat1 = getMaterial(c1);
 				mat1.URS(par1, 0); // p=p(r,e)
+                mat1.URS(par1, 1);
 
 				getFields(fRO2, fRU2, fRV2, fRE2, c2, p);
 				consToPar(fRO2, fRU2, fRV2, fRE2, par2);
 				Material& mat2 = getMaterial(c2);
 				mat2.URS(par2, 0); // p=p(r,e)
+                mat2.URS(par2, 1);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1509,7 +1513,7 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
                 mat1.URS(par1, 0); // p=p(r,e)
                 mat1.URS(par1, 1); // T=T(e)
 
-				boundaryCond(iEdge, par1, par2);
+                boundaryCond(iEdge, par1, par2);
 
 				Param average;
 				calcRoeAverage(average, par1, par2, getGAM(c1), n);
@@ -1569,6 +1573,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 				consToPar(fRO, fRU, fRV, fRE, par);
 				Material& mat = getMaterial(iCell);
 				mat.URS(par, 0); // p=p(r,e)
+                mat.URS(par, 1);
 
 				double FR = par.r*par.u;
 				double FU = FR*par.u + par.p;
@@ -1635,12 +1640,14 @@ void FEM_DG_IMPLICIT::calcRHS()
 					consToPar(fRO, fRU, fRV, fRE, par1);
 					Material& mat1 = getMaterial(c1);
 					mat1.URS(par1, 0); // p=p(r,e)
+                    mat1.URS(par1, 1);
 
 					getFields(fRO, fRU, fRV, fRE, c2, p);
 					Param par2;
 					consToPar(fRO, fRU, fRV, fRE, par2);
 					Material& mat2 = getMaterial(c2);
 					mat2.URS(par2, 0); // p=p(r,e)
+                    mat2.URS(par2, 1);
 
 					calcFlux(FR, FU, FV, FE, par1, par2, grid.edges[iEdge].n, getGAM(c1));
 					
@@ -1798,7 +1805,7 @@ void FEM_DG_IMPLICIT::run()
 			t += TAU;
 		}
 
-		long tmStart = clock();
+//		long tmStart = clock();
 		solverErr = 0;
 		solverMtx->zero();
 
@@ -1844,7 +1851,7 @@ void FEM_DG_IMPLICIT::run()
 
 			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
 			{
-				Cell &cell = grid.cells[cellIndex];
+//				Cell &cell = grid.cells[cellIndex];
 
 				//if (cellIsLim(cellIndex))	continue;
 				for (int iFld = 0; iFld < FIELD_COUNT_EXT; iFld++) {
@@ -1859,7 +1866,7 @@ void FEM_DG_IMPLICIT::run()
 				limiter->run();
 			}
 
-			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
+			for (int cellIndex = 0/*, ind = 0*/; cellIndex < grid.cCount; cellIndex++)
 			{
 				Cell &cell = grid.cells[cellIndex];
 
@@ -2068,6 +2075,9 @@ void FEM_DG_IMPLICIT::addSmallMatrToBigMatr(double **mB, double **mS, int i, int
 	int jj = j * BASE_FUNC_COUNT;
 	for (int i1 = 0; i1 < BASE_FUNC_COUNT; i1++) {
 		for (int j1 = 0; j1 < BASE_FUNC_COUNT; j1++) {
+		    if (mS[i1][j1] != mS[i1][j1]) {
+		        return;
+		    }
 			mB[ii + i1][jj + j1] += mS[i1][j1];
 		}
 	}

@@ -3,7 +3,7 @@ project(cfd_2d)
 
 set(CMAKE_C_COMPILER "mpicc")
 set(CMAKE_CXX_COMPILER "mpicxx")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wno-return-type -g")
 
 
 set(CONTRIB_DIR "${CMAKE_SOURCE_DIR}/contrib")
@@ -65,6 +65,8 @@ set(MESH_SRC
 		src/mesh/MeshReader.cpp
 		src/mesh/MeshReaderBerkleyTriangle.cpp
 		src/mesh/MeshReaderSalomeUnv.cpp
+		src/mesh/MeshReaderMsh2.cpp
+		src/mesh/MeshReaderGmsh.cpp
 )
 
 set(TINYXML_SRC

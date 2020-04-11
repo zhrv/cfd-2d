@@ -103,7 +103,6 @@ void LimiterDGCockburn::initLimiterParameters()
 				log("error: LimiterDGCockburn::initLimiterParameters() __getEdgeByCells return -1");
 			}
 		}
-		int zhrv = 0;
 	}
 }
 
@@ -308,8 +307,8 @@ void LimiterDGCockburn::run()
 				deltaU1[2][k] = thetaP * MAX(0.0, deltaU1[2][k]) - thetaM * MAX(0.0, -deltaU1[2][k]);
 			}
 			// вычисляем отлимитированные коэффициенты разложения
-			double& xb0 = grid->cells[iCell].c.x;
-			double& yb0 = grid->cells[iCell].c.y;
+//			double& xb0 = grid->cells[iCell].c.x;
+//			double& yb0 = grid->cells[iCell].c.y;
 			double& xm1 = limPm[iCell][0].x;
 			double& ym1 = limPm[iCell][0].y;
 			double& xm2 = limPm[iCell][1].x;
@@ -333,24 +332,24 @@ void LimiterDGCockburn::run()
 
 
 
-			double *pRR, *pRC;
+			double *pRR/*, *pRC*/;
 			switch (k)
 			{
 			case 0:
 				pRR = fROlim[iCell];
-				pRC = &ROc;
+//				pRC = &ROc;
 				break;
 			case 1:
 				pRR = fRUlim[iCell];
-				pRC = &RUc;
+//				pRC = &RUc;
 				break;
 			case 2:
 				pRR = fRVlim[iCell];
-				pRC = &RVc;
+//				pRC = &RVc;
 				break;
 			case 3:
 				pRR = fRElim[iCell];
-				pRC = &REc;
+//				pRC = &REc;
 				break;
 			}
 
@@ -392,10 +391,10 @@ double LimiterDGCockburn::triSquare(Point p0, Point p1, Point p2)
 void LimiterDGCockburn::choiseDirection(int& nn1, int& nn2, double& a1, double& a2, int n0, int n1, int n2, int n3, Point pm, int mm)
 {
 	int nn[3] = { n1, n2, n3 };
-	Point p[3];
-	p[0] = grid->cells[n1].c;
-	p[1] = grid->cells[n2].c;
-	p[2] = grid->cells[n3].c;
+//	Point p[3];
+//	p[0] = grid->cells[n1].c;
+//	p[1] = grid->cells[n2].c;
+//	p[2] = grid->cells[n3].c;
 	for (int m = 0; m < 3; m++)
 	{
 		nn1 = nn[m];
@@ -487,8 +486,8 @@ void LimiterDGCockburn::calcLimiter_II()
 		double y2 = grid->getNode(grid->cells[k].nodesInd[1]).y;//yi1(int(point2(k)))
 		double y3 = grid->getNode(grid->cells[k].nodesInd[2]).y;//yi1(int(point3(k)))
 
-		double xc = (x1 + x2 + x3) / 3.;
-		double yc = (y1 + y2 + y3) / 3.;
+//		double xc = (x1 + x2 + x3) / 3.;
+//		double yc = (y1 + y2 + y3) / 3.;
 
 		//dx = fdx(k)
 		//dy = fdy(k)

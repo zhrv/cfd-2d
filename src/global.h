@@ -2,6 +2,7 @@
 #define _GLOBAL_H_
 
 #include <string.h>
+#include <string>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +15,7 @@
 	#define MK_DIR(name) _mkdir("mesh");
 #else
 	#include <sys/stat.h>
-	#define MK_DIR(name) mkdir("mesh", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	#define MK_DIR(name) mkdir(name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 
 
@@ -155,17 +156,17 @@ struct MATRIX
 		memcpy(elem, m.elem, count*sizeof(double));
 	}
 
-	MATRIX&		operator  =		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] = x;	}	
+	MATRIX&		operator  =		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] = x;	return *this; }
 
-	MATRIX&		operator +=		(const MATRIX& v)		{ for (int i = 0; i < count; i++) elem[i] += v.elem[i]; }	
+	MATRIX&		operator +=		(const MATRIX& v)		{ for (int i = 0; i < count; i++) elem[i] += v.elem[i]; return *this; }
 
-	MATRIX&		operator +=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] += x;	}	
+	MATRIX&		operator +=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] += x;	return *this; }
 
-	MATRIX&		operator -=		(const MATRIX& v)		{ for (int i = 0; i < count; i++) elem[i] -= v.elem[i];	}		
+	MATRIX&		operator -=		(const MATRIX& v)		{ for (int i = 0; i < count; i++) elem[i] -= v.elem[i];	return *this; }
 	
-	MATRIX&		operator -=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] -= x; }
+	MATRIX&		operator -=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] -= x; return *this; }
 
-	MATRIX&		operator *=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] *= x; }		
+	MATRIX&		operator *=		(const double& x)		{ for (int i = 0; i < count; i++) elem[i] *= x; return *this; }
 
 
 	double *	elem;
@@ -178,18 +179,34 @@ struct MATRIX
  */
 struct Param
 {
-	double r;		//!< ?????????
-	double p;		//!< ????????
-	double e;		//!< ?????????? ???????
-	double E;		//!< ?????? ???????
-	double u;		//!< ?????? ?????????? ??????? ????????
-	double v;		//!< ?????? ?????????? ??????? ????????
-	double cz;		//!< ???????? ?????
-	double T;		//!< ???????????
-	double ML;		//!< ???????????? ????????
-	
+	double r;		//!< плотность
+	double p;		//!< давление
+	double e;		//!< внутренняя энергия
+	double E;		//!< полная энергия
+	double u;		//!< первая компонента вектора скорости
+	double v;		//!< вторая компонента вектора скорости
+	double cz;		//!< скорость звука
+	double T;		//!< температура
+	double ML;		//!< динамическая вязкость
+	double gam;     //!< показатель адиабаты
+
 	inline double U2() { return  u*u + v*v; }
 	inline double magU() { return sqrt(U2()); }
+
+	inline bool isNaN() {
+	    bool res = false;
+        res |= isnan(r);
+        res |= isnan(p);
+        res |= isnan(e);
+        res |= isnan(E);
+        res |= isnan(u);
+        res |= isnan(v);
+        res |= isnan(cz);
+        res |= isnan(T);
+        res |= isnan(ML);
+        res |= isnan(gam);
+        return res;
+	}
 };
 
 /**
@@ -236,24 +253,27 @@ struct Boundary
 	static const int BOUND_WALL		= 3;
 };
 
-class Exception
+class Exception : std::exception
 {
 public:
-	static const int TYPE_BOUND_NOPAR = 101;
-	static const int TYPE_BOUND_UNKNOWN = 102;
+	static const int TYPE_BOUND_NOPAR                           = 101;
+	static const int TYPE_BOUND_UNKNOWN                         = 102;
 
-	static const int TYPE_MESH_WRONG_NAME = 201;
-	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT = 221;
-	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE = 222;
+	static const int TYPE_MESH_WRONG_NAME                       = 201;
+	static const int TYPE_MESH_UNV_UNKNOWN_ELEMENT              = 221;
+	static const int TYPE_MESH_UNV_NOT_DEFINED_BND_EDGE         = 222;
 
-	static const int FILE_OPENING_ERROR = 301;
+    static const int TYPE_MESH_GMSH_NOT_DEFINED_BND_EDGE        = 223;
+    static const int TYPE_MESH_GMSH_WRONG_EDGE                  = 224;
 
-	Exception(char* msg, int t) : message(msg), type(t) {}
-	char* getMessage() { return message; }
+    static const int FILE_OPENING_ERROR = 301;
+
+	Exception(std::string msg, int t) : message(msg), type(t) {}
+    std::string getMessage() { return message; }
 	int getType() { return type; }
 
 private:
-	char* message;
+	std::string message;
 	int type;
 };
 
@@ -268,11 +288,17 @@ struct Parallel
 
 	static void send(int pid, int tag, int n, double* data);
 	static void send(int pid, int tag, int n, int* data);
-	static void send(int pid, int tag, int n, VECTOR* data);
+    static void send(int pid, int tag, int n, VECTOR* data);
+    static void send(int pid, int tag, int n, Vector* data);
 
 	static void recv(int pid, int tag, int n, double* data);
 	static void recv(int pid, int tag, int n, int* data);
-	static void recv(int pid, int tag, int n, VECTOR* data);
+    static void recv(int pid, int tag, int n, VECTOR* data);
+    static void recv(int pid, int tag, int n, Vector* data);
+
+
+    static double glob_min(double data);
+    static double glob_max(double data);
 
 	//static void bcast(int tag, int n, double* data);
 	//static void bcast(int tag, int n, int* data);
@@ -290,10 +316,14 @@ inline double scalar_prod(Vector a, Vector b) { return a.x*b.x + a.y*b.y; }
 inline double vector_prod(Vector a, Vector b) { return a.x*b.y - a.y*b.x; }
 
 extern void log(char * format, ...);
+extern void log(const char * format, ...);
 extern void EXIT(int err);
 extern void inverseMatr(double** a_src, double **am, int N);
 
-
+template<typename Base, typename T>
+inline bool instanceof(const T *ptr) {
+    return dynamic_cast<const Base*>(ptr) != nullptr;
+}
 
 /**
  *	??????? ?????? ? ??????? ????????????? ???????

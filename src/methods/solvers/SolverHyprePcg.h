@@ -4,6 +4,6 @@ class SolverHyprePcg : public SolverHypre
 {
 public:
 	virtual int solve(double eps, int& maxIter);
-	virtual char* getName() { return "HYPRE PCG"; }
+	virtual char* getName() { return (char*)"HYPRE PCG"; }
 };
 

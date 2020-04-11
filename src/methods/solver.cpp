@@ -23,18 +23,19 @@ Method* Solver::initMethod(char* fileName)
 	}
 	
 	TiXmlNode* task = 0;
-	TiXmlElement* el = 0;
-	TiXmlNode* node0 = 0;
-	TiXmlNode* node1 = 0;
+//	TiXmlElement* el = 0;
+//	TiXmlNode* node0 = 0;
+//	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 	//char methodName[50];
 	const char * methodName = task->ToElement()->Attribute("method");
 
-	if (strcmp("DECOMP", methodName) == 0)
-	{
-		m = new Decomp();
-	}
-	else if (strcmp("FVM_TVD", methodName) == 0) 
+//	if (strcmp("DECOMP", methodName) == 0)
+//	{
+//		m = new Decomp();
+//	}
+//	else
+	if (strcmp("FVM_TVD", methodName) == 0)
 	{
 		m = new FVM_TVD();
 	}

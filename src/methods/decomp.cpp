@@ -43,19 +43,13 @@ void Decomp::init(char * xmlFileName)
 	}
 	
 	TiXmlNode* task = 0;
-	TiXmlElement* el = 0;
+//	TiXmlElement* el = 0;
 	TiXmlNode* node0 = 0;
-	TiXmlNode* node1 = 0;
+//	TiXmlNode* node1 = 0;
 	task = doc.FirstChild( "task" );
 
 
-	node0 = task->FirstChild("decomp");
-	node0->FirstChild("processors")->ToElement()->Attribute("value", &procCount);
-
 	grids = new Grid[procCount];
-
-	//const char* fName = task->FirstChild("mesh")->FirstChild("name")->ToElement()->Attribute("value");
-	//grid.initFromFiles((char*)fName);
 
 	/* Чтение данных сетки. */
 	node0 = task->FirstChild("mesh");
@@ -144,8 +138,7 @@ void Decomp::run()
 	log(" Written file 'parts.vtk'...\n");
 
 	// формирование файлов c данными сетки для каждого процессора
-	MK_DIR('mesh'); // @todo: добавить удаление старого содержимого
-	MK_DIR('vtk_data');  
+	MK_DIR("mesh"); // @todo: добавить удаление старого содержимого
 	int * nProc = new int[procCount];
 	memset(nProc, 0, procCount*sizeof(int));
 	for (int i = 0; i < n; i++)
@@ -156,8 +149,8 @@ void Decomp::run()
 	std::vector<ProcMesh> procMesh;
 	for (int p = 0; p < procCount; p++)	{
 		ProcMesh pm;
-		int np = nProc[p];
-		int ep = 0;
+//		int np = nProc[p];
+//		int ep = 0;
 		//int * cellGlobalIdx = NULL;
 		//int * cellFlag = NULL;
 		indexes procCellEx;
@@ -169,7 +162,7 @@ void Decomp::run()
 				pm.gCells.push_back(i);
 			}
 		}
-		for (int i = 0; i < pm.gCells.size(); i++)
+		for (size_t i = 0; i < pm.gCells.size(); i++)
 		{
 			Cell& c = grid.cells[pm.gCells[i]];
 			for (int j = 0; j < 3; j++)
@@ -181,7 +174,7 @@ void Decomp::run()
 
 		pm.cCount = pm.gCells.size();
 		pm.cCountEx = pm.cCount + procCellEx.size();
-		for (int i = 0; i < procCellEx.size(); i++) 
+		for (size_t i = 0; i < procCellEx.size(); i++)
 		{
 			pm.gCells.push_back(procCellEx[i]);
 		}

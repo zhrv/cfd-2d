@@ -2,6 +2,7 @@
 #include "fem_dg.h"
 #include "MatrixSolver.h"
 #include "LimiterDG.h"
+#include "bnd_cond.h"
 
 class FEM_DG_IMPLICIT : public FEM_DG
 {
@@ -132,7 +133,7 @@ private:
 	int				bCount;
 	Material	   *materials;
 	Region		   *regions;
-	CFDBoundaries  boundaries;
+	CFDBoundaries   boundaries;
 
 
 	double			***fields;
