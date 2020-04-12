@@ -1,11 +1,17 @@
 #include "bnd_cond.h"
 #include "grid.h"
 
-const char* CFDBoundary::TYPE_INLET = "BOUND_INLET";
-const char* CFDBoundary::TYPE_OUTLET = "BOUND_OUTLET";
-const char* CFDBoundary::TYPE_PRESSURE = "BOUND_PRESSURE";
-const char* CFDBoundary::TYPE_WALL_SLIP = "BOUND_WALL_SLIP";
-const char* CFDBoundary::TYPE_WALL_NO_SLIP = "BOUND_WALL_NO_SLIP";
+const char* CFDBoundary::TYPE_INLET         = "BOUND_INLET";
+const char* CFDBoundary::TYPE_OUTLET        = "BOUND_OUTLET";
+const char* CFDBoundary::TYPE_PRESSURE      = "BOUND_PRESSURE";
+const char* CFDBoundary::TYPE_WALL_SLIP     = "BOUND_WALL_SLIP";
+const char* CFDBoundary::TYPE_WALL_NO_SLIP  = "BOUND_WALL_NO_SLIP";
+
+const int CFDBoundary::TYPE_ID_INLET            = 0;
+const int CFDBoundary::TYPE_ID_OUTLET           = 1;
+const int CFDBoundary::TYPE_ID_PRESSURE         = 2;
+const int CFDBoundary::TYPE_ID_WALL_SLIP        = 3;
+const int CFDBoundary::TYPE_ID_WALL_NO_SLIP     = 4;
 
 
 CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
@@ -18,7 +24,8 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 
 	if (strcmp(type, CFDBoundary::TYPE_INLET) == 0) {
 		b = new CFDBndInlet();
-		bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+		//bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        b->edgeType = CFDBoundary::TYPE_ID_INLET;
 		b->parCount = 4;
 		b->par = new double[4];
 		node = bNode->FirstChild("parameters");
@@ -42,8 +49,9 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 
 	if (strcmp(type, CFDBoundary::TYPE_OUTLET) == 0) {
 		b = new CFDBndOutlet();
-		bNode->ToElement()->Attribute("edgeType", &b->edgeType);
-		b->parCount = 1;
+		//bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        b->edgeType = CFDBoundary::TYPE_ID_OUTLET;
+        b->parCount = 1;
         b->par = new double[1];
         node = bNode->FirstChild("parameters");
 
@@ -54,8 +62,9 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 
 	if (strcmp(type, CFDBoundary::TYPE_WALL_NO_SLIP) == 0) {
 		b = new CFDBndWallNoSlip();
-		bNode->ToElement()->Attribute("edgeType", &b->edgeType);
-		b->parCount = 1;
+		//bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        b->edgeType = CFDBoundary::TYPE_ID_WALL_NO_SLIP;
+        b->parCount = 1;
         b->par = new double[1];
         node = bNode->FirstChild("parameters");
 
@@ -66,14 +75,16 @@ CFDBoundary* CFDBoundary::create(TiXmlNode* bNode, Grid * g)
 
     if (strcmp(type, CFDBoundary::TYPE_WALL_SLIP) == 0) {
         b = new CFDBndWallSlip();
-        bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        //bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        b->edgeType = CFDBoundary::TYPE_ID_WALL_SLIP;
         b->parCount = 0;
         b->par = nullptr;
     }
 
     if (strcmp(type, CFDBoundary::TYPE_PRESSURE) == 0) {
         b = new CFDBndPressure();
-        bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        //bNode->ToElement()->Attribute("edgeType", &b->edgeType);
+        b->edgeType = CFDBoundary::TYPE_ID_PRESSURE;
         b->parCount = 2;
         b->par = new double[2];
 

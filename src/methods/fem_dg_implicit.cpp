@@ -2139,7 +2139,8 @@ void FEM_DG_IMPLICIT::calcLiftForce()
 	Fx = Fy = 0.0;
 	for (int iEdge = 0; iEdge < grid.eCount; ++iEdge)
 	{
-		if (grid.edges[iEdge].type == Edge::TYPE_WALL)
+	    if (!grid.edges[iEdge].bnd) continue;
+		if (grid.edges[iEdge].bnd->edgeType == CFDBoundary::TYPE_ID_WALL_NO_SLIP)
 		{
 			int			cellIndex = grid.edges[iEdge].c1;
 			double		nx = grid.edges[iEdge].n.x;

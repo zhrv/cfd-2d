@@ -24,11 +24,16 @@ struct CFDBoundary
 	int			parCount;
 	Grid *		g;
 
-	static const char* TYPE_INLET;
-	static const char* TYPE_OUTLET;
+    static const char* TYPE_INLET;
+    static const char* TYPE_OUTLET;
     static const char* TYPE_PRESSURE;
-	static const char* TYPE_WALL_SLIP;
+    static const char* TYPE_WALL_SLIP;
     static const char* TYPE_WALL_NO_SLIP;
+    static const int TYPE_ID_INLET;
+    static const int TYPE_ID_OUTLET;
+    static const int TYPE_ID_PRESSURE;
+    static const int TYPE_ID_WALL_SLIP;
+    static const int TYPE_ID_WALL_NO_SLIP;
 
 };
 typedef std::vector< CFDBoundary* > CFDBoundaries;
