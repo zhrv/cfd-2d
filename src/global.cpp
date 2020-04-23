@@ -42,8 +42,15 @@ void log(char * format, ...)
 
     va_start(arglist,format);
 
-    vprintf(format, arglist);
+    //vprintf(format, arglist);
     vfprintf(hLog, format, arglist);
+
+    va_end(arglist);
+
+    va_start(arglist,format);
+
+    vprintf(format, arglist);
+    //vfprintf(hLog, format, arglist);
 
     va_end(arglist);
 
@@ -58,8 +65,15 @@ void log(const char * format, ...)
 
     va_start(arglist,format);
 
-    vprintf(format, arglist);
+    //vprintf(format, arglist);
     vfprintf(hLog, format, arglist);
+
+    va_end(arglist);
+
+    va_start(arglist,format);
+
+    vprintf(format, arglist);
+    //vfprintf(hLog, format, arglist);
 
     va_end(arglist);
 

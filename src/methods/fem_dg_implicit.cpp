@@ -3,6 +3,7 @@
 #include "global.h"
 #include <ctime>
 #include <cfloat>
+#include <fstream>
 #include "LimiterDG.h"
 #include "MatrixSolver.h"
 #include "MeshReader.h"
@@ -1812,6 +1813,7 @@ void FEM_DG_IMPLICIT::calcRHS()
 
 void FEM_DG_IMPLICIT::run()
 {
+    std::ofstream fforces("forces.csv");
 	//double __GAM = 1.4;
 	
 	//// инициализируем портрет матрицы
@@ -1976,6 +1978,7 @@ void FEM_DG_IMPLICIT::run()
 			if (step % PRINT_STEP == 0)
 			{
 				calcLiftForce();
+				fforces << step << ", " << Fx << ", " << Fy << std::endl;
 				if (!STEADY) {
 
 					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
@@ -2002,6 +2005,8 @@ void FEM_DG_IMPLICIT::run()
 			}
 		}
 	}
+
+	fforces.close();
 }
 
 void FEM_DG_IMPLICIT::calcFlux(double& fr, double& fu, double& fv, double& fe, Param pL, Param pR, Vector n, double GAM)
