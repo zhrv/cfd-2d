@@ -34,6 +34,9 @@ void MeshReaderMsh2::read(Grid* g)
     std::sprintf(str, "%s.msh", fileName);
     log("Reading file '%s'\n", str);
     std::ifstream file(str);
+    if (!file.is_open()) {
+        throw Exception("Wrong mesh file.", Exception::FILE_OPENING_ERROR);
+    }
     string_list patches;
     while (getline(file, line)) {
         if (line[0] == '$') {

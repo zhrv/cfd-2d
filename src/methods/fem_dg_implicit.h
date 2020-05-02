@@ -64,11 +64,11 @@ private:
 	void calcMatrFlux();			//!< Вычисляем потоковые величины
 	void calcRHS();					//!< Вычисляем столбец правых членов
 	void calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
-	void calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx
-	void calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
+	void calcViscIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx
+	void calcMatrViscFlux();	//!< Вычисляем потоковые величины от диффузионных членов
 	void calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
 	void calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
-    void calcDiffusionRHS();					//!< Вычисляем столбец правых членов
+    void calcViscRHS();					//!< Вычисляем столбец правых членов
 
 	void calcLiftForce();
 

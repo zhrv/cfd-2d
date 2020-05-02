@@ -241,7 +241,6 @@ void FEM_DG_IMPLICIT::init(char * xmlFileName)
             exit(e.getType());
         }
 
-        // TODO: !!!! ??????? ??? ????????????????
         if (b->parCount == 4) {
             b->par[0] /= U_;
             b->par[1] /= U_;
@@ -1373,7 +1372,6 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 void FEM_DG_IMPLICIT::calcIntegral()
 {
 	double fRO, fRU, fRV, fRE;
-	double FR, FU, FV, FE;
 	double **mx = allocMtx7();
 	double **my = allocMtx7();
 
@@ -1859,7 +1857,7 @@ void FEM_DG_IMPLICIT::run()
         /* Заполняем правую часть */
         calcRHS();
         /* Заполняем правую часть от диффузионных членов уравнений */
-        calcDiffusionRHS();
+        calcViscRHS();
 
 		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
 		if (STEADY) {
@@ -1881,8 +1879,8 @@ void FEM_DG_IMPLICIT::run()
 
 		/* Заполняем элементы матрицы от диффузионных членов уравнений */
         calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
-        calcDiffusionIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx и (dG / dU)*dFi / dx
-        calcMatrDiffusionFlux();	//!< Вычисляем потоковые величины от диффузионных членов
+        calcViscIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx и (dG / dU)*dFi / dx
+        calcMatrViscFlux();	//!< Вычисляем потоковые величины от диффузионных членов
         calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
         calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
 
@@ -1981,7 +1979,7 @@ void FEM_DG_IMPLICIT::run()
 				fforces << step << ", " << Fx << ", " << Fy << std::endl;
 				if (!STEADY) {
 
-					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t*TIME_, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
 				}
 				else {
 					log("step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
@@ -2226,9 +2224,8 @@ void FEM_DG_IMPLICIT::calcMatrTensor() {
     }
 }
 
-void FEM_DG_IMPLICIT::calcDiffusionIntegral() {
+void FEM_DG_IMPLICIT::calcViscIntegral() {
     double fRO, fRU, fRV, fRE, fTAU_XX, fTAU_XY, fTAU_YY;
-    double FR, FU, FV, FE;
     double **mx = allocMtx7();
     double **my = allocMtx7();
 
@@ -2246,7 +2243,7 @@ void FEM_DG_IMPLICIT::calcDiffusionIntegral() {
             Material& mat = getMaterial(iCell);
             mat.URS(par, 0); // p=p(r,e)
             mat.getML(par);
-            double H = par.E + par.p / par.r;
+            //double H = par.E + par.p / par.r;
 
             calcJ(mx, par.r, par.u, 1.0, par.v, 0.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
             calcJ(my, par.r, par.u, 0.0, par.v, 1.0, par.ML, fTAU_XX, fTAU_XY, fTAU_YY);
@@ -2275,7 +2272,7 @@ void FEM_DG_IMPLICIT::calcDiffusionIntegral() {
     freeMtx7(my);
 }
 
-void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
+void FEM_DG_IMPLICIT::calcMatrViscFlux() {
     double  **Amtx7P, **Amtx7M;
 
     Amtx7P = allocMtx7();
@@ -2390,7 +2387,6 @@ void FEM_DG_IMPLICIT::calcMatrDiffusionFlux() {
 
 void FEM_DG_IMPLICIT::calcTensorIntegral() {
     double fRO, fRU, fRV, fRE, fTAU_XX, fTAU_XY, fTAU_YY;
-    double FR, FU, FV, FE;
     double **mx = allocMtx7();
     double **my = allocMtx7();
 
@@ -2605,7 +2601,7 @@ void FEM_DG_IMPLICIT::calcJ(double **dst7, double r, double u, double nx, double
     dst7[6][0] = -mu*(-2.*u*nx + 4.*v*ny) / 3. / r; dst7[6][1] = -2.*mu*nx / 3. / r; dst7[6][2] = 4.*mu*ny / 3. / r; dst7[6][3] = 0.0; dst7[6][4] = 0.0; dst7[6][5] = 0.0; dst7[6][6] = 0.0;
 }
 
-void FEM_DG_IMPLICIT::calcDiffusionRHS() {
+void FEM_DG_IMPLICIT::calcViscRHS() {
 
     /* volume integral */
 
@@ -2678,6 +2674,7 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
 
         solverMtx->addRightElement(iCell, tmpArr);
     }
+
     // W^m contribution
     for (int iCell = 0; iCell < grid.cCount; iCell++) {
         memset(tmpArr, 0, sizeof(double)*MATR_DIM);
@@ -2762,10 +2759,10 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
 
                     FS2 = 0.5*((fTAU_XX1 + fTAU_XX2)*n.x + (fTAU_XY1 + fTAU_XY2)*n.y);
                     FS3 = 0.5*((fTAU_XY1 + fTAU_XY2)*n.x + (fTAU_YY1 + fTAU_YY2)*n.y);
-                    FS4 = 0.5*((fTAU_XX1*par1.u + fTAU_XY1*par1.v + fTAU_XX2*par2.u + fTAU_XY2*par2.v)*n.x + (fTAU_XY1*par1.u + fTAU_YY1*par1.v + fTAU_XY2*par2.u + fTAU_YY2*par2.v)*n.y);
-                    FS5 = 0.5*(par1.ML + par2.ML)*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
-                    FS6 = 0.5*(par1.ML + par2.ML)*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
-                    FS7 = 0.5*(par1.ML + par2.ML)*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
+                    FS4 = 0.25*(((fTAU_XX1 + fTAU_XX2)*(par1.u+par2.u) + (fTAU_XY1+fTAU_XY2)*(par1.v+par2.v))*n.x + ((fTAU_XY1+fTAU_XY2)*(par1.u+par2.u) + (fTAU_YY1+fTAU_YY2)*(par1.v + par2.v))*n.y);
+                    FS5 = 0.25*(par1.ML + par2.ML)*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
+                    FS6 = 0.25*(par1.ML + par2.ML)*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
+                    FS7 = 0.25*(par1.ML + par2.ML)*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
 
                     double cGP1 = w * getF(iBF, c1, p);
                     double cGP2 = w * getF(iBF, c2, p);
@@ -2823,7 +2820,7 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
             solverMtx->addRightElement(c2, tmpArr2);
         }
         else {
-            if (strcmp(grid.edges[iEdge].typeName, CFDBoundary::TYPE_WALL_NO_SLIP) == 0){
+            if (grid.edges[iEdge].bnd->edgeType == CFDBoundary::TYPE_ID_WALL_NO_SLIP){
                 for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
                     //double sRO1 = 0.0;
                     double sRU1 = 0.0;
@@ -2831,7 +2828,6 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
                     double sRE1 = 0.0;
 
                     double fRO, fRU, fRV, fRE;
-                    double FR, FU, FV, FE;
                     double fDL = grid.edges[iEdge].l;
                     Point  pC  = grid.edges[iEdge].c[0];
 
@@ -2859,7 +2855,7 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
                     Vector vVt = vV;  vVt -= vVn;
 
                     double fMU = par1.ML;			// молекулярная вязкость
-                    double fKP = 0.0;			// коэффициент теплопроводности TODO: добавить в код
+                    //double fKP = 0.0;			// коэффициент теплопроводности TODO: добавить в код
 
                     Vector vRP  = grid.edges[iEdge].c[0];
                     vRP -= grid.cells[c1].c;			// расстояние от центра ячейки до центра грани
@@ -2888,9 +2884,8 @@ void FEM_DG_IMPLICIT::calcDiffusionRHS() {
                     tmpArr1[shift + iBF] = sRE1; //shift += BASE_FUNC_COUNT;
 
                 }
+                solverMtx->addRightElement(c1, tmpArr1);
             }
-
-            solverMtx->addRightElement(c1, tmpArr1);
         }
     }
 }
