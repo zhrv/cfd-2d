@@ -573,15 +573,23 @@ void FEM_DG_IMPLICIT::memAlloc()
 	int n = grid.cCount;
 	cTau = new double[n];
 
-	ro = new double*[n];
-	ru = new double*[n];
-	rv = new double*[n];
-	re = new double*[n];
+    ro = new double*[n];
+    ru = new double*[n];
+    rv = new double*[n];
+    re = new double*[n];
     tau_xx = new double*[n];
     tau_xy = new double*[n];
     tau_yy = new double*[n];
 
-	cellGP = new Point*[n];
+    ro_old = new double*[n];
+    ru_old = new double*[n];
+    rv_old = new double*[n];
+    re_old = new double*[n];
+    tau_xx_old = new double*[n];
+    tau_xy_old = new double*[n];
+    tau_yy_old = new double*[n];
+
+    cellGP = new Point*[n];
 	cellGW = new double*[n];
 	cellJ = new double[n];
 
@@ -593,15 +601,23 @@ void FEM_DG_IMPLICIT::memAlloc()
 	matrInvA	= new double**[n];
 
 	for (int i = 0; i < n; i++) {
-		ro[i] = new double[BASE_FUNC_COUNT];
-		ru[i] = new double[BASE_FUNC_COUNT];
-		rv[i] = new double[BASE_FUNC_COUNT];
-		re[i] = new double[BASE_FUNC_COUNT];
+        ro[i] = new double[BASE_FUNC_COUNT];
+        ru[i] = new double[BASE_FUNC_COUNT];
+        rv[i] = new double[BASE_FUNC_COUNT];
+        re[i] = new double[BASE_FUNC_COUNT];
         tau_xx[i] = new double[BASE_FUNC_COUNT];
         tau_xy[i] = new double[BASE_FUNC_COUNT];
         tau_yy[i] = new double[BASE_FUNC_COUNT];
 
-		cellGP[i] = new Point[GP_CELL_COUNT];
+        ro_old[i] = new double[BASE_FUNC_COUNT];
+        ru_old[i] = new double[BASE_FUNC_COUNT];
+        rv_old[i] = new double[BASE_FUNC_COUNT];
+        re_old[i] = new double[BASE_FUNC_COUNT];
+        tau_xx_old[i] = new double[BASE_FUNC_COUNT];
+        tau_xy_old[i] = new double[BASE_FUNC_COUNT];
+        tau_yy_old[i] = new double[BASE_FUNC_COUNT];
+
+        cellGP[i] = new Point[GP_CELL_COUNT];
 		cellGW[i] = new double[GP_CELL_COUNT];
 
 		matrA[i] = allocMtx(BASE_FUNC_COUNT);
@@ -1365,7 +1381,7 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 		//}
 
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
-
+9
 	}
 }
 
@@ -1596,11 +1612,36 @@ void FEM_DG_IMPLICIT::calcMatrFlux()
 
 void FEM_DG_IMPLICIT::calcRHS()
 {
-	/* volume integral */
 
 	//const int arrSize = BASE_FUNC_COUNT * 4;
 
+	for (int iCell = 0; iCell < grid.cCount; iCell++) {
+        memset(tmpArr1, 0, sizeof(double)*MATR_DIM);
+        memset(tmpArr2, 0, sizeof(double)*MATR_DIM);
 
+        for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+            int shift = 0;
+            tmpArr1[shift + iBF] = -(ro[iCell][iBF]-ro_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+            tmpArr1[shift + iBF] = -(ru[iCell][iBF]-ru_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+            tmpArr1[shift + iBF] = -(rv[iCell][iBF]-rv_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+            tmpArr1[shift + iBF] = -(re[iCell][iBF]-re_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+
+//            tmpArr1[shift + iBF] = (tau_xx[iCell][iBF]-tau_xx_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+//            tmpArr1[shift + iBF] = (tau_xy[iCell][iBF]-tau_xy_old[iCell][iBF])/cTau[iCell]; shift += BASE_FUNC_COUNT;
+//            tmpArr1[shift + iBF] = (tau_yy[iCell][iBF]-tau_yy_old[iCell][iBF])/cTau[iCell]; //shift += BASE_FUNC_COUNT;
+        }
+
+        for (int iF = 0, shift = 0; iF < FIELD_COUNT; iF++, shift += BASE_FUNC_COUNT) {
+            double *fld1 = &tmpArr1[shift];
+            double *fld2 = &tmpArr2[shift];
+
+            multMtxVecN(fld2, matrA[iCell], fld1, BASE_FUNC_COUNT);
+        }
+
+        solverMtx->addRightElement(iCell, tmpArr2);
+	}
+
+    /* volume integral */
 	for (int iCell = 0; iCell < grid.cCount; iCell++) {
 		memset(tmpArr, 0, sizeof(double)*MATR_DIM);
 		for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
@@ -1812,37 +1853,18 @@ void FEM_DG_IMPLICIT::calcRHS()
 void FEM_DG_IMPLICIT::run()
 {
     std::ofstream fforces("forces.csv");
-	//double __GAM = 1.4;
-	
-	//// инициализируем портрет матрицы
-	//log("Matrix structure initialization:\n");
-	//CSRMatrix::DELTA = 65536;
-	//for (int iEdge = 0; iEdge < grid.eCount; iEdge++) {
-	//	int		c1 = grid.edges[iEdge].c1;
-	//	int		c2 = grid.edges[iEdge].c2;
-	//	solverMtx->createMatrElement(c1, c1);
-	//	if (c2 >= 0){
-	//		solverMtx->createMatrElement(c1, c2);
-	//		solverMtx->createMatrElement(c2, c2);
-	//		solverMtx->createMatrElement(c2, c1);
-	//	}
-	//	if (iEdge % 100 == 0) {
-	//		log("\tfor edge: %d\n", iEdge);
-	//	}
-	//}
-	//solverMtx->initCSR();
-	//log("\tcomplete...\n");
 
 	int solverErr = 0;
 	double t = 0.0;
 	int step = 0;
 	long totalCalcTime = 0;
+	bool stepOK = false;
+	double eps2 = SOLVER_EPS*SOLVER_EPS;
 	while (t < TMAX && step < STEP_MAX) {
 		long timeStart, timeEnd;
 		timeStart = clock();
 
-		if (!solverErr) step++;
-		
+
 		if (STEADY) {
 			calcTimeStep();
 		}
@@ -1850,158 +1872,247 @@ void FEM_DG_IMPLICIT::run()
 			t += TAU;
 		}
 
-//		long tmStart = clock();
-		solverErr = 0;
-		solverMtx->zero();
+		int newtonIterations = 0;
 
-        /* Заполняем правую часть */
-        calcRHS();
-        /* Заполняем правую часть от диффузионных членов уравнений */
-        calcViscRHS();
+        copyToOld();
 
-		/* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
-		if (STEADY) {
-			double minTau = DBL_MAX;
-			for (int iCell = 0; iCell < grid.cCount; iCell++)
-			{
-				//Param p;
-				//convertConsToPar(iCell, p);
-				cTau[iCell] = CFL*grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
-				if (cTau[iCell] < minTau) minTau = cTau[iCell];
-			}
-			log("MIN_TAU = %25.15e\n", minTau);
-		}
+        char indicator[8] = { '|', '/', '-', '\\', '|', '/', '-', '\\' };
+        char bcksp = 8;
+        char del = 127;
+        int iInd = 0;
+        while (newtonIterations < 100) {
+            newtonIterations++;
 
-		/* Заполняем элементы матрицы */
-		calcMatrWithTau();		// вычисляем матрицы перед производной по времени
-		calcIntegral();			// вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
-		calcMatrFlux();			// Вычисляем потоковые величины
 
-		/* Заполняем элементы матрицы от диффузионных членов уравнений */
-        calcMatrTensor();			//!< Вычисляем матрицы перед компонентами тензора вязких напряжений
-        calcViscIntegral(); 	//!< Вычисляем интеграл от (dH / dU)*dFi / dx и (dG / dU)*dFi / dx
-        calcMatrViscFlux();	//!< Вычисляем потоковые величины от диффузионных членов
-        calcTensorIntegral();		//!< Вычисляем интеграл от (dG / dU)*dFi / dx
-        calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
+            solverErr = 0;
+            solverMtx->zero();
 
-		/* Решаем СЛАУ */
-		int maxIter = SOLVER_ITER;
-		double eps = SOLVER_EPS;
+            /* Заполняем правую часть */
+            calcRHS();
+            /* Заполняем правую часть от диффузионных членов уравнений */
+            calcViscRHS();
 
-		solverErr = solverMtx->solve(eps, maxIter);
+            /* Вычисляем шаги по времени в ячейках по насчитанным ранее значениям спектра */
+            if (STEADY) {
+                auto minTau = DBL_MAX;
+                for (int iCell = 0; iCell < grid.cCount; iCell++) {
+                    cTau[iCell] = CFL * grid.cells[iCell].S / (tmpCFL[iCell] + 1.0e-100);
+                    if (cTau[iCell] < minTau) minTau = cTau[iCell];
+                }
+                log("MIN_TAU = %25.15e\n", minTau);
+            }
 
-		if (solverErr == MatrixSolver::RESULT_OK) {
+            /* Заполняем элементы матрицы */
+            calcMatrWithTau();           // вычисляем матрицы перед производной по времени
+            calcIntegral();              // вычисляем интеграл от(dF / dU)*deltaU*dFi / dx
+            calcMatrFlux();              // Вычисляем потоковые величины
 
-			//if (SMOOTHING) smoothingDelta(solverMtx->x);
+            /* Заполняем элементы матрицы от диффузионных членов уравнений */
+            calcMatrTensor();            // Вычисляем матрицы перед компонентами тензора вязких напряжений
+            calcViscIntegral();          // Вычисляем интеграл от (dH / dU)*dFi / dx и (dG / dU)*dFi / dx
+            calcMatrViscFlux();          // Вычисляем потоковые величины от диффузионных членов
+            calcTensorIntegral();        // Вычисляем интеграл от (dG / dU)*dFi / dx
+            calcMatrTensorFlux();        // Вычисляем потоковые величины от градиента полей
 
-			for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++)
-			{
+            /* Решаем СЛАУ */
+            int maxIter = SOLVER_ITER;
+            double eps = SOLVER_EPS;
+            double err = 0.;
+
+            solverErr = solverMtx->solve(eps, maxIter);
+
+            if (solverErr == MatrixSolver::RESULT_OK) {
+
+                //if (SMOOTHING) smoothingDelta(solverMtx->x);
+
+                for (int cellIndex = 0, ind = 0; cellIndex < grid.cCount; cellIndex++) {
 //				Cell &cell = grid.cells[cellIndex];
 
-				//if (cellIsLim(cellIndex))	continue;
-				for (int iFld = 0; iFld < FIELD_COUNT_EXT; iFld++) {
-					for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
-						fields[iFld][cellIndex][iF] += solverMtx->x[ind++];
-					}
-				}
-			}
-			
-			
-			if (limiter != NULL) {
-				limiter->run();
-			}
+                    //if (cellIsLim(cellIndex))	continue;
+                    for (int iFld = 0; iFld < FIELD_COUNT_EXT; iFld++) {
+                        for (int iF = 0; iF < BASE_FUNC_COUNT; iF++) {
+                            double x = solverMtx->x[ind++];
+                            fields[iFld][cellIndex][iF] += x;
+                            err += x*x;
+                        }
+                    }
+                }
 
-			for (int cellIndex = 0/*, ind = 0*/; cellIndex < grid.cCount; cellIndex++)
-			{
-				Cell &cell = grid.cells[cellIndex];
+                stepOK = true;
+                if (err < 1.e-7) break;
 
-				Param par;
-				convertConsToPar(cellIndex, par);
-				if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-				if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-				if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-				if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-				if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-				if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-				if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
+            } else {
+                stepOK = false;
+                break;
+            }
+            iInd = (iInd + 1) % 8;
+            std::cout << "Newton method: " << indicator[iInd] << " > iteration: " << newtonIterations << " | err: " << sqrt(err) ; fflush(stderr);
+            std::cout << '\r';
+            fflush(stdout);
+        }
 
-				double fRO, fRU, fRV, fRE;
-				for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+        //std::cout << std::endl;
 
-					fRO = getField(FIELD_RO, cellIndex, cellGP[cellIndex][iGP]);
-					fRU = getField(FIELD_RU, cellIndex, cellGP[cellIndex][iGP]);
-					fRV = getField(FIELD_RV, cellIndex, cellGP[cellIndex][iGP]);
-					fRE = getField(FIELD_RE, cellIndex, cellGP[cellIndex][iGP]);
-					consToPar(fRO, fRU, fRV, fRE, par);
-					if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-					if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-					if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-					if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-					if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-					if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-					if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
-				}
+        if (stepOK) {
+            step++;
 
-				for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
-					int edgInd = cell.edgesInd[iEdge];
-					for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
-						fRO = getField(FIELD_RO, cellIndex, edgeGP[edgInd][iGP]);
-						fRU = getField(FIELD_RU, cellIndex, edgeGP[edgInd][iGP]);
-						fRV = getField(FIELD_RV, cellIndex, edgeGP[edgInd][iGP]);
-						fRE = getField(FIELD_RE, cellIndex, edgeGP[edgInd][iGP]);
-						consToPar(fRO, fRU, fRV, fRE, par);
-						if (par.r > limitRmax)			{ par.r = limitRmax;	setCellFlagLim(cellIndex); }
-						if (par.r < limitRmin)			{ par.r = limitRmin;	setCellFlagLim(cellIndex); }
-						if (fabs(par.u) > limitUmax)		{ par.u = limitUmax*par.u / fabs(par.u);	setCellFlagLim(cellIndex); }
-						if (fabs(par.v) > limitUmax)		{ par.v = limitUmax*par.v / fabs(par.v);	setCellFlagLim(cellIndex); }
-						if (par.p > limitPmax)			{ par.p = limitPmax;	setCellFlagLim(cellIndex); }
-						if (par.p < limitPmin)			{ par.p = limitPmin;	setCellFlagLim(cellIndex); }
-						if (cellIsLim(cellIndex)) 		{ par.e = par.p / ((getGAM(cellIndex) - 1)*par.r); convertParToCons(cellIndex, par); }
-					}
-				}
+            if (limiter != NULL) {
+                limiter->run();
+            }
+
+            for (int cellIndex = 0/*, ind = 0*/; cellIndex < grid.cCount; cellIndex++) {
+                Cell &cell = grid.cells[cellIndex];
+
+                Param par;
+                convertConsToPar(cellIndex, par);
+                if (par.r > limitRmax) {
+                    par.r = limitRmax;
+                    setCellFlagLim(cellIndex);
+                }
+                if (par.r < limitRmin) {
+                    par.r = limitRmin;
+                    setCellFlagLim(cellIndex);
+                }
+                if (fabs(par.u) > limitUmax) {
+                    par.u = limitUmax * par.u / fabs(par.u);
+                    setCellFlagLim(cellIndex);
+                }
+                if (fabs(par.v) > limitUmax) {
+                    par.v = limitUmax * par.v / fabs(par.v);
+                    setCellFlagLim(cellIndex);
+                }
+                if (par.p > limitPmax) {
+                    par.p = limitPmax;
+                    setCellFlagLim(cellIndex);
+                }
+                if (par.p < limitPmin) {
+                    par.p = limitPmin;
+                    setCellFlagLim(cellIndex);
+                }
+                if (cellIsLim(cellIndex)) {
+                    par.e = par.p / ((getGAM(cellIndex) - 1) * par.r);
+                    convertParToCons(cellIndex, par);
+                }
+
+                double fRO, fRU, fRV, fRE;
+                for (int iGP = 0; iGP < GP_CELL_COUNT; iGP++) {
+
+                    fRO = getField(FIELD_RO, cellIndex, cellGP[cellIndex][iGP]);
+                    fRU = getField(FIELD_RU, cellIndex, cellGP[cellIndex][iGP]);
+                    fRV = getField(FIELD_RV, cellIndex, cellGP[cellIndex][iGP]);
+                    fRE = getField(FIELD_RE, cellIndex, cellGP[cellIndex][iGP]);
+                    consToPar(fRO, fRU, fRV, fRE, par);
+                    if (par.r > limitRmax) {
+                        par.r = limitRmax;
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (par.r < limitRmin) {
+                        par.r = limitRmin;
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (fabs(par.u) > limitUmax) {
+                        par.u = limitUmax * par.u / fabs(par.u);
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (fabs(par.v) > limitUmax) {
+                        par.v = limitUmax * par.v / fabs(par.v);
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (par.p > limitPmax) {
+                        par.p = limitPmax;
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (par.p < limitPmin) {
+                        par.p = limitPmin;
+                        setCellFlagLim(cellIndex);
+                    }
+                    if (cellIsLim(cellIndex)) {
+                        par.e = par.p / ((getGAM(cellIndex) - 1) * par.r);
+                        convertParToCons(cellIndex, par);
+                    }
+                }
+
+                for (int iEdge = 0; iEdge < cell.eCount; iEdge++) {
+                    int edgInd = cell.edgesInd[iEdge];
+                    for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                        fRO = getField(FIELD_RO, cellIndex, edgeGP[edgInd][iGP]);
+                        fRU = getField(FIELD_RU, cellIndex, edgeGP[edgInd][iGP]);
+                        fRV = getField(FIELD_RV, cellIndex, edgeGP[edgInd][iGP]);
+                        fRE = getField(FIELD_RE, cellIndex, edgeGP[edgInd][iGP]);
+                        consToPar(fRO, fRU, fRV, fRE, par);
+                        if (par.r > limitRmax) {
+                            par.r = limitRmax;
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (par.r < limitRmin) {
+                            par.r = limitRmin;
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (fabs(par.u) > limitUmax) {
+                            par.u = limitUmax * par.u / fabs(par.u);
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (fabs(par.v) > limitUmax) {
+                            par.v = limitUmax * par.v / fabs(par.v);
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (par.p > limitPmax) {
+                            par.p = limitPmax;
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (par.p < limitPmin) {
+                            par.p = limitPmin;
+                            setCellFlagLim(cellIndex);
+                        }
+                        if (cellIsLim(cellIndex)) {
+                            par.e = par.p / ((getGAM(cellIndex) - 1) * par.r);
+                            convertParToCons(cellIndex, par);
+                        }
+                    }
+                }
 
 
-			}
-			remediateLimCells();
+            }
+            remediateLimCells();
 
-			int limCells = getLimitedCellsCount();
-			if (STEADY && (limCells >= maxLimCells)) decCFL();
+            int limCells = getLimitedCellsCount();
+            if (STEADY && (limCells >= maxLimCells)) decCFL();
 
-			timeEnd = clock();
-			totalCalcTime += (timeEnd - timeStart);
-			if (step % FILE_SAVE_STEP == 0)
-			{
-				save(step);
-			}
-			if (step % PRINT_STEP == 0)
-			{
-				calcLiftForce();
-				fforces << step << ", " << Fx << ", " << Fy << std::endl;
-				if (!STEADY) {
+            timeEnd = clock();
+            totalCalcTime += (timeEnd - timeStart);
+            if (step % FILE_SAVE_STEP == 0) {
+                save(step);
+            }
+            if (step % PRINT_STEP == 0) {
+                calcLiftForce();
+                fforces << step << ", " << Fx << ", " << Fy << std::endl;
+                if (!STEADY) {
 
-					log("step: %6d  time step: %.16f\tmax iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, t*TIME_, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
-				}
-				else {
-					log("step: %6d  max iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n", step, maxIter, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
-				}
-			}
+                    log("step: %6d  time step: %.16f\titer: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n",
+                        step, t * TIME_, newtonIterations, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+                } else {
+                    log("step: %6d  iter: %5d\tlim: %4d\tlift force (Fx, Fy) = (%.16f, %.16f)\ttime: %6d ms\ttotal calc time: %ld\n",
+                        step, newtonIterations, limCells, Fx, Fy, timeEnd - timeStart, totalCalcTime);
+                }
+            }
 
-			if (STEADY && (step % stepCFL == 0)) incCFL();
-		}
-		else {
-			if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
-				log("Solver error: residual condition not considered.\n");
-			}
-			if (solverErr & MatrixSolver::RESULT_ERR_MAX_ITER) {
-				log("Solver error: max iterations done.\n");
-			}
-			if (STEADY) {
-				decCFL();
-			}
-			else {
-				solverErr = 0;
-			}
-		}
+            if (STEADY && (step % stepCFL == 0)) incCFL();
+        }
+        else {
+            copyFromOld();
+            if (solverErr & MatrixSolver::RESULT_ERR_CONVERG) {
+                log("Solver error: residual condition not considered.\n");
+            }
+            if (solverErr & MatrixSolver::RESULT_ERR_MAX_ITER) {
+                log("Solver error: max iterations done.\n");
+            }
+            if (STEADY) {
+                decCFL();
+            } else {
+                solverErr = 0;
+            }
+
+        }
 	}
 
 	fforces.close();
@@ -2182,6 +2293,17 @@ void FEM_DG_IMPLICIT::multMtx7(double **dst7, double **srcA7, double **srcB7) {
             for (int k = 0; k < 7; ++k)
                 sum += srcA7[i][k] * srcB7[k][j];
             dst7[i][j] = sum;
+        }
+    }
+}
+
+void FEM_DG_IMPLICIT::multMtxVecN(double *dst, double **srcA, double *srcB, int N) {
+    for (int i = 0; i < N; ++i)
+    {
+        dst[i] = 0.;
+        for (int j = 0; j < N; ++j)
+        {
+            dst[i] += srcA[i][j] * srcB[j];
         }
     }
 }
@@ -2820,6 +2942,78 @@ void FEM_DG_IMPLICIT::calcViscRHS() {
             solverMtx->addRightElement(c2, tmpArr2);
         }
         else {
+
+            for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
+                //double s11 = 0.0;
+                double s21 = 0.0;
+                double s31 = 0.0;
+                double s41 = 0.0;
+                double s51 = 0.0;
+                double s61 = 0.0;
+                double s71 = 0.0;
+
+                for (int iGP = 0; iGP < GP_EDGE_COUNT; iGP++) {
+                    double fRO, fRU, fRV, fRE, fTAU_XX1, fTAU_XY1, fTAU_YY1, fTAU_XX2, fTAU_XY2, fTAU_YY2;
+                    double FS2, FS3, FS4, FS5, FS6, FS7;
+
+                    Point& p = edgeGP[iEdge][iGP];
+                    double w = edgeGW[iEdge][iGP];
+
+                    getFields(fRO, fRU, fRV, fRE, c1, p);
+                    Param par1;
+                    consToPar(fRO, fRU, fRV, fRE, par1);
+                    Material& mat1 = getMaterial(c1);
+                    mat1.URS(par1, 0); // p=p(r,e)
+                    mat1.getML(par1);
+                    getTensorComponents(fTAU_XX1, fTAU_XY1, fTAU_YY1, c1, p);
+
+                    getFields(fRO, fRU, fRV, fRE, c1, p);
+                    Param par2;
+                    consToPar(fRO, fRU, fRV, fRE, par2);
+                    Material& mat2 = getMaterial(c1);
+                    mat2.URS(par2, 0); // p=p(r,e)
+                    mat2.getML(par2);
+                    getTensorComponents(fTAU_XX2, fTAU_XY2, fTAU_YY2, c1, p);
+
+                    FS2 = 0.5*((fTAU_XX1 + fTAU_XX2)*n.x + (fTAU_XY1 + fTAU_XY2)*n.y);
+                    FS3 = 0.5*((fTAU_XY1 + fTAU_XY2)*n.x + (fTAU_YY1 + fTAU_YY2)*n.y);
+                    FS4 = 0.25*(((fTAU_XX1 + fTAU_XX2)*(par1.u+par2.u) + (fTAU_XY1+fTAU_XY2)*(par1.v+par2.v))*n.x + ((fTAU_XY1+fTAU_XY2)*(par1.u+par2.u) + (fTAU_YY1+fTAU_YY2)*(par1.v + par2.v))*n.y);
+                    FS5 = 0.25*(par1.ML + par2.ML)*(4.*(par1.u + par2.u) / 3.*n.x - 2.*(par1.v + par2.v) / 3.*n.y);
+                    FS6 = 0.25*(par1.ML + par2.ML)*((par1.v - 2.*par1.u / 3. + par2.v - 2.*par2.u / 3.)*n.x + (par1.u - 2.*par1.v / 3. + par2.u - 2.*par2.v / 3.)*n.y);
+                    FS7 = 0.25*(par1.ML + par2.ML)*(-2.*(par1.u + par2.u) / 3.*n.x + 4.*(par1.v + par2.v) / 3.*n.y);
+
+                    double cGP1 = w * getF(iBF, c1, p);
+
+                    //s11 += 0.;
+                    s21 += FS2*cGP1;
+                    s31 += FS3*cGP1;
+                    s41 += FS4*cGP1;
+                    s51 += FS5*cGP1;
+                    s61 += FS6*cGP1;
+                    s71 += FS7*cGP1;
+
+                }
+
+                //s11 *= edgeJ[iEdge];
+                s21 *= edgeJ[iEdge];
+                s31 *= edgeJ[iEdge];
+                s41 *= edgeJ[iEdge];
+                s51 *= edgeJ[iEdge];
+                s61 *= edgeJ[iEdge];
+                s71 *= edgeJ[iEdge];
+
+                int shift = BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s21; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s31; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s41; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s51; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s61; shift += BASE_FUNC_COUNT;
+                tmpArr1[shift + iBF] = s71; //shift += BASE_FUNC_COUNT;
+
+            }
+
+
+
             if (grid.edges[iEdge].bnd->edgeType == CFDBoundary::TYPE_ID_WALL_NO_SLIP){
                 for (int iBF = 0; iBF < BASE_FUNC_COUNT; iBF++) {
                     //double sRO1 = 0.0;
@@ -2884,9 +3078,34 @@ void FEM_DG_IMPLICIT::calcViscRHS() {
                     tmpArr1[shift + iBF] = sRE1; //shift += BASE_FUNC_COUNT;
 
                 }
-                solverMtx->addRightElement(c1, tmpArr1);
+                //solverMtx->addRightElement(c1, tmpArr1);
             }
+            solverMtx->addRightElement(c1, tmpArr1);
         }
+    }
+}
+
+void FEM_DG_IMPLICIT::copyToOld() {
+    for (int i = 0; i < grid.cCount; i++) {
+        memcpy(ro_old[i], ro[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(ru_old[i], ru[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(rv_old[i], rv[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(re_old[i], re[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_xx_old[i], tau_xx[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_xy_old[i], tau_xy[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_yy_old[i], tau_yy[i], BASE_FUNC_COUNT*sizeof(double));
+    }
+}
+
+void FEM_DG_IMPLICIT::copyFromOld() {
+    for (int i = 0; i < grid.cCount; i++) {
+        memcpy(ro[i], ro_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(ru[i], ru_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(rv[i], rv_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(re[i], re_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_xx[i], tau_xx_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_xy[i], tau_xy_old[i], BASE_FUNC_COUNT*sizeof(double));
+        memcpy(tau_yy[i], tau_yy_old[i], BASE_FUNC_COUNT*sizeof(double));
     }
 }
 

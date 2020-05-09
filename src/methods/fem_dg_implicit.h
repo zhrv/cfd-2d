@@ -70,7 +70,9 @@ private:
 	void calcMatrTensorFlux();          //!< Вычисляем потоковые величины от градиента полей
     void calcViscRHS();					//!< Вычисляем столбец правых членов
 
-	void calcLiftForce();
+	void copyToOld();
+
+    void calcLiftForce();
 
 	double** allocMtx4();
 	void freeMtx4(double **mtx4);
@@ -79,6 +81,7 @@ private:
 	double** allocMtx7();
 	void freeMtx7(double **mtx7);
 	void multMtx7(double **dst7, double **srcA7, double **srcB7);
+    void multMtxVecN(double *dst7, double **srcA7, double *srcB7, int N);
 	void clearMtx7(double **mtx7);
 	void multMtxToVal(double **dst, double x, int N);
 	void fillMtx(double** dst, double x, int N);
@@ -137,6 +140,15 @@ private:
 
 
 	double			***fields;
+
+    double **ro_old;
+    double **ru_old;
+    double **rv_old;
+    double **re_old;
+
+    double **tau_xx_old;
+    double **tau_xy_old;
+    double **tau_yy_old;
 
 	double			*tmpArr;
 	double			*tmpArr1;
@@ -223,5 +235,7 @@ protected:
     Region &getRegionByName(char *name);
 
     Region &getRegion(char *name);
+
+    void copyFromOld();
 };
 
