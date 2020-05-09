@@ -7,6 +7,7 @@
 #include "LimiterDG.h"
 #include "MatrixSolver.h"
 #include "MeshReader.h"
+#include <iostream>
 
 #define POW_2(x) ((x)*(x))
 
@@ -1381,7 +1382,7 @@ void FEM_DG_IMPLICIT::calcMatrWithTau()
 		//}
 
 		solverMtx->addMatrElement(iCell, iCell, matrBig);
-9
+
 	}
 }
 

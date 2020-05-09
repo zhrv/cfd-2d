@@ -96,7 +96,7 @@ void LimiterDGCockburn::initLimiterParameters()
 				double tmp = sqrt(limLm[iCell][m].x*limLm[iCell][m].x + limLm[iCell][m].y*limLm[iCell][m].y);
 				limLmN[iCell][m].x = limLm[iCell][m].x / tmp;
 				limLmN[iCell][m].y = limLm[iCell][m].y / tmp;
-				choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limPm[iCell][m], m);
+				choiseDirection(limNeigh[iCell][m][0], limNeigh[iCell][m][1], limAlfa[iCell][m][0], limAlfa[iCell][m][1], iCell, n0, n1, n2, limLm[iCell][m], m);
 				if (limAlfa[iCell][m][0]<0.0 || limAlfa[iCell][m][1]<0.0) log("ERROR!!!\n");
 			}
 			else {
@@ -452,8 +452,10 @@ void LimiterDGCockburn::choiseDirection(int& nn1, int& nn2, double& a1, double& 
 
 int LimiterDGCockburn::__getEdgeByCells(int c1, int c2)
 {
-	for (int iEdge = 0; iEdge < grid->eCount; iEdge++)
+	//for (int iEdge = 0; iEdge < grid->eCount; iEdge++)
+	for (int i = 0; i < 3; i++)
 	{
+		int iEdge = grid->cells[c1].edgesInd[i];
 		Edge &edge = grid->edges[iEdge];
 		if ((edge.c1 == c1 && edge.c2 == c2) || (edge.c1 == c2 && edge.c2 == c1)) return iEdge;
 		if ((edge.c1 == c1 && edge.c2 < 0) || (edge.c1 < 0 && edge.c2 == c1))	return iEdge; // если одна из ячеек граничная.
